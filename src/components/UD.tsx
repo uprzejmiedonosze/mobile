@@ -1,0 +1,111 @@
+import { Image, Pressable, Text, View, type ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ud } from '../theme';
+import type { BBox } from '../types';
+
+// Nagłówek jak na webie: ← wróć | logo UD | żółty Dalej.
+// paddingTop zawiera inset statusbara (zegar/bateria/kamera) – ten obszar jest
+// zarezerwowany przez system i nie wolno tam kłaść nawigacji.
+export function UdHeader({ title, onBack, onNext, nextLabel = 'Dalej' }: { title?: string; onBack?: () => void; onNext?: () => void; nextLabel?: string }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: insets.top + 12, paddingBottom: 12, backgroundColor: ud.surface, borderBottomWidth: 1, borderBottomColor: ud.hairline }}>
+      <Pressable onPress={onBack} hitSlop={12} style={{ minWidth: 70 }}>
+        <Text style={{ color: ud.primary, fontWeight: '700', fontSize: 16 }}>← wróć</Text>
+      </Pressable>
+      <Text style={{ color: ud.primary, fontWeight: '900', fontSize: 26, letterSpacing: 1 }}>{title ?? 'UD'}</Text>
+      {onNext ? (
+        <Pressable onPress={onNext} style={{ backgroundColor: ud.accent, borderRadius: ud.radiusPill, paddingHorizontal: 20, paddingVertical: 10 }}>
+          <Text style={{ color: ud.onAccent, fontWeight: '800', fontSize: 15 }}>{nextLabel}</Text>
+        </Pressable>
+      ) : (
+        <View style={{ minWidth: 70 }} />
+      )}
+    </View>
+  );
+}
+
+export function UdCard({ children }: React.PropsWithChildren) {
+  return (
+    <View style={{ backgroundColor: ud.surface, borderRadius: ud.radiusCard, padding: 16, marginVertical: 8, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 20, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
+      {children}
+    </View>
+  );
+}
+
+type BtnVariant = 'primary' | 'accent' | 'outline';
+export function UdButton({ title, onPress, variant = 'primary', disabled }: { title: string; onPress: () => void; variant?: BtnVariant; disabled?: boolean }) {
+  const styles: Record<BtnVariant, { bg: string; fg: string; border?: string }> = {
+    primary: { bg: ud.primary, fg: '#fff' },
+    accent: { bg: ud.accent, fg: ud.onAccent },
+    outline: { bg: ud.surface, fg: ud.primary, border: ud.primary },
+  };
+  const s = styles[variant];
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      style={{ backgroundColor: disabled ? ud.primaryOutline : s.bg, borderRadius: variant === 'primary' || variant === 'accent' ? ud.radiusPill : ud.radiusButton, paddingHorizontal: 20, paddingVertical: 13, alignItems: 'center', borderWidth: s.border ? 2 : 0, borderColor: s.border, opacity: disabled ? 0.6 : 1, marginVertical: 6 }}
+    >
+      <Text style={{ color: disabled ? ud.muted : s.fg, fontWeight: '800', fontSize: 15 }}>{title}</Text>
+    </Pressable>
+  );
+}
+
+// Zdjęcie w ramce jak na webie + nakładka bbox.
+// Kolory jak gen_propozycje.py: zielony = auto, czerwony lity = tablica zweryfikowana,
+// pomarańczowy przerywany = niezweryfikowana.
+export function UdPhoto({ uri, plateBox, vehicleBox, plateVerified, height = 200 }: { uri?: string; plateBox?: BBox | null; vehicleBox?: BBox | null; plateVerified?: boolean | null; height?: number }) {
+  const box = (b: BBox, color: string, dashed?: boolean): ViewStyle => ({
+    position: 'absolute',
+    left: `${(b.x / 1000) * 100}%`,
+    top: `${(b.y / 1000) * 100}%`,
+    width: `${(b.w / 1000) * 100}%` as ViewStyle['width'],
+    height: `${(b.h / 1000) * 100}%` as ViewStyle['height'],
+    borderWidth: 2,
+    borderColor: color,
+    borderStyle: dashed ? 'dashed' : 'solid',
+  });
+  if (!uri) {
+    return (
+      <View style={{ borderWidth: 2, borderStyle: 'dashed', borderColor: ud.primary, borderRadius: ud.radiusCard, height, alignItems: 'center', justifyContent: 'center', backgroundColor: ud.surface }}>
+        <Text style={{ color: ud.primary, fontWeight: '700', textAlign: 'center', paddingHorizontal: 24 }}>Dodaj zdjęcie z widocznym wykroczeniem.</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={{ borderWidth: 2, borderColor: ud.primary, borderRadius: ud.radiusCard, overflow: 'hidden', height, backgroundColor: ud.surfaceLow }}>
+      <View style={{ flex: 1 }}>
+        <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+        {vehicleBox ? <View style={box(vehicleBox, ud.primary)} /> : null}
+        {plateBox ? <View style={box(plateBox, plateVerified === false ? '#e07b00' : '#d32f2f', plateVerified === false)} /> : null}
+      </View>
+    </View>
+  );
+}
+
+const TABS = [
+  { key: 'Start', route: 'Picker', icon: '▲' },
+  { key: 'Nowe', route: 'Analyze', icon: '🚗' },
+  { key: 'Zgłoszenia', route: 'Proposals', icon: '🗂' },
+  { key: 'Konto', route: 'Account', icon: '👤' },
+];
+
+// Dolny pasek jak na webie; aktywna zakładka na zielono.
+// paddingBottom zawiera inset paska gestów – systemowy obszar, nie nawigacja apki.
+export function UdTabs({ current, navigate }: { current: string; navigate: (r: string) => void }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={{ flexDirection: 'row', backgroundColor: ud.surface, borderTopWidth: 1, borderTopColor: ud.hairline, paddingTop: 8, paddingBottom: Math.max(insets.bottom, 8) }}>
+      {TABS.map((t) => {
+        const active = t.route === current;
+        return (
+          <Pressable key={t.key} onPress={() => navigate(t.route)} style={{ flex: 1, alignItems: 'center', paddingVertical: 4 }}>
+            <Text style={{ fontSize: 18, color: active ? ud.primary : ud.muted }}>{t.icon}</Text>
+            <Text style={{ fontSize: 12, color: active ? ud.primary : ud.muted, fontWeight: active ? '800' : '400' }}>{t.key}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}

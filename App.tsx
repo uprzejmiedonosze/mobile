@@ -1,20 +1,64 @@
+import { useEffect, useState } from 'react';
+import { Text, View } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { PickerScreen } from './src/screens/PickerScreen';
+import { AnalyzeScreen } from './src/screens/AnalyzeScreen';
+import { PairingScreen } from './src/screens/PairingScreen';
+import { ProposalsScreen } from './src/screens/ProposalsScreen';
+import { AccountScreen } from './src/screens/AccountScreen';
 
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { installGlobalLogHandlers, log } from './src/lib/log';
+import { useAuth } from './src/store/useAuth';
+import { ud } from './src/theme';
+
+const Stack = createNativeStackNavigator();
+
+// Bramka: bez sesji apka pokazuje TYLKO logowanie (jak web wymaga loginu do zgłoszeń).
+// Po zalogowaniu App przełącza się na stos główny automatycznie (status w store).
 export default function App() {
+  const status = useAuth((s) => s.status);
+  const idToken = useAuth((s) => s.idToken);
+  const hydrate = useAuth((s) => s.hydrate);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    installGlobalLogHandlers();
+    log.info('app', 'start (dev mode): logi z telefonu lecą też do terminala Metro');
+    hydrate().finally(() => setReady(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const logged = status === 'logged' && !!idToken;
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
+    <SafeAreaProvider>
+    <ErrorBoundary>
+    <NavigationContainer>
       <StatusBar style="auto" />
-    </View>
+      {!ready ? (
+        <View style={{ flex: 1, backgroundColor: ud.surfaceLow, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: ud.primary, fontWeight: '900', fontSize: 30 }}>UD</Text>
+          <Text style={{ color: ud.muted, marginTop: 8 }}>sprawdzam sesję…</Text>
+        </View>
+      ) : logged ? (
+        <Stack.Navigator initialRouteName="Picker" screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Picker" component={PickerScreen} />
+          <Stack.Screen name="Analyze" component={AnalyzeScreen} />
+          <Stack.Screen name="Pairs" component={PairingScreen} />
+          <Stack.Screen name="Proposals" component={ProposalsScreen} />
+          <Stack.Screen name="Account" component={AccountScreen} />
+        </Stack.Navigator>
+      ) : (
+        <Stack.Navigator initialRouteName="Account" screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Account" component={AccountScreen} />
+        </Stack.Navigator>
+      )}
+    </NavigationContainer>
+    </ErrorBoundary>
+    </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

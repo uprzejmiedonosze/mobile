@@ -1,0 +1,21 @@
+// Tokeny marki UD (rd25) – wierne przepisanie z src/scss/lib/tokens.scss webu.
+export const ud = {
+  primary: '#0d7a55',
+  primaryDark: '#0a5c40',
+  primaryBright: '#12935f',
+  primaryContainer: '#e7f2ec',
+  primaryOutline: '#cfe6da',
+  accent: '#E2C439',
+  onAccent: '#16241d',
+  surface: '#ffffff',
+  surfaceLow: '#f5f8f5',
+  surfaceCream: '#eceae4',
+  text: '#16241d',
+  heading: '#0f2118',
+  muted: '#6b7871',
+  hairline: '#eeece6',
+  plateYellow: '#E2C439',
+  radiusPill: 999,
+  radiusButton: 14,
+  radiusCard: 18,
+} as const;
