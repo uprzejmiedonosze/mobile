@@ -1,12 +1,13 @@
-// Firebase Auth przez czyste REST (bez natywnych SDK – działa w Expo Go).
-// Ten sam projekt i provider co web:
-//  - projekt: src/js/lib/firebaseConfig.js (prod)
-//  - provider: EmailAuthProvider.EMAIL_LINK_SIGN_IN_METHOD (src/js/firebase.js doLogin)
-// Przepływ: sendEmailLink(email) -> user kopiuje oobCode z linku w mailu
-// (linku NIE klika – kod jest jednorazowy) -> signInWithCode(email, code).
+// Firebase Auth przez czyste REST (bez JS SDK – działa też bez dev-buildu, poza Google).
+// Ten sam projekt co web (src/js/lib/firebaseConfig.js), dwa providery:
+//  - email-link: EmailAuthProvider.EMAIL_LINK_SIGN_IN_METHOD (src/js/firebase.js doLogin).
+//    Przepływ: sendEmailLink(email) -> user kopiuje oobCode z linku w mailu
+//    (linku NIE klika – kod jest jednorazowy) -> signInWithCode(email, code).
+//  - Google: natywny @react-native-google-signin/google-signin (wymaga dev-build) daje token ID
+//    Google -> signInWithGoogleIdToken wymienia go na sesję Firebase (accounts:signInWithIdp).
 // Sesja: refreshToken w SecureStore, ID token (1h) odświeżany przez securetoken endpoint.
 import * as SecureStore from 'expo-secure-store';
-import { firebaseConfig } from '../config';
+import { firebaseConfig, udConfig } from '../config';
 import { log } from '../lib/log';
 
 const IDTK = 'https://identitytoolkit.googleapis.com/v1';
@@ -35,11 +36,14 @@ function fbFriendly(msg: string): string {
   if (/INVALID_OOB_CODE|EXPIRED_OOB_CODE/i.test(msg)) return 'Kod wygasł lub zużyty – wyślij link jeszcze raz (linku nie klikaj, tylko skopiuj kod).';
   if (/EMAIL_NOT_FOUND/i.test(msg)) return 'Najpierw wyślij link na ten adres (przycisk powyżej).';
   if (/UNAUTHORIZED_CONTINUE_URI|unauthorized/i.test(msg)) return 'Firebase odrzucił continueUrl – zgłoś do dev (whitelist w konsoli Firebase).';
+  if (/INVALID_IDP_RESPONSE/i.test(msg)) return 'Firebase odrzucił token Google – zgłoś do dev (zły webClientId albo SHA-1 klienta OAuth).';
   return msg.slice(0, 220);
 }
 
 // Krok 1 jak na webie: Firebase wysyła mail z linkiem (ten sam szablon co web).
-// continueUrl musi być na whiteliscie projektu (auth domain) – dlatego UD login page.
+// continueUrl to /login.html na hoście APLIKACJI (index.php:236), NIE authDomain –
+// authDomain to custom domain Firebase Auth, obsługuje tylko /__/auth/*. Musi być
+// na whiteliscie Authorized Domains projektu Firebase (konsola, poza repo).
 export async function sendEmailLink(email: string): Promise<void> {
   const clean = email.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new Error('Zły adres e-mail.');
@@ -50,7 +54,7 @@ export async function sendEmailLink(email: string): Promise<void> {
     body: JSON.stringify({
       requestType: 'EMAIL_SIGNIN',
       email: clean,
-      continueUrl: `https://${firebaseConfig.authDomain}/login.html?next=%2Fapp%2Flist`,
+      continueUrl: `${udConfig.base}/login.html?next=%2Fapp%2Flist`,
       canHandleCodeInApp: true,
     }),
   });
@@ -88,6 +92,39 @@ export async function signInWithCode(email: string, codeOrLink: string): Promise
   await SecureStore.setItemAsync(K_REFRESH, sess.refreshToken);
   await SecureStore.setItemAsync(K_EMAIL, clean);
   log.info('auth', `zalogowano ${clean}`);
+  return sess;
+}
+
+// Natywny Google Sign-In (@react-native-google-signin/google-signin) daje token ID Google;
+// wymieniamy go na sesję Firebase przez signInWithIdp – ten sam projekt Firebase co email-link,
+// tylko inny provider (AuthMiddleware w backendzie jest provider-agnostyczny, patrz CLAUDE.md).
+export async function signInWithGoogleIdToken(googleIdToken: string): Promise<FbSession> {
+  log.info('auth', 'wymieniam token Google na sesję Firebase…');
+  const res = await fetch(`${IDTK}/accounts:signInWithIdp?key=${firebaseConfig.apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      postBody: `id_token=${googleIdToken}&providerId=google.com`,
+      requestUri: udConfig.base,
+      returnSecureToken: true,
+      returnIdpCredential: true,
+    }),
+  });
+  if (!res.ok) {
+    log.error('auth', `signInWithIdp: HTTP ${res.status}`);
+    await fbErr(res);
+  }
+  const j = (await res.json()) as any;
+  const email = (j.email ?? '').trim().toLowerCase();
+  const sess: FbSession = {
+    idToken: j.idToken,
+    refreshToken: j.refreshToken,
+    expiresAt: Date.now() + Number(j.expiresIn ?? 3600) * 1000,
+    email,
+  };
+  await SecureStore.setItemAsync(K_REFRESH, sess.refreshToken);
+  await SecureStore.setItemAsync(K_EMAIL, email);
+  log.info('auth', `zalogowano przez Google: ${email}`);
   return sess;
 }
 

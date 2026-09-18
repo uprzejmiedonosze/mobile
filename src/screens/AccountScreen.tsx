@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../store/useAuth';
+import { udConfig, udEnv } from '../config';
 import { ud } from '../theme';
 import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
 
@@ -19,6 +20,9 @@ export function AccountScreen({ navigation }: any) {
           <Text style={{ color: ud.heading, fontWeight: '800', fontSize: 17 }}>Konto UD</Text>
           <Text style={{ color: ud.muted, marginTop: 4 }}>
             Logowanie tym samym mechanizmem co web: Firebase email-link (ten sam projekt i provider), potem Bearer do /api/rest/*.
+          </Text>
+          <Text style={{ color: ud.muted, marginTop: 4, fontWeight: '700' }}>
+            Środowisko: {udEnv} ({udConfig.base})
           </Text>
         </UdCard>
 
@@ -53,10 +57,20 @@ export function AccountScreen({ navigation }: any) {
           </UdCard>
         )}
 
-        <UdCard>
-          <Text style={{ color: ud.heading, fontWeight: '700' }}>Google / passkey</Text>
-          <Text style={{ color: ud.muted, marginTop: 4 }}>Google wymaga dopisania redirectu mobilnego w GCP albo dev-build z natywnym sign-in; passkey (WebAuthn) na mobile w kolejnym etapie. Email-link to ten sam Firebase co web.</Text>
-        </UdCard>
+        {!logged ? (
+          <UdCard>
+            <Text style={{ color: ud.heading, fontWeight: '700' }}>Google</Text>
+            <Text style={{ color: ud.muted, marginTop: 4 }}>
+              Szybsze logowanie – bez kopiowania kodu z maila. Passkey (WebAuthn) na mobile w kolejnym etapie.
+            </Text>
+            <UdButton
+              title={a.status === 'google-signing' ? 'Loguję…' : 'Zaloguj przez Google'}
+              variant="accent"
+              onPress={a.signInWithGoogle}
+              disabled={a.status === 'link-sending' || a.status === 'verifying' || a.status === 'google-signing'}
+            />
+          </UdCard>
+        ) : null}
       </ScrollView>
       {logged ? <UdTabs current="Account" navigate={go} /> : null}
     </View>
