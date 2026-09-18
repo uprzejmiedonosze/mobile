@@ -23,17 +23,19 @@ npm run typecheck
 Port `grupuj_sesje.py` / GROUPING.md w `src/lib/grouping.ts`: inwentaryzacja (EXIF, fallback `PXL_YYYYMMDD_HHMMSS` UTC→Warszawa, drop bez czasu) → sesje (przerwa 5 min, tylko czas) → klastry single-linkage (30 m LUB 30 s, most na skoki GPS) → manifest `R001…` (`needs_review` gdy <2 zdjęć lub brak GPS). Nad-scalanie zamierzone – późniejsza wizja dzieli po tablicy. Miniaturki 1600px robi krok wizji przed wysyłką do LLM.
 
 ## Logowanie (Konto)
-Ten sam mechanizm co web: Firebase email-link (projekt z `src/js/lib/firebaseConfig.js`, provider `EMAIL_LINK_SIGN_IN_METHOD`) + `POST /api/verify-token`, potem Bearer do `/api/rest/*` (geo, kategorie). Refresh token w SecureStore.
+Bramka aktywna: bez sesji apka pokazuje TYLKO ekran Konto (jak web wymaga loginu do zgłoszeń), po zalogowaniu przełącza się na stos główny (`App.tsx`). Ten sam mechanizm co web: Firebase email-link (`EMAIL_LINK_SIGN_IN_METHOD`) + `POST /api/verify-token`, potem Bearer do `/api/rest/*` (geo, kategorie). Refresh token w SecureStore.
+
+Domyślnie logowanie idzie wobec **stagingu** (`https://staging.uprzejmiedonosze.net`, osobny projekt Firebase/baza niż prod z `../uprzejmiedonosze`) – patrz `EXPO_PUBLIC_UD_ENV` niżej. Konto z produkcji **nie istnieje** na stagingu (osobna pula użytkowników); świeże konto Firebase bez wiersza w bazie stagingu dostanie 404/403 z `/api/rest/*` dopóki nie przejdzie rejestracji przez web/`PATCH /api/rest/user/`.
 
 ## Konfig (.env)
 Flow: Konto → e-mail → Wyślij link → skopiuj `oobCode` z maila (**linku nie klikaj**, kod jednorazowy) → Zaloguj. Bez zalogowania adresy/kategorie zwracają 403 i trzeba je wpisać ręcznie.
 Google/passkey: po stronie mobilnej w kolejnym etapie (whitelist redirectu / dev-build).
 ```bash
 cp .env.example .env   # .env jest w .gitignore, nie commituj klucza
-# uzupełnij EXPO_PUBLIC_OPENROUTER_KEY, reszta ma sensowne defaulty
+# uzupełnij EXPO_PUBLIC_OPENROUTER_KEY, reszta ma sensowne defaulty (staging)
 npm run start -- -c    # po zmianie .env restart z czyszczeniem cache
 ```
-Zmienne: `EXPO_PUBLIC_LLM_MODEL` (default `meta/muse-spark-1.3`), `EXPO_PUBLIC_LLM_BASE_URL`, `EXPO_PUBLIC_OPENROUTER_KEY` (tylko prefill UI, docelowo klucz na własnym proxy), `EXPO_PUBLIC_LLM_TIMEOUT_MS`, `EXPO_PUBLIC_LLM_MAX_TOKENS`, `EXPO_PUBLIC_PHOTO_MAX_WIDTH`, `EXPO_PUBLIC_PHOTO_COMPRESS`. Centralka w `src/config.ts`; UI pozwala nadpisać model/klucz bez rebuildu.
+Zmienne: `EXPO_PUBLIC_LLM_MODEL` (default `meta/muse-spark-1.3`), `EXPO_PUBLIC_LLM_BASE_URL`, `EXPO_PUBLIC_OPENROUTER_KEY` (tylko prefill UI, docelowo klucz na własnym proxy), `EXPO_PUBLIC_LLM_TIMEOUT_MS`, `EXPO_PUBLIC_LLM_MAX_TOKENS`, `EXPO_PUBLIC_PHOTO_MAX_WIDTH`, `EXPO_PUBLIC_PHOTO_COMPRESS`, `EXPO_PUBLIC_UD_ENV` (`staging` domyślnie, `prod` dla produkcji – przełącza razem backend UD i projekt Firebase). Centralka w `src/config.ts`; UI pozwala nadpisać model/klucz bez rebuildu.
 - Uprawnienie galerii nadawane w runtime; limit 20 wymuszany w `gallery.ts:MAX_PHOTOS`.
 
 ## Struktura
