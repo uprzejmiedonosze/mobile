@@ -114,6 +114,8 @@ export function PairingScreen({ navigation }: any) {
                     plateBox={toBBox(ph?.plate?.bbox)}
                     vehicleBox={toBBox(ph?.car?.bbox)}
                     plateVerified={ph?.plate_verified === true ? true : ph?.plate?.plate_check === 'unverified-box' ? false : null}
+                    naturalWidth={rec.photoDims?.[d.photoId]?.w}
+                    naturalHeight={rec.photoDims?.[d.photoId]?.h}
                     height={d.role === 'context' ? 170 : 130}
                   />
                   <Text style={{ color: ud.muted }}>

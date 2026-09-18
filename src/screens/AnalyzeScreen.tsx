@@ -13,14 +13,20 @@ import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
 
 type Row = { id: string; status: string };
 
-async function thumbB64(uri: string): Promise<string> {
+// Zwraca też width/height MINIATURY (nie oryginału) – to jest przestrzeń, w której backend
+// liczy bboxy (0..1000 względem WYSŁANEGO obrazu). Image.getSize(oryginał) w UdPhoto bywał
+// niezgodny z tą przestrzenią na zdjęciach z EXIF-orientacją (bufor sensora vs. wyświetlana
+// orientacja) – stąd boxy "kompletnie off" mimo poprawnej transformacji "cover". Przekazując
+// realne wymiary wysłanej miniatury dalej (PairingScreen -> UdPhoto), obie strony (model i
+// nakładka) patrzą na tę samą, jednoznaczną przestrzeń współrzędnych.
+async function thumb(uri: string): Promise<{ b64: string; width: number; height: number }> {
   const out = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: uploadConfig.photoMaxWidth } }], {
     compress: uploadConfig.photoCompress,
     format: ImageManipulator.SaveFormat.JPEG,
     base64: true,
   } as any);
   if (!out.base64) throw new Error('miniatura bez base64');
-  return out.base64;
+  return { b64: out.base64, width: out.width, height: out.height };
 }
 
 export function AnalyzeScreen({ navigation }: any) {
@@ -67,11 +73,14 @@ export function AnalyzeScreen({ navigation }: any) {
         }
         setRow('miniatury…');
         const items: VisionItem[] = [];
+        const photoDims: Record<string, { w: number; h: number }> = {};
         for (let k = 0; k < cand.photoIds.length; k++) {
           const pid = cand.photoIds[k];
           const uri = byId.get(pid)?.uri;
           if (!uri) throw new Error(`brak zdjęcia ${pid.slice(-8)}`);
-          items.push({ photo_index: k, photoId: pid, b64: await thumbB64(uri) });
+          const t = await thumb(uri);
+          items.push({ photo_index: k, photoId: pid, b64: t.b64 });
+          photoDims[pid] = { w: t.width, h: t.height };
         }
         setRow(`analiza (${items.length} zdj.)…`);
         const analyzed = await analyzeCandidate(cand.reportId, items, ctrl.signal);
@@ -85,6 +94,7 @@ export function AnalyzeScreen({ navigation }: any) {
         for (const sub of splitByPlate(cand.reportId, photoIds, analyzed)) {
           const rec = compose(sub.subId, sub.subPhotoIds, sub.subPhotos, catName);
           rec.cacheKey = cacheKeyFor(cand.reportId, cand.photoIds);
+          rec.photoDims = photoDims;
           if (sub.split) rec.splitFrom = cand.reportId;
           built.push(rec);
         }

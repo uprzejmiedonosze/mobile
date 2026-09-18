@@ -23,6 +23,10 @@ export type AnalysisRecord = {
   draftOrder: DraftItem[];
   schema: number;
   cacheKey: string;
+  // Wymiary MINIATURY wysłanej do backendu (nie oryginału!) per photoId – przestrzeń, w której
+  // model liczy bboxy. Ustawiane przez AnalyzeScreen po compose(); opcjonalne, bo starsze wpisy
+  // cache (przed tym polem) go nie mają – UdPhoto ma fallback na Image.getSize w takim wypadku.
+  photoDims?: Record<string, { w: number; h: number }>;
 };
 
 const CACHE_FILE = 'analysis.json';

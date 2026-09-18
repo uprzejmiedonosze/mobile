@@ -57,26 +57,46 @@ export function UdButton({ title, onPress, variant = 'primary', disabled }: { ti
 // Kolory jak gen_propozycje.py: zielony = auto, czerwony lity = tablica zweryfikowana,
 // pomarańczowy przerywany = niezweryfikowana.
 //
-// Boxy (plateBox/vehicleBox) są w 0..1000 względem CAŁEGO oryginalnego zdjęcia. Image ma
+// Boxy (plateBox/vehicleBox) są w 0..1000 względem MINIATURY wysłanej do backendu (nie
+// oryginału z aparatu!) – to jest przestrzeń, w której model liczył bboxy. Image ma
 // resizeMode="cover" (zachowuje proporcje, przycina nadmiar) – naiwne mapowanie procentowe na
-// kontener jest błędne zawsze, gdy proporcje zdjęcia różnią się od proporcji kontenera (typowe:
-// zdjęcie z telefonu 3:4/4:3/16:9 vs kontener o ustalonej wysokości i pełnej szerokości ekranu).
-// Trzeba znać naturalne wymiary zdjęcia (Image.getSize) i faktyczną szerokość kontenera
-// (onLayout), policzyć transformację "cover" (skala + przycięcie wycentrowane) i dopiero przez
-// nią przepuścić bbox – inaczej ramka ucieka względem realnej pozycji tablicy/auta na ekranie.
-export function UdPhoto({ uri, plateBox, vehicleBox, plateVerified, height = 200 }: { uri?: string; plateBox?: BBox | null; vehicleBox?: BBox | null; plateVerified?: boolean | null; height?: number }) {
+// kontener jest błędne zawsze, gdy proporcje różnią się od proporcji kontenera. Wołający
+// (PairingScreen) powinien podać naturalWidth/naturalHeight = wymiary WYSŁANEJ miniatury
+// (AnalyzeScreen zapisuje je w AnalysisRecord.photoDims) – to jednoznacznie zgadza się z
+// przestrzenią bboxów, w odróżnieniu od Image.getSize(oryginał), które na zdjęciach z
+// EXIF-orientacją bywa niezgodne z tym, co faktycznie poszło do modelu (bufor sensora vs.
+// wyświetlana orientacja) i dawało systematycznie "off" ramki. Image.getSize zostaje jako
+// fallback dla wywołań bez tych propsów (np. starszy wpis cache).
+export function UdPhoto({
+  uri,
+  plateBox,
+  vehicleBox,
+  plateVerified,
+  naturalWidth,
+  naturalHeight,
+  height = 200,
+}: {
+  uri?: string;
+  plateBox?: BBox | null;
+  vehicleBox?: BBox | null;
+  plateVerified?: boolean | null;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  height?: number;
+}) {
   const [containerW, setContainerW] = useState(0);
-  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  const [measured, setMeasured] = useState<{ w: number; h: number } | null>(null);
+  const natural = naturalWidth && naturalHeight ? { w: naturalWidth, h: naturalHeight } : measured;
 
   useEffect(() => {
-    setNatural(null);
-    if (!uri) return;
+    setMeasured(null);
+    if (!uri || (naturalWidth && naturalHeight)) return; // dims podane – nie zgaduj z oryginału
     Image.getSize(
       uri,
-      (w, h) => setNatural({ w, h }),
-      () => setNatural(null),
+      (w, h) => setMeasured({ w, h }),
+      () => setMeasured(null),
     );
-  }, [uri]);
+  }, [uri, naturalWidth, naturalHeight]);
 
   // Transformacja "cover": obraz skalowany tak, by wypełnić kontener, nadmiar wycentrowany
   // i przycięty. scale/offsetX/offsetY mapują piksele ORYGINAŁU na piksele KONTENERA.
