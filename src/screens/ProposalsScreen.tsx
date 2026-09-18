@@ -67,13 +67,13 @@ export function ProposalsScreen({ navigation }: any) {
               {item.sharedFrom ? <Text style={{ color: ud.muted }}>Kontekst pożyczony z {item.sharedFrom} (reguła B).</Text> : null}
               {item.markers?.length ? <Text style={{ color: ud.muted }}>Markery: {item.markers.join(', ')}</Text> : null}
               {item.reviewReasons?.map((r) => (
-                <Text key={r} style={{ color: '#a60' }}>• {r}</Text>
+                <Text key={r} style={{ color: ud.warning }}>• {r}</Text>
               ))}
               <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>Numer rejestracyjny</Text>
-              <TextInput value={item.plateId ?? ''} onChangeText={(t) => updateProposal(item.id, { plateId: t || null })} placeholder="np. ZS 060NH" autoCapitalize="characters" style={{ borderWidth: 2, borderColor: ud.primary, borderRadius: 10, padding: 10, marginTop: 6, fontFamily: 'monospace', fontWeight: '700' }} />
+              <TextInput value={item.plateId ?? ''} onChangeText={(t) => updateProposal(item.id, { plateId: t || null })} placeholder="np. ZS 060NH" autoCapitalize="characters" style={{ borderWidth: 2, borderColor: ud.primary, borderRadius: ud.radiusSm, padding: 10, marginTop: 6, fontFamily: 'monospace', fontWeight: '700' }} />
               <Text style={{ color: ud.muted, marginTop: 4 }}>{vehicleLine(item.vehicleInfo)}</Text>
               <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>Adres (z GPS, popraw)</Text>
-              <TextInput value={item.addressText} onChangeText={(t) => updateProposal(item.id, { addressText: t })} placeholder="ulica nr, miasto" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6 }} />
+              <TextInput value={item.addressText} onChangeText={(t) => updateProposal(item.id, { addressText: t })} placeholder="ulica nr, miasto" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusSm, padding: 10, marginTop: 6 }} />
               <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>Kategoria: {item.categoryId ?? '—'}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                 {cats.slice(0, 27).map((c) => {
@@ -89,7 +89,7 @@ export function ProposalsScreen({ navigation }: any) {
                 <Text style={{ color: ud.text }}>Byłem świadkiem parkowania</Text>
                 <Switch value={item.witness} onValueChange={(v) => updateProposal(item.id, { witness: v })} trackColor={{ true: ud.primary }} />
               </View>
-              <Text style={{ color: item.status === 'ready' ? ud.primary : '#a60', fontWeight: '700', marginTop: 6 }}>
+              <Text style={{ color: item.status === 'ready' ? ud.primary : ud.warning, fontWeight: '700', marginTop: 6 }}>
                 {item.status === 'ready' ? '● gotowe' : '● do poprawy'}
               </Text>
             </UdCard>

@@ -13,10 +13,10 @@ export function UdHeader({ title, onBack, onNext, nextLabel = 'Dalej' }: { title
       <Pressable onPress={onBack} hitSlop={12} style={{ minWidth: 70 }}>
         <Text style={{ color: ud.primary, fontWeight: '700', fontSize: 16 }}>← wróć</Text>
       </Pressable>
-      <Text style={{ color: ud.primary, fontWeight: '900', fontSize: 26, letterSpacing: 1 }}>{title ?? 'UD'}</Text>
+      <Text style={{ color: ud.primary, fontFamily: ud.fontDisplay, fontSize: 26, letterSpacing: 1 }}>{title ?? 'UD'}</Text>
       {onNext ? (
         <Pressable onPress={onNext} style={{ backgroundColor: ud.accent, borderRadius: ud.radiusPill, paddingHorizontal: 20, paddingVertical: 10 }}>
-          <Text style={{ color: ud.onAccent, fontWeight: '800', fontSize: 15 }}>{nextLabel}</Text>
+          <Text style={{ color: ud.onAccent, fontFamily: ud.fontDisplay, fontSize: 15 }}>{nextLabel}</Text>
         </Pressable>
       ) : (
         <View style={{ minWidth: 70 }} />
@@ -47,7 +47,7 @@ export function UdButton({ title, onPress, variant = 'primary', disabled }: { ti
       disabled={disabled}
       style={{ backgroundColor: disabled ? ud.primaryOutline : s.bg, borderRadius: variant === 'primary' || variant === 'accent' ? ud.radiusPill : ud.radiusButton, paddingHorizontal: 20, paddingVertical: 13, alignItems: 'center', borderWidth: s.border ? 2 : 0, borderColor: s.border, opacity: disabled ? 0.6 : 1, marginVertical: 6 }}
     >
-      <Text style={{ color: disabled ? ud.muted : s.fg, fontWeight: '800', fontSize: 15 }}>{title}</Text>
+      <Text style={{ color: disabled ? ud.muted : s.fg, fontFamily: ud.fontDisplay, fontSize: 15 }}>{title}</Text>
     </Pressable>
   );
 }
@@ -78,7 +78,7 @@ export function UdPhoto({ uri, plateBox, vehicleBox, plateVerified, height = 200
       <View style={{ flex: 1 }}>
         <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
         {vehicleBox ? <View style={box(vehicleBox, ud.primary)} /> : null}
-        {plateBox ? <View style={box(plateBox, plateVerified === false ? '#e07b00' : '#d32f2f', plateVerified === false)} /> : null}
+        {plateBox ? <View style={box(plateBox, plateVerified === false ? ud.plateUnverified : ud.plateVerified, plateVerified === false)} /> : null}
       </View>
     </View>
   );
@@ -102,7 +102,7 @@ export function UdTabs({ current, navigate }: { current: string; navigate: (r: s
         return (
           <Pressable key={t.key} onPress={() => navigate(t.route)} style={{ flex: 1, alignItems: 'center', paddingVertical: 4 }}>
             <Text style={{ fontSize: 18, color: active ? ud.primary : ud.muted }}>{t.icon}</Text>
-            <Text style={{ fontSize: 12, color: active ? ud.primary : ud.muted, fontWeight: active ? '800' : '400' }}>{t.key}</Text>
+            <Text style={{ fontSize: 12, color: active ? ud.primary : ud.muted, fontFamily: active ? ud.fontBodyBold : ud.fontBody }}>{t.key}</Text>
           </Pressable>
         );
       })}

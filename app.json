@@ -14,7 +14,7 @@
     "android": {
       "package": "net.uprzejmiedonosze.pro",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#e7f2ec",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -50,7 +50,8 @@
           "isAccessMediaLocationEnabled": true
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font"
     ],
     "extra": {
       "eas": {

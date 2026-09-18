@@ -99,7 +99,7 @@ export function PairingScreen({ navigation }: any) {
             </Text>
             {rec.sharedContext ? <Text style={{ color: ud.muted }}>+ kontekst z {rec.sharedContext.from}</Text> : null}
             {rec.reviewReasons.map((r) => (
-              <Text key={r} style={{ color: '#a60' }}>• {r}</Text>
+              <Text key={r} style={{ color: ud.warning }}>• {r}</Text>
             ))}
             {rec.draftOrder.map((d, k) => {
               const ph = rec.photos.find((p) => p.photoId === d.photoId);

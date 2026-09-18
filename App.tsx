@@ -4,6 +4,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useFonts, BricolageGrotesque_700Bold } from '@expo-google-fonts/bricolage-grotesque';
+import { PublicSans_400Regular, PublicSans_700Bold } from '@expo-google-fonts/public-sans';
 import { PickerScreen } from './src/screens/PickerScreen';
 import { AnalyzeScreen } from './src/screens/AnalyzeScreen';
 import { PairingScreen } from './src/screens/PairingScreen';
@@ -24,6 +26,7 @@ export default function App() {
   const idToken = useAuth((s) => s.idToken);
   const hydrate = useAuth((s) => s.hydrate);
   const [ready, setReady] = useState(false);
+  const [fontsLoaded] = useFonts({ BricolageGrotesque_700Bold, PublicSans_400Regular, PublicSans_700Bold });
 
   useEffect(() => {
     installGlobalLogHandlers();
@@ -39,7 +42,7 @@ export default function App() {
     <ErrorBoundary>
     <NavigationContainer>
       <StatusBar style="auto" />
-      {!ready ? (
+      {!fontsLoaded || !ready ? (
         <View style={{ flex: 1, backgroundColor: ud.surfaceLow, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: ud.primary, fontWeight: '900', fontSize: 30 }}>UD</Text>
           <Text style={{ color: ud.muted, marginTop: 8 }}>sprawdzam sesję…</Text>
