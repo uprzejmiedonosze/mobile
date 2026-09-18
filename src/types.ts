@@ -59,6 +59,28 @@ export type GeoAddress = {
 
 export type Category = { id: number; title: string; formal?: string; fine?: number };
 
+// Odpowiedź GET /api/rest/recydywa/{plateId} (patrz src/api/recydywa.ts).
+export type RecydywaEntry = {
+  date: string | null;
+  status: string;
+  statusLabel: string;
+  recipient: { name: string; shortName: string; isPolice: boolean };
+  isOwn: boolean; // tylko własne zgłoszenia mają reportId/number/caseNumber
+  categoryInfo?: { id: number; title: string; formal?: string; law?: string; fine?: number; demeritPoints?: number };
+  reportId?: string;
+  number?: string;
+  caseNumber?: string;
+};
+
+export type RecydywaInfo = {
+  plateId: string;
+  appsCnt: number;
+  usersCnt: number;
+  // poniżej progu (appsCnt<2 lub usersCnt<2) `reports` zawiera tylko własne zgłoszenia
+  sharedHistory: boolean;
+  reports: RecydywaEntry[];
+};
+
 export type ReportProposal = {
   id: string;
   pairId: string; // reportId rekordu analizy (np. R014-2)
@@ -73,6 +95,7 @@ export type ReportProposal = {
   addressText: string;
   addressObj: GeoAddress | null;
   vehicleInfo: VehicleInfo | null;
+  recydywa: RecydywaInfo | null;
   categoryId: number | null; // reguła deterministyczna (prefill, edytowalna)
   markers: string[];
   reviewReasons: string[];

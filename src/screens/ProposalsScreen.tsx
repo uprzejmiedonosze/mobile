@@ -72,6 +72,20 @@ export function ProposalsScreen({ navigation }: any) {
               <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>Numer rejestracyjny</Text>
               <TextInput value={item.plateId ?? ''} onChangeText={(t) => updateProposal(item.id, { plateId: t || null })} placeholder="np. ZS 060NH" autoCapitalize="characters" style={{ borderWidth: 2, borderColor: ud.primary, borderRadius: ud.radiusSm, padding: 10, marginTop: 6, fontFamily: 'monospace', fontWeight: '700' }} />
               <Text style={{ color: ud.muted, marginTop: 4 }}>{vehicleLine(item.vehicleInfo)}</Text>
+              {item.recydywa && item.recydywa.appsCnt > 0 ? (
+                <View style={{ backgroundColor: ud.primaryContainer, borderRadius: ud.radiusSm, padding: 10, marginTop: 6 }}>
+                  <Text style={{ color: ud.primary, fontWeight: '800' }}>
+                    ● recydywa: {item.recydywa.appsCnt} {item.recydywa.appsCnt === 1 ? 'zgłoszenie' : 'zgłoszeń'}
+                    {item.recydywa.usersCnt > 1 ? ` od ${item.recydywa.usersCnt} osób` : ''}
+                  </Text>
+                  {item.recydywa.reports.map((r, k) => (
+                    <Text key={k} style={{ color: ud.text, marginTop: 4 }}>
+                      {r.date ? new Date(r.date).toLocaleDateString('pl-PL') : '—'} · {r.statusLabel} · {r.recipient.shortName}
+                      {r.isOwn ? ' (Twoje)' : ''}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
               <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>Adres (z GPS, popraw)</Text>
               <TextInput value={item.addressText} onChangeText={(t) => updateProposal(item.id, { addressText: t })} placeholder="ulica nr, miasto" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusSm, padding: 10, marginTop: 6 }} />
               <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>Kategoria: {item.categoryId ?? '—'}</Text>

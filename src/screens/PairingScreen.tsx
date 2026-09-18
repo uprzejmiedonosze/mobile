@@ -1,6 +1,7 @@
 import { ScrollView, Text, View } from 'react-native';
 import { fetchVehicleInfo } from '../api/vehicle';
 import { reverseGeocode } from '../api/geo';
+import { fetchRecydywa } from '../api/recydywa';
 import { validIdToken } from '../api/udApi';
 import { normalizePlate } from '../lib/plate';
 import { log } from '../lib/log';
@@ -36,9 +37,11 @@ export function PairingScreen({ navigation }: any) {
         const ctxPhoto = byId.get(ctxItem?.photoId ?? '');
         const lat = carPhoto?.exif.lat ?? ctxPhoto?.exif.lat ?? null; // GPS zdjęcia AUTA, nie centroid
         const lng = carPhoto?.exif.lng ?? ctxPhoto?.exif.lng ?? null;
-        const [vehicleInfo, geo] = await Promise.all([
+        const plateId = normalizePlate(rec.plate);
+        const [vehicleInfo, geo, recydywa] = await Promise.all([
           fetchVehicleInfo(rec.plate),
           lat != null && lng != null ? reverseGeocode(lat, lng, token) : Promise.resolve(null),
+          plateId ? fetchRecydywa(plateId, token) : Promise.resolve(null),
         ]);
         const verified = rec.photos.find((p) => p.plate?.readable)?.plate_verified ?? null;
         return {
@@ -46,7 +49,7 @@ export function PairingScreen({ navigation }: any) {
           pairId: rec.reportId,
           contextPhotoId: ctxItem?.photoId ?? rec.photoIds[0],
           closeupPhotoId: carItem && carItem.photoId !== ctxItem?.photoId ? carItem.photoId : null,
-          plateId: normalizePlate(rec.plate),
+          plateId,
           plateKey: rec.plate,
           plateVerified: verified ? true : rec.photos.some((p) => p.plate?.plate_check === 'unverified-box') ? false : null,
           datetime: carPhoto?.exif.datetimeOriginal ?? ctxPhoto?.exif.datetimeOriginal ?? null,
@@ -55,6 +58,7 @@ export function PairingScreen({ navigation }: any) {
           addressText: geo?.display ?? '',
           addressObj: geo,
           vehicleInfo,
+          recydywa,
           categoryId: rec.categoryId,
           markers: rec.markers,
           reviewReasons: rec.reviewReasons,
