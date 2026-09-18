@@ -1,8 +1,11 @@
-// Faza ANALIZA-wizja: stałe, prompt, walidacja. Port ANALYSIS.md + analizuj_wizja.py.
-// LLM tylko rozpoznaje (role, auta, tablice, markery); grupowanie, walidacja,
-// split, kategorie i kolejność są deterministyczne (fazy 5, 7-11).
+// Stałe współdzielone z backendem UD (analiza wizyjna przeniesiona na serwer — patrz
+// ../../uprzejmiedonosze/src/inc/integrations/Vision.php + VisionSchema.php, ŹRÓDŁO PRAWDY dla
+// promptu/walidacji/normalizacji tablicy). Ten plik trzyma tylko to, co appka wciąż liczy sama:
+// deterministyczny ogon (grupowanie, split, kategorie — fazy 5, 7-11, patrz compose.ts) i typ
+// VisionPhoto jako lustro kontraktu odpowiedzi POST /api/rest/vision/candidate.
+// Każda zmiana promptu/markerów w Vision.php MUSI podbić SCHEMA tu i VISION_SCHEMA tam.
 
-export const SCHEMA = 5; // podbij przy zmianie compose/split/sharing; wymusza świeżą analizę
+export const SCHEMA = 5; // = VISION_SCHEMA w backendzie; appka gejtuje na tym cache analizy
 
 export const ROLES = ['context', 'car', 'third', 'unusable'] as const;
 export type Role = (typeof ROLES)[number];
@@ -50,14 +53,6 @@ export function ruleCategory(markers: string[]): number {
   return 0;
 }
 
-// Tablica w formie kluczowej (bez spacji, jak norm_plate): ^[A-Z0-9]{4,8}$ + litera i cyfra.
-export function normPlateKey(t: string | null | undefined): string | null {
-  const s = (t ?? '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-  if (!/^[A-Z0-9]{4,8}$/.test(s)) return null;
-  if (!/[A-Z]/.test(s) || !/[0-9]/.test(s)) return null;
-  return s;
-}
-
 export type Box4 = [number, number, number, number]; // x1,y1,x2,y2 w 0..1000
 
 export type VisionPhoto = {
@@ -72,70 +67,3 @@ export type VisionPhoto = {
   category_confidence?: number;
   plate_verified?: boolean;
 };
-
-export const VISION_PROMPT =
-  'You analyze N photos of one parked car (same report, chronological order). ' +
-  'Return a JSON object {"photos":[...]}, one entry per photo in input order, each:\n' +
-  '{"photo_index":i, "role":"context|car|third|unusable", "quality":0..1,\n' +
-  ' "car":{"present":bool, "bbox":[x1,y1,x2,y2]|null, "desc":str|null},\n' +
-  ' "plate":{"readable":bool, "text":str|null, "bbox":[x1,y1,x2,y2]|null},\n' +
-  ' "markers":[...], "suggested_category":int, "category_confidence":0..1}\n' +
-  'Roles: context = wide shot showing the violation setting (sign, crossing, stop, markings); ' +
-  'car = vehicle dominates the frame, plate potentially readable; ' +
-  'third = supplementary (second angle, sign close-up, extra evidence); ' +
-  'unusable = blurred/dark/no car. bboxes in 0..1000 relative coords of the whole image. ' +
-  'The plate bbox must tightly enclose the plate characters themselves, ' +
-  'not the bumper, grille or road around it. ' +
-  'markers only from: ' + MARKERS.join(',') + '. ' +
-  'suggested_category: best matching Polish parking-violation category id 0..26 ' +
-  '(2 bus stop, 3 intersection, 5 crosswalk, 13 disabled bay, 14 B-36 sign, 26 sidewalk). ' +
-  'Polish plates like ZS1234A. JSON only, no prose.';
-
-function validBox(b: any): b is Box4 {
-  return (
-    Array.isArray(b) && b.length === 4 &&
-    b.every((v) => typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 1000)
-  );
-}
-
-function plateInsideCar(carBox: Box4, plateBox: Box4): boolean {
-  const mx = (carBox[2] - carBox[0]) * 0.05;
-  const my = (carBox[3] - carBox[1]) * 0.05;
-  return (
-    plateBox[0] >= carBox[0] - mx && plateBox[1] >= carBox[1] - my &&
-    plateBox[2] <= carBox[2] + mx && plateBox[3] <= carBox[3] + my
-  );
-}
-
-// Faza 5: bramki walidacji (bez tokenów). Zwraca listę błędów; pusta = OK.
-export function validateVisionPhoto(p: any, idx: number): string[] {
-  const errs: string[] = [];
-  if (p?.photo_index !== idx) errs.push('zly photo_index');
-  if (!ROLES.includes(p?.role)) errs.push(`zly role=${p?.role}`);
-  const q = p?.quality;
-  if (typeof q !== 'number' || q < 0 || q > 1) errs.push('zly quality');
-  for (const key of ['car', 'plate'] as const) {
-    const b = p?.[key]?.bbox;
-    if (b != null && !validBox(b)) errs.push(`zly bbox ${key}`);
-  }
-  const mk: any[] = p?.markers ?? [];
-  if (mk.some((m) => !(MARKERS as readonly string[]).includes(m))) errs.push('nieznany marker');
-  const car = p?.car ?? {};
-  const plate = p?.plate ?? {};
-  if (plate.readable) {
-    if (!normPlateKey(plate.text)) errs.push(`nieczytelny format tablicy: ${plate.text}`);
-    const cb = car.bbox;
-    const pb = plate.bbox;
-    if (car.present && validBox(cb) && validBox(pb) && !plateInsideCar(cb, pb)) errs.push('tablica poza autem');
-  }
-  return errs;
-}
-
-// Normalizacja po walidacji: klucz tablicy bez spacji.
-export function normalizeVisionPhoto(p: VisionPhoto): void {
-  if (p.plate?.readable) {
-    const t = normPlateKey(p.plate.text);
-    p.plate.text = t;
-    if (!t) p.plate.readable = false;
-  }
-}

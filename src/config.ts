@@ -1,26 +1,19 @@
-// Scentralizowana konfiguracja LLM + zdjęć z pliku .env (EXPO_PUBLIC_*).
+// Scentralizowana konfiguracja z pliku .env (EXPO_PUBLIC_*).
 // Metro wczytuje .env przy starcie serwera – po zmianie `expo start -c`.
-// Klucz z .env służy tylko jako prefill UI (tymczasowo); docelowo klucz na własnym proxy.
 function num(v: string | undefined, fallback: number): number {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-export const llmConfig = {
-  model: process.env.EXPO_PUBLIC_LLM_MODEL || 'meta/muse-spark-1.3',
-  baseUrl: process.env.EXPO_PUBLIC_LLM_BASE_URL || 'https://openrouter.ai/api/v1/chat/completions',
-  apiKeyFromEnv: process.env.EXPO_PUBLIC_OPENROUTER_KEY || '',
-  timeoutMs: num(process.env.EXPO_PUBLIC_LLM_TIMEOUT_MS, 90_000),
-  maxTokens: num(process.env.EXPO_PUBLIC_LLM_MAX_TOKENS, 2000),
-  visionMaxTokens: num(process.env.EXPO_PUBLIC_VISION_MAX_TOKENS, 8000),
-  cropMaxTokens: num(process.env.EXPO_PUBLIC_CROP_MAX_TOKENS, 1000),
+// Rozmiar zdjęć wysyłanych do backendu UD (/api/rest/vision/candidate). To NIE jest konfiguracja
+// LLM – klucz, model i limity tokenów żyją tylko po stronie serwera (src/inc/config.php,
+// OPENAI_VISION_*), appka ich nie zna i nigdy nie widzi.
+export const uploadConfig = {
   photoMaxWidth: num(process.env.EXPO_PUBLIC_PHOTO_MAX_WIDTH, 1600),
   photoCompress: (() => {
     const n = Number(process.env.EXPO_PUBLIC_PHOTO_COMPRESS);
     return Number.isFinite(n) && n > 0 && n <= 1 ? n : 0.72;
   })(),
-  appReferer: process.env.EXPO_PUBLIC_APP_REFERER || 'https://uprzejmiedonosze-pro.local',
-  appTitle: process.env.EXPO_PUBLIC_APP_TITLE || 'UD Pro ALPR',
 } as const;
 
 // Środowisko backendu UD + Firebase – TO SĄ RÓŻNE PROJEKTY FIREBASE, więc przełączamy je

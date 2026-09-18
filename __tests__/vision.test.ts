@@ -1,6 +1,5 @@
-import { extractJson } from '../src/api/spark';
 import { attachSharedContext, buildDraftOrder, compose, splitByPlate } from '../src/lib/compose';
-import { normPlateKey, ruleCategory, validateVisionPhoto } from '../src/lib/vision';
+import { ruleCategory } from '../src/lib/vision';
 
 jest.mock('expo-file-system/legacy', () => ({
   documentDirectory: '/tmp/',
@@ -24,12 +23,10 @@ const vp = (over: any = {}) => ({
 });
 
 describe('vision (ANALYSIS.md)', () => {
-  it('normPlateKey jak norm_plate (spacje/pauzy out, litera+cyfra)', () => {
-    expect(normPlateKey('ZS 228FC')).toBe('ZS228FC');
-    expect(normPlateKey('zs-228-fc')).toBe('ZS228FC');
-    expect(normPlateKey('ABC')).toBeNull();
-    expect(normPlateKey('123456')).toBeNull(); // brak litery
-  });
+  // normPlateKey/validateVisionPhoto/extractJson przeniesione do backendu
+  // (uprzejmiedonosze/src/inc/integrations/VisionSchema.php) — pokryte tam
+  // przez tests/API/VisionTest.php. Tu zostaje tylko deterministyczny ogon
+  // (grupowanie/split/kompozycja/kategorie), który wciąż liczy appka.
 
   it('ruleCategory wg priorytetu (13 > 14 > 5 > 3 > 2 > 26)', () => {
     expect(ruleCategory(['disabled_bay', 'b36_sign'])).toBe(13);
@@ -37,13 +34,6 @@ describe('vision (ANALYSIS.md)', () => {
     expect(ruleCategory(['zebra_crossing', 'sidewalk_parking'])).toBe(5);
     expect(ruleCategory(['sidewalk_parking'])).toBe(26);
     expect(ruleCategory([])).toBe(0);
-  });
-
-  it('walidacja łapie tablicę poza autem i zły format', () => {
-    expect(validateVisionPhoto(vp(), 0)).toEqual([]);
-    expect(validateVisionPhoto(vp({ plate: { readable: true, text: '???', bbox: [400, 500, 600, 560] } }), 0).join(' ')).toMatch(/format/);
-    expect(validateVisionPhoto(vp({ plate: { readable: true, text: 'ZS228FC', bbox: [0, 0, 50, 50] } }), 0).join(' ')).toMatch(/poza autem/);
-    expect(validateVisionPhoto(vp({ photo_index: 5 }), 0).join(' ')).toMatch(/photo_index/);
   });
 
   it('splitByPlate dzieli R014 na 3 i dokleja bez-tablicowe do najbliższych', () => {
@@ -86,11 +76,5 @@ describe('vision (ANALYSIS.md)', () => {
     expect(noCtx.reviewReasons).not.toContain('brak zdjecia kontekstu');
     buildDraftOrder(noCtx);
     expect(noCtx.draftOrder[0]).toMatchObject({ role: 'context', sharedFrom: 'R003-1' });
-  });
-
-  it('extractJson ratuje JSON z prozą, wykrywa ucięcie', () => {
-    const { parsed } = extractJson('oto wynik: {"plateId":"ZS 060NH"} proszę');
-    expect(parsed).toEqual({ plateId: 'ZS 060NH' });
-    expect(extractJson('{"plateId":"ZS 228FC","plateBox":{"x":445,"y":').truncated).toBe(true);
   });
 });

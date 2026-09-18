@@ -22,11 +22,11 @@ npm test -- __tests__/grouping.test.ts   # run a single test file
 npm run typecheck        # tsc --noEmit
 ```
 
-Config lives in `.env` (gitignored, copy from `.env.example`). Key vars: `EXPO_PUBLIC_LLM_MODEL`,
-`EXPO_PUBLIC_LLM_BASE_URL`, `EXPO_PUBLIC_OPENROUTER_KEY` (UI prefill only), `EXPO_PUBLIC_LLM_TIMEOUT_MS`,
-`EXPO_PUBLIC_PHOTO_MAX_WIDTH`, `EXPO_PUBLIC_PHOTO_COMPRESS`. All resolved/defaulted centrally in
-`src/config.ts` (`llmConfig`, `udConfig`, `firebaseConfig`); the Analyze screen also lets the user
-override model/key at runtime without a rebuild. Restart with `-c` after any `.env` change.
+Config lives in `.env` (gitignored, copy from `.env.example`). Key vars: `EXPO_PUBLIC_PHOTO_MAX_WIDTH`,
+`EXPO_PUBLIC_PHOTO_COMPRESS` (photo downscale before upload — the only "LLM-adjacent" knobs the
+app still owns; the key, model and token limits live server-side, see `OPENAI_VISION_*` in
+`../uprzejmiedonosze/src/inc/config.php`). All resolved/defaulted centrally in `src/config.ts`
+(`uploadConfig`, `udConfig`, `firebaseConfig`). Restart with `-c` after any `.env` change.
 
 ## Architecture — the pipeline
 
@@ -44,17 +44,22 @@ Pipeline stages, in order:
    single-linkage clusters (link if ≤30m OR ≤30s, so GPS jumps get bridged by time) → manifest
    entries `R001…` (`needs_review` when <2 photos or missing GPS). This intentionally
    over-merges — the vision stage below splits by license plate.
-3. **Vision analysis** (`src/lib/vision.ts`, `src/api/vision.ts`, ANALYSIS.md) — one LLM call per
-   candidate (role: context/car/third/unusable, arrays, markers, bbox in 0–1000 space), gated by
-   in-code validation, then a crop-based bbox re-verification against the original image
-   (car bbox +10%). Splits a cluster by plate (`R014` → `R014-1/2/3`), composes 2–3 photos
-   (`src/lib/compose.ts`), and allows "borrowed context" between siblings (rule B). Report
-   category comes from a deterministic marker rule — the model only advises. Results are cached
-   to `analysis.json` per the documented SCHEMA. Verification color coding: green = auto,
-   red = plate verified via crop, dashed orange = unconfirmed.
+3. **Vision analysis** (`src/api/vision.ts`, `src/lib/vision.ts`, ANALYSIS.md) — one REST call per
+   candidate to the UD backend (`POST /api/rest/vision/candidate`; see
+   `../uprzejmiedonosze/src/inc/integrations/Vision.php` + `VisionSchema.php`, the source of truth
+   for the prompt/validation/normalization — the app no longer has a local copy). The server does
+   the LLM call (role: context/car/third/unusable, markers, bbox in 0–1000 space), validation, a
+   retry-crop for unreadable plates, and a bbox re-verification, all internally, and returns the
+   final `photos[]`. Splits a cluster by plate (`R014` → `R014-1/2/3`), composes 2–3 photos
+   (`src/lib/compose.ts`), and allows "borrowed context" between siblings (rule B) — this
+   deterministic tail is the only part still run client-side. Report category comes from a
+   deterministic marker rule (`ruleCategory` in `src/lib/vision.ts`) — the model only advises.
+   Results are cached to `analysis.json` per the documented SCHEMA, which must match the
+   backend's `VISION_SCHEMA`. Verification color coding: green = auto, red = plate verified via
+   crop, dashed orange = unconfirmed.
 4. **Pairing** (`src/lib/pairing.ts`) — turns `draft_order` from the vision stage into
    context+closeup `PhotoPair`s; GPS for a pair comes from the car photo, not a cluster centroid.
-5. **Vehicle/proposals** (`src/api/vehicle.ts`, `src/api/geo.ts`, `src/api/alpr.ts`,
+5. **Vehicle/proposals** (`src/api/vehicle.ts`, `src/api/geo.ts`, `src/api/recydywa.ts`,
    `src/screens/ProposalsScreen.tsx`) — enrich with vehicle info
    (`GET https://parkowanie.zbiorkom.live/{PLATE}`, no auth, non-fatal), reverse-geocode via
    `GET /api/rest/geo/{lat},{lng}/n` (editable), category list via `GET /api/rest/config/categories`,

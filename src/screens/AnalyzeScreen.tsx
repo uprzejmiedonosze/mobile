@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { llmConfig } from '../config';
+import { uploadConfig } from '../config';
 import { log } from '../lib/log';
 import { attachSharedContext, buildDraftOrder, cacheKeyFor, compose, loadAnalysisCache, saveAnalysisCache, splitByPlate, type AnalysisRecord } from '../lib/compose';
-import { SCHEMA, type VisionPhoto } from '../lib/vision';
-import { analyzeCandidate, retryPlateCrop, verifyPlateBox, type VisionItem } from '../api/vision';
+import { SCHEMA } from '../lib/vision';
+import { analyzeCandidate, type VisionItem } from '../api/vision';
 import { useSession } from '../store/useSession';
 import { ud } from '../theme';
 import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
@@ -13,8 +13,8 @@ import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
 type Row = { id: string; status: string };
 
 async function thumbB64(uri: string): Promise<string> {
-  const out = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: llmConfig.photoMaxWidth } }], {
-    compress: llmConfig.photoCompress,
+  const out = await ImageManipulator.manipulateAsync(uri, [{ resize: { width: uploadConfig.photoMaxWidth } }], {
+    compress: uploadConfig.photoCompress,
     format: ImageManipulator.SaveFormat.JPEG,
     base64: true,
   } as any);
@@ -23,7 +23,7 @@ async function thumbB64(uri: string): Promise<string> {
 }
 
 export function AnalyzeScreen({ navigation }: any) {
-  const { photos, candidates, setAnalysis, sparkKey, sparkModel, setSparkKey, setSparkModel } = useSession();
+  const { photos, candidates, setAnalysis } = useSession();
   const [done, setDone] = useState(0);
   const [busy, setBusy] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
@@ -33,14 +33,7 @@ export function AnalyzeScreen({ navigation }: any) {
   const byId = new Map(photos.map((p) => [p.id, p]));
 
   const run = async () => {
-    if (!sparkKey.trim()) {
-      const m = 'Wklej klucz OpenRouter (sk-or-v1-…). Bez niego wizja nie ruszy.';
-      setErr(m);
-      log.error('wizja', m);
-      return;
-    }
-    const model = sparkModel || llmConfig.model;
-    log.info('wizja', `start: ${candidates.length} kandydatów, model=${model}`);
+    log.info('wizja', `start: ${candidates.length} kandydatów (backend UD)`);
     setBusy(true);
     setErr(null);
     setDone(0);
@@ -73,37 +66,13 @@ export function AnalyzeScreen({ navigation }: any) {
           const pid = cand.photoIds[k];
           const uri = byId.get(pid)?.uri;
           if (!uri) throw new Error(`brak zdjęcia ${pid.slice(-8)}`);
-          items.push({ photo_index: k, photoId: pid, uri, thumbB64: await thumbB64(uri) });
+          items.push({ photo_index: k, photoId: pid, b64: await thumbB64(uri) });
         }
-        setRow(`wizja (${items.length} zdj.)…`);
-        const analyzed = await analyzeCandidate(sparkKey, model, items, ctrl.signal);
+        setRow(`analiza (${items.length} zdj.)…`);
+        const analyzed = await analyzeCandidate(cand.reportId, items, ctrl.signal);
         for (const p of analyzed) {
-          const it = items.find((i) => i.photo_index === p.photo_index)!;
-          p.photoId = it.photoId;
-        }
-        // retry: auto bez czytelnej tablicy (q >= 0.3) – crop z oryginału
-        for (const p of analyzed) {
-          if (p.role === 'car' && !p.plate?.readable && (p.quality ?? 0) >= 0.3) {
-            const it = items.find((i) => i.photo_index === p.photo_index)!;
-            const text = await retryPlateCrop(sparkKey, model, it, p, ctrl.signal);
-            if (text) {
-              p.plate = { readable: true, text, bbox: null, from_crop: true };
-              log.info('wizja', `${cand.reportId} zdj.${p.photo_index}: tablica z cropa: ${text}`);
-            }
-          }
-        }
-        // weryfikacja bbox cropem (zawsze po świeżej analizie)
-        for (const p of analyzed) {
-          const it = items.find((i) => i.photo_index === p.photo_index)!;
-          const { status, bbox } = await verifyPlateBox(sparkKey, model, it, p, ctrl.signal);
-          if (status === 'ok' && bbox) {
-            p.plate.bbox = bbox as any;
-            p.plate_verified = true;
-            log.info('wizja', `${cand.reportId} zdj.${p.photo_index}: bbox zweryfikowany`);
-          } else if (status === 'mismatch') {
-            p.plate.plate_check = 'unverified-box';
-            log.warn('wizja', `${cand.reportId} zdj.${p.photo_index}: pozycja tablicy niepotwierdzona`);
-          }
+          // belt-and-braces: backend już echouje photoId, ale gdyby nie – dociągamy po indeksie.
+          if (!p.photoId) p.photoId = items.find((i) => i.photo_index === p.photo_index)?.photoId ?? '';
         }
         // split + compose + shared context + draft order
         const photoIds = analyzed.map((p) => p.photoId);
@@ -149,13 +118,7 @@ export function AnalyzeScreen({ navigation }: any) {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
         <UdCard>
           <Text style={{ color: ud.heading, fontWeight: '800', fontSize: 17 }}>Wizja: {candidates.length} kandydatów ({done}/{candidates.length}).</Text>
-          <Text style={{ color: ud.muted, marginTop: 4 }}>1 call na kandydata (role, tablice, markery) + crop-weryfikacja + split po tablicy. Kategorie liczy kod, nie model.</Text>
-        </UdCard>
-        <UdCard>
-          <Text style={{ color: ud.heading, fontWeight: '700' }}>Model (z .env)</Text>
-          <TextInput value={sparkModel} onChangeText={setSparkModel} placeholder={llmConfig.model} autoCapitalize="none" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6 }} />
-          <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>Klucz OpenRouter</Text>
-          <TextInput value={sparkKey} onChangeText={setSparkKey} placeholder="sk-or-v1-…" autoCapitalize="none" secureTextEntry style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6 }} />
+          <Text style={{ color: ud.muted, marginTop: 4 }}>Analiza po stronie serwera UD (1 żądanie na kandydata: role, tablice, markery, weryfikacja bbox). Kategorie liczy kod, nie model.</Text>
         </UdCard>
         {err ? (
           <UdCard>
