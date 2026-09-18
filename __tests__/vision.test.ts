@@ -62,7 +62,7 @@ describe('vision (ANALYSIS.md)', () => {
     const rec = compose('R001', ['a', 'b'], [ctx, vp({ photo_index: 1, photoId: 'b' })]); // oba sugerują 26
     expect(rec.categoryId).toBe(5); // reguła: zebra > sidewalk
     expect(rec.needsReview).toBe(true);
-    expect(rec.reviewReasons.join(' ')).toMatch(/model sugeruje kat. 26/);
+    expect(rec.reviewReasons.join(' ')).toMatch(/kategoria: kat\. 26 \(model\), kat\. 5 \(reguła\)/);
   });
 
   it('shared context pożycza rodzeństwu i czyści powód', () => {

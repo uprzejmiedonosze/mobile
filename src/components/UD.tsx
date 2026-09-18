@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Image, Pressable, Text, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ud } from '../theme';
@@ -55,17 +56,59 @@ export function UdButton({ title, onPress, variant = 'primary', disabled }: { ti
 // Zdjęcie w ramce jak na webie + nakładka bbox.
 // Kolory jak gen_propozycje.py: zielony = auto, czerwony lity = tablica zweryfikowana,
 // pomarańczowy przerywany = niezweryfikowana.
+//
+// Boxy (plateBox/vehicleBox) są w 0..1000 względem CAŁEGO oryginalnego zdjęcia. Image ma
+// resizeMode="cover" (zachowuje proporcje, przycina nadmiar) – naiwne mapowanie procentowe na
+// kontener jest błędne zawsze, gdy proporcje zdjęcia różnią się od proporcji kontenera (typowe:
+// zdjęcie z telefonu 3:4/4:3/16:9 vs kontener o ustalonej wysokości i pełnej szerokości ekranu).
+// Trzeba znać naturalne wymiary zdjęcia (Image.getSize) i faktyczną szerokość kontenera
+// (onLayout), policzyć transformację "cover" (skala + przycięcie wycentrowane) i dopiero przez
+// nią przepuścić bbox – inaczej ramka ucieka względem realnej pozycji tablicy/auta na ekranie.
 export function UdPhoto({ uri, plateBox, vehicleBox, plateVerified, height = 200 }: { uri?: string; plateBox?: BBox | null; vehicleBox?: BBox | null; plateVerified?: boolean | null; height?: number }) {
-  const box = (b: BBox, color: string, dashed?: boolean): ViewStyle => ({
-    position: 'absolute',
-    left: `${(b.x / 1000) * 100}%`,
-    top: `${(b.y / 1000) * 100}%`,
-    width: `${(b.w / 1000) * 100}%` as ViewStyle['width'],
-    height: `${(b.h / 1000) * 100}%` as ViewStyle['height'],
-    borderWidth: 2,
-    borderColor: color,
-    borderStyle: dashed ? 'dashed' : 'solid',
-  });
+  const [containerW, setContainerW] = useState(0);
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+
+  useEffect(() => {
+    setNatural(null);
+    if (!uri) return;
+    Image.getSize(
+      uri,
+      (w, h) => setNatural({ w, h }),
+      () => setNatural(null),
+    );
+  }, [uri]);
+
+  // Transformacja "cover": obraz skalowany tak, by wypełnić kontener, nadmiar wycentrowany
+  // i przycięty. scale/offsetX/offsetY mapują piksele ORYGINAŁU na piksele KONTENERA.
+  let scale = 0;
+  let offsetX = 0;
+  let offsetY = 0;
+  if (natural && containerW > 0 && height > 0) {
+    scale = Math.max(containerW / natural.w, height / natural.h);
+    offsetX = (natural.w * scale - containerW) / 2;
+    offsetY = (natural.h * scale - height) / 2;
+  }
+
+  const box = (b: BBox, color: string, dashed?: boolean): ViewStyle | null => {
+    if (!scale) return null; // wymiary jeszcze nieznane – nie rysuj krzywej ramki
+    const px = (b.x / 1000) * natural!.w;
+    const py = (b.y / 1000) * natural!.h;
+    const pw = (b.w / 1000) * natural!.w;
+    const ph = (b.h / 1000) * natural!.h;
+    const left = px * scale - offsetX;
+    const top = py * scale - offsetY;
+    return {
+      position: 'absolute',
+      left,
+      top,
+      width: pw * scale,
+      height: ph * scale,
+      borderWidth: 2,
+      borderColor: color,
+      borderStyle: dashed ? 'dashed' : 'solid',
+    };
+  };
+
   if (!uri) {
     return (
       <View style={{ borderWidth: 2, borderStyle: 'dashed', borderColor: ud.primary, borderRadius: ud.radiusCard, height, alignItems: 'center', justifyContent: 'center', backgroundColor: ud.surface }}>
@@ -73,12 +116,17 @@ export function UdPhoto({ uri, plateBox, vehicleBox, plateVerified, height = 200
       </View>
     );
   }
+  const vBoxStyle = vehicleBox ? box(vehicleBox, ud.primary) : null;
+  const pBoxStyle = plateBox ? box(plateBox, plateVerified === false ? ud.plateUnverified : ud.plateVerified, plateVerified === false) : null;
   return (
-    <View style={{ borderWidth: 2, borderColor: ud.primary, borderRadius: ud.radiusCard, overflow: 'hidden', height, backgroundColor: ud.surfaceLow }}>
+    <View
+      style={{ borderWidth: 2, borderColor: ud.primary, borderRadius: ud.radiusCard, overflow: 'hidden', height, backgroundColor: ud.surfaceLow }}
+      onLayout={(e) => setContainerW(e.nativeEvent.layout.width)}
+    >
       <View style={{ flex: 1 }}>
         <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-        {vehicleBox ? <View style={box(vehicleBox, ud.primary)} /> : null}
-        {plateBox ? <View style={box(plateBox, plateVerified === false ? ud.plateUnverified : ud.plateVerified, plateVerified === false)} /> : null}
+        {vBoxStyle ? <View style={vBoxStyle} /> : null}
+        {pBoxStyle ? <View style={pBoxStyle} /> : null}
       </View>
     </View>
   );

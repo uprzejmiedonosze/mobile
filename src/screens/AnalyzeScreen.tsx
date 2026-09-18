@@ -6,6 +6,7 @@ import { log } from '../lib/log';
 import { attachSharedContext, buildDraftOrder, cacheKeyFor, compose, loadAnalysisCache, saveAnalysisCache, splitByPlate, type AnalysisRecord } from '../lib/compose';
 import { SCHEMA } from '../lib/vision';
 import { analyzeCandidate, type VisionItem } from '../api/vision';
+import { fetchCategories } from '../api/geo';
 import { useSession } from '../store/useSession';
 import { ud } from '../theme';
 import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
@@ -41,6 +42,10 @@ export function AnalyzeScreen({ navigation }: any) {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     const cache = await loadAnalysisCache();
+    // /api/rest/config/categories jest publiczny (bez auth) – do nazw w komunikatach review.
+    const cats = await fetchCategories();
+    const catNames = new Map(cats.map((c) => [c.id, c.title]));
+    const catName = (id: number) => catNames.get(id) ?? `kat. ${id}`;
     const all: AnalysisRecord[] = [];
     let cacheDirty = false;
 
@@ -78,7 +83,7 @@ export function AnalyzeScreen({ navigation }: any) {
         const photoIds = analyzed.map((p) => p.photoId);
         const built: AnalysisRecord[] = [];
         for (const sub of splitByPlate(cand.reportId, photoIds, analyzed)) {
-          const rec = compose(sub.subId, sub.subPhotoIds, sub.subPhotos);
+          const rec = compose(sub.subId, sub.subPhotoIds, sub.subPhotos, catName);
           rec.cacheKey = cacheKeyFor(cand.reportId, cand.photoIds);
           if (sub.split) rec.splitFrom = cand.reportId;
           built.push(rec);

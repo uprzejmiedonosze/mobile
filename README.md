@@ -8,7 +8,7 @@ Cross-platform, testowane najpierw na Androidzie przez Expo Go.
 3. Etap 2 – wizja (ANALYSIS.md): 1 request na kandydata do backendu UD (`POST /api/rest/vision/candidate`, patrz `../uprzejmiedonosze/src/inc/integrations/Vision.php`) – rozpoznanie roli/tablicy/markerów, retry-crop nieczytelnej tablicy i weryfikacja bbox dzieją się po stronie serwera (klucz i model LLM appka nie zna, limit per użytkownik). Po stronie appki zostaje tylko deterministyczny ogon: bramki walidacji już zrobione przez backend, split po tablicy (R014→R014-1/2/3), kompozycja 2-3 zdjęć, pożyczony kontekst (reguła B), kategoria z deterministycznej reguły markerów (model tylko doradza). Cache `analysis.json` + SCHEMA. Kolory: zielony=auto, czerwony=tablica zweryfikowana, pomarańczowy przerywany=niepotwierdzona.
 4. Grupowanie w pary kontekst + zbliżenie (draft_order z etapu 2; GPS brane ze zdjęcia auta, nie z centroidu)
 5. Info o pojeździe: `GET https://parkowanie.zbiorkom.live/{PLATE}` (bez auth, non-fatal)
-6. Lista propozycji: podgląd pary, edycja tablicy, adres z `GET /api/rest/geo/{lat},{lng}/n` + ręczna poprawka, select kategorii z `GET /api/rest/config/categories`, świadek. Eksport JSON. KONIEC – brak `POST /api/rest/app/*`, brak `create_report_draft`.
+6. Lista propozycji: podgląd pary, edycja tablicy, adres z `GET /api/rest/geo/{lat},{lng}/n` + ręczna poprawka, select kategorii z `GET /api/config/categories.json` (statyczny, publiczny), świadek. Eksport JSON. KONIEC – brak `POST /api/rest/app/*`, brak `create_report_draft`.
 
 ## Uruchomienie na Androidzie
 ```bash

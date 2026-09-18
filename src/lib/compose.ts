@@ -76,7 +76,14 @@ export function splitByPlate(
 }
 
 // Faza 8: kompozycja (2-3 zdjęcia) + bramki. Zwraca rekord bez draftOrder/shared.
-export function compose(subId: string, subPhotoIds: string[], subPhotos: VisionPhoto[]): AnalysisRecord {
+// catName: nazwa kategorii do komunikatu review (domyślnie "kat. N", gdy lista kategorii
+// jeszcze nie jest znana – patrz AnalyzeScreen, gdzie pobierana jest raz przed pętlą kandydatów).
+export function compose(
+  subId: string,
+  subPhotoIds: string[],
+  subPhotos: VisionPhoto[],
+  catName: (id: number) => string = (id) => `kat. ${id}`,
+): AnalysisRecord {
   const reasons: string[] = [];
   const plates = subPhotos.filter((p) => p.plate?.readable).map((p) => p.plate.text as string);
   const plate = plates[0] ?? null;
@@ -116,7 +123,7 @@ export function compose(subId: string, subPhotoIds: string[], subPhotos: VisionP
   const sugs = selected.map((i) => subPhotos[i].suggested_category).filter((s): s is number => typeof s === 'number');
   const sugCid = sugs.length ? [...new Set(sugs)].sort((a, b) => sugs.filter((s) => s === b).length - sugs.filter((s) => s === a).length)[0] : null;
   const conf = Math.max(0, ...selected.map((i) => subPhotos[i].category_confidence ?? 0));
-  if (sugCid != null && sugCid !== ruleCid) reasons.push(`model sugeruje kat. ${sugCid}, regula daje ${ruleCid}`);
+  if (sugCid != null && sugCid !== ruleCid) reasons.push(`kategoria: ${catName(sugCid)} (model), ${catName(ruleCid)} (reguła)`);
   if (ruleCid === 0) reasons.push('brak markera kategorii');
   if (selected.some((i) => subPhotos[i].plate?.plate_check === 'unverified-box')) reasons.push('pozycja tablicy niepotwierdzona');
 

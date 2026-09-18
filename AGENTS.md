@@ -62,7 +62,8 @@ Pipeline stages, in order:
 5. **Vehicle/proposals** (`src/api/vehicle.ts`, `src/api/geo.ts`, `src/api/recydywa.ts`,
    `src/screens/ProposalsScreen.tsx`) — enrich with vehicle info
    (`GET https://parkowanie.zbiorkom.live/{PLATE}`, no auth, non-fatal), reverse-geocode via
-   `GET /api/rest/geo/{lat},{lng}/n` (editable), category list via `GET /api/rest/config/categories`,
+   `GET /api/rest/geo/{lat},{lng}/n` (editable), category list via the static, public
+   `GET /api/config/categories.json`,
    let the user edit plate/address/category/witness, then export JSON. This is the terminal step.
 
 ## Auth
