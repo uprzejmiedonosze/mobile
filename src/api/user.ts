@@ -2,6 +2,7 @@
 // isRegistered() (../uprzejmiedonosze/src/inc/dataclasses/User.php) = name && address niepuste.
 // isTermsConfirmed = termsConfirmation > LATEST_TERMS_UPDATE.
 import { udConfig } from '../config';
+import { logFetch } from '../lib/log';
 import { authFetch } from './udApi';
 
 export type TermsDoc = { terms: unknown[]; updated: string };
@@ -24,7 +25,7 @@ export async function updateUserProfile(name: string, address: string): Promise<
 
 // Publiczne (bez auth) – config group w rest/index.php nie ma middleware.
 export async function fetchTerms(): Promise<TermsDoc> {
-  const res = await fetch(`${udConfig.base}/api/rest/config/terms`);
+  const res = await logFetch('user', `${udConfig.base}/api/rest/config/terms`);
   if (!res.ok) throw new Error(`Nie udało się pobrać regulaminu (HTTP ${res.status}).`);
   return res.json();
 }

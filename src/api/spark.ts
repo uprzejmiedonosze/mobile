@@ -3,7 +3,7 @@
 // Docelowo przenieść klucz na własne proxy (jak w planie), żeby nie siedzieć w APK.
 import type { LlmAlprResponse } from './alpr';
 import { llmConfig } from '../config';
-import { log } from '../lib/log';
+import { log, logFetch } from '../lib/log';
 
 export const SPARK_DEFAULT_MODEL = llmConfig.model;
 const OPENROUTER_URL = llmConfig.baseUrl;
@@ -77,7 +77,7 @@ export async function analyzeWithSpark(
   const modelName = model.trim() || llmConfig.model;
   log.info('llm', `POST ${modelName} (b64 ${Math.round(photoBase64.length / 1024)} kB)`);
   const t0 = Date.now();
-  const res = await fetch(OPENROUTER_URL, {
+  const res = await logFetch('llm', OPENROUTER_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

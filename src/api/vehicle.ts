@@ -1,5 +1,5 @@
 import type { VehicleInfo } from '../types';
-import { log } from '../lib/log';
+import { log, logFetch } from '../lib/log';
 
 // Zweryfikowane: GET https://parkowanie.zbiorkom.live/WE2W116 zwraca JSON bez auth.
 // Odpowiedź: {brand, model, productionYear, fuelTypeName, vehicleTypeName, ...}
@@ -9,8 +9,7 @@ export async function fetchVehicleInfo(plateId: string | null, timeoutMs = 8000)
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    log.debug('pojazd', `GET zbiorkom.live/${key}`);
-    const res = await fetch(`https://parkowanie.zbiorkom.live/${encodeURIComponent(key)}`, { signal: ctrl.signal });
+    const res = await logFetch('pojazd', `https://parkowanie.zbiorkom.live/${encodeURIComponent(key)}`, { signal: ctrl.signal });
     if (!res.ok) {
       log.warn('pojazd', `${key}: HTTP ${res.status} – pomijam (non-fatal)`);
       return null;

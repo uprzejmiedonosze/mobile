@@ -5,7 +5,7 @@
 import { Image } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { llmConfig } from '../config';
-import { log } from '../lib/log';
+import { log, logFetch } from '../lib/log';
 import { extractJson } from './spark';
 import { VISION_PROMPT, normalizeVisionPhoto, normPlateKey, validateVisionPhoto, type Box4, type VisionPhoto } from '../lib/vision';
 
@@ -34,7 +34,7 @@ async function chat(
   let lastErr: Error = new NetworkError('nieznany blad sieci');
   for (let attempt = 0; attempt < tries; attempt++) {
     try {
-      const res = await fetch(llmConfig.baseUrl, {
+      const res = await logFetch('wizja', llmConfig.baseUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

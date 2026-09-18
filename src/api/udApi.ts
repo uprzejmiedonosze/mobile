@@ -3,13 +3,13 @@
 // Po zalogowaniu wołamy też POST /api/verify-token jak webowy postIdToken()
 // (src/js/firebase.js) – zakłada sesję/telemetrię po stronie serwera.
 import { udConfig } from '../config';
-import { log } from '../lib/log';
+import { log, logFetch } from '../lib/log';
 import { refreshIdToken } from './firebaseAuth';
 import { useAuth } from '../store/useAuth';
 
 export async function verifySession(idToken: string): Promise<{ email?: string; name?: string } | null> {
   try {
-    const res = await fetch(`${udConfig.base}/api/verify-token`, {
+    const res = await logFetch('auth', `${udConfig.base}/api/verify-token`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${idToken}` },
     });
@@ -41,14 +41,14 @@ export async function validIdToken(): Promise<string> {
 export async function authFetch(path: string, init?: RequestInit): Promise<Response> {
   const token = await validIdToken();
   const url = path.startsWith('http') ? path : `${udConfig.base}${path}`;
-  let res = await fetch(url, { ...init, headers: { ...(init?.headers as any), Authorization: `Bearer ${token}` } });
+  let res = await logFetch('api', url, { ...init, headers: { ...(init?.headers as any), Authorization: `Bearer ${token}` } });
   if (res.status === 401) {
     const s = useAuth.getState();
     if (!s.refreshToken) return res;
     log.info('auth', '401 – odświeżam i ponawiam raz');
     const sess = await refreshIdToken(s.refreshToken);
     useAuth.getState().applySession(sess);
-    res = await fetch(url, { ...init, headers: { ...(init?.headers as any), Authorization: `Bearer ${sess.idToken}` } });
+    res = await logFetch('api', url, { ...init, headers: { ...(init?.headers as any), Authorization: `Bearer ${sess.idToken}` } });
   }
   return res;
 }

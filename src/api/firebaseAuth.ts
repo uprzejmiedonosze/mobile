@@ -8,7 +8,7 @@
 // Sesja: refreshToken w SecureStore, ID token (1h) odświeżany przez securetoken endpoint.
 import * as SecureStore from 'expo-secure-store';
 import { firebaseConfig, udConfig } from '../config';
-import { log } from '../lib/log';
+import { log, logFetch } from '../lib/log';
 
 const IDTK = 'https://identitytoolkit.googleapis.com/v1';
 const SECURE = 'https://securetoken.googleapis.com/v1';
@@ -48,7 +48,7 @@ export async function sendEmailLink(email: string): Promise<void> {
   const clean = email.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new Error('Zły adres e-mail.');
   log.info('auth', `wysyłam link na ${clean}`);
-  const res = await fetch(`${IDTK}/accounts:sendOobCode?key=${firebaseConfig.apiKey}`, {
+  const res = await logFetch('auth', `${IDTK}/accounts:sendOobCode?key=${firebaseConfig.apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -73,7 +73,7 @@ export async function signInWithCode(email: string, codeOrLink: string): Promise
   const oobCode = (m ? m[1] : codeOrLink).trim();
   if (!oobCode) throw new Error('Wklej kod (oobCode) z linku w mailu.');
   log.info('auth', 'weryfikuję kod…');
-  const res = await fetch(`${IDTK}/accounts:signInWithEmailLink?key=${firebaseConfig.apiKey}`, {
+  const res = await logFetch('auth', `${IDTK}/accounts:signInWithEmailLink?key=${firebaseConfig.apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: clean, oobCode }),
@@ -100,7 +100,7 @@ export async function signInWithCode(email: string, codeOrLink: string): Promise
 // tylko inny provider (AuthMiddleware w backendzie jest provider-agnostyczny, patrz CLAUDE.md).
 export async function signInWithGoogleIdToken(googleIdToken: string): Promise<FbSession> {
   log.info('auth', 'wymieniam token Google na sesję Firebase…');
-  const res = await fetch(`${IDTK}/accounts:signInWithIdp?key=${firebaseConfig.apiKey}`, {
+  const res = await logFetch('auth', `${IDTK}/accounts:signInWithIdp?key=${firebaseConfig.apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -129,7 +129,7 @@ export async function signInWithGoogleIdToken(googleIdToken: string): Promise<Fb
 }
 
 export async function refreshIdToken(refreshToken: string): Promise<FbSession> {
-  const res = await fetch(`${SECURE}/token?key=${firebaseConfig.apiKey}`, {
+  const res = await logFetch('auth', `${SECURE}/token?key=${firebaseConfig.apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,

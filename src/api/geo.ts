@@ -1,6 +1,6 @@
 import type { Category, GeoAddress } from '../types';
 import { udConfig } from '../config';
-import { log } from '../lib/log';
+import { log, logFetch } from '../lib/log';
 
 // Backend UD (z API.md + Geolocation.php):
 //  GET /api/rest/geo/{lat},{lng}/n  -> {address: {...}, sm, sa}
@@ -12,8 +12,7 @@ export const UD_BASE = udConfig.base;
 export async function reverseGeocode(lat: number, lng: number, token?: string): Promise<GeoAddress | null> {
   const url = `${UD_BASE}/api/rest/geo/${lat.toFixed(4)},${lng.toFixed(4)}/n`;
   try {
-    log.debug('geo', `GET ${url}`);
-    const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    const res = await logFetch('geo', url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
     if (!res.ok) {
       log.warn('geo', `HTTP ${res.status} dla ${lat.toFixed(4)},${lng.toFixed(4)} (pewnie brak auth – adres ręcznie)`);
       return null;
@@ -41,7 +40,7 @@ export async function reverseGeocode(lat: number, lng: number, token?: string): 
 
 export async function fetchCategories(token?: string): Promise<Category[]> {
   try {
-    const res = await fetch(`${UD_BASE}/api/rest/config/categories`, {
+    const res = await logFetch('geo', `${UD_BASE}/api/rest/config/categories`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) {
