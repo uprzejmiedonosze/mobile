@@ -3,5 +3,9 @@
   "compilerOptions": {
     "strict": true,
     "types": ["jest", "node"]
-  }
+  },
+  // tests/eval/ jest osobny harness (Node/tsx, nie Expo) z własnym tsconfig.json i innymi
+  // ustawieniami (allowImportingTsExtensions) — patrz tests/eval/README.md. `npx tsc --noEmit -p
+  // tests/eval/tsconfig.json` sprawdza go osobno.
+  "exclude": ["node_modules", "tests/eval"]
 }

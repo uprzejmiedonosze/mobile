@@ -81,6 +81,8 @@ export function PairingScreen({ navigation }: any) {
         <UdCard>
           <Text style={{ color: ud.heading, fontWeight: '800', fontSize: 17 }}>Szkice ({analysis.length}).</Text>
           <Text style={{ color: ud.muted, marginTop: 4 }}>Zielony = auto, czerwony = tablica zweryfikowana, pomarańczowy przerywany = niepotwierdzona. Kolejność = draft_order.</Text>
+          {/* TYMCZASOWE (debug): usunąć razem z debugPlateBox w UD.tsx, gdy porównanie ALPR/model przestanie być potrzebne. */}
+          <Text style={{ color: ud.plateDebugModel, marginTop: 2 }}>Niebieski przerywany = odczyt tablicy samego modelu (do porównania z ALPR, tymczasowe).</Text>
         </UdCard>
         {!analysis.length ? (
           <UdCard>
@@ -114,6 +116,7 @@ export function PairingScreen({ navigation }: any) {
                     plateBox={toBBox(ph?.plate?.bbox)}
                     vehicleBox={toBBox(ph?.car?.bbox)}
                     plateVerified={ph?.plate_verified === true ? true : ph?.plate?.plate_check === 'unverified-box' ? false : null}
+                    debugPlateBox={toBBox(ph?.plate_debug?.model?.bbox)}
                     naturalWidth={rec.photoDims?.[d.photoId]?.w}
                     naturalHeight={rec.photoDims?.[d.photoId]?.h}
                     height={d.role === 'context' ? 170 : 130}
@@ -123,6 +126,12 @@ export function PairingScreen({ navigation }: any) {
                     {d.sharedFrom ? ` (pożyczony z ${d.sharedFrom})` : ''} · q={ph?.quality?.toFixed(2) ?? '?'}
                     {ph?.plate_verified ? ' · box ✓' : ph?.plate?.plate_check === 'unverified-box' ? ' · box ?' : ''}
                   </Text>
+                  {/* TYMCZASOWE (debug): usunąć razem z plate_debug (src/lib/vision.ts), gdy porównanie ALPR/model przestanie być potrzebne. */}
+                  {ph?.plate_debug ? (
+                    <Text style={{ color: ph.plate_debug.alpr?.text !== ph.plate_debug.model.text ? ud.warning : ud.muted, fontWeight: ph.plate_debug.alpr?.text !== ph.plate_debug.model.text ? '700' : '400' }}>
+                      ALPR: {ph.plate_debug.alpr?.text ?? '—'} · model: {ph.plate_debug.model.text ?? '—'}
+                    </Text>
+                  ) : null}
                 </View>
               );
             })}

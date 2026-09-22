@@ -41,3 +41,10 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# vision eval harness (tests/eval/ — patrz README.md tam): miniatury, cache odpowiedzi LLM
+# i wyniki są regenerowalne z tests/*.jpg, nie mają co robić w repo. groundtruth.json i
+# groundtruth.draft.json ZOSTAJĄ śledzone (praca ręczna, nie do odtworzenia z automatu).
+tests/.cache/
+tests/results/
+tests/eval/node_modules/

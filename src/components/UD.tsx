@@ -72,6 +72,7 @@ export function UdPhoto({
   plateBox,
   vehicleBox,
   plateVerified,
+  debugPlateBox,
   naturalWidth,
   naturalHeight,
   height = 200,
@@ -80,6 +81,10 @@ export function UdPhoto({
   plateBox?: BBox | null;
   vehicleBox?: BBox | null;
   plateVerified?: boolean | null;
+  // TYMCZASOWE (debug): box tablicy wg samego modelu (przed nadpisaniem przez ALPR), rysowany
+  // obok plateBox (ALPR) w innym kolorze, do porównania w PairingScreen. Usunąć razem z
+  // VisionPhoto.plate_debug, gdy porównanie przestanie być potrzebne.
+  debugPlateBox?: BBox | null;
   naturalWidth?: number;
   naturalHeight?: number;
   height?: number;
@@ -138,6 +143,8 @@ export function UdPhoto({
   }
   const vBoxStyle = vehicleBox ? box(vehicleBox, ud.primary) : null;
   const pBoxStyle = plateBox ? box(plateBox, plateVerified === false ? ud.plateUnverified : ud.plateVerified, plateVerified === false) : null;
+  // TYMCZASOWE (debug): box tablicy wg modelu, niebieski przerywany, niezależny od plateVerified.
+  const dBoxStyle = debugPlateBox ? box(debugPlateBox, ud.plateDebugModel, true) : null;
   return (
     <View
       style={{ borderWidth: 2, borderColor: ud.primary, borderRadius: ud.radiusCard, overflow: 'hidden', height, backgroundColor: ud.surfaceLow }}
@@ -147,6 +154,7 @@ export function UdPhoto({
         <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
         {vBoxStyle ? <View style={vBoxStyle} /> : null}
         {pBoxStyle ? <View style={pBoxStyle} /> : null}
+        {dBoxStyle ? <View style={dBoxStyle} /> : null}
       </View>
     </View>
   );

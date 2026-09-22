@@ -18,6 +18,9 @@ export const ud = {
   warning: '#a60',
   plateVerified: '#d32f2f',
   plateUnverified: '#e07b00',
+  // TYMCZASOWE (debug): odczyt tablicy modelu (vs plateVerified/plateUnverified = odczyt ALPR).
+  // Usunąć razem z UD.tsx::debugPlateBox i PairingScreen.tsx, gdy porównanie przestanie być potrzebne.
+  plateDebugModel: '#1e6fd9',
   radiusPill: 999,
   radiusButton: 14,
   radiusCard: 18,

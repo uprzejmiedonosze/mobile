@@ -5,7 +5,7 @@
 // VisionPhoto jako lustro kontraktu odpowiedzi POST /api/rest/vision/candidate.
 // Każda zmiana promptu/markerów w Vision.php MUSI podbić SCHEMA tu i VISION_SCHEMA tam.
 
-export const SCHEMA = 5; // = VISION_SCHEMA w backendzie; appka gejtuje na tym cache analizy
+export const SCHEMA = 6; // = VISION_SCHEMA w backendzie; appka gejtuje na tym cache analizy
 
 export const ROLES = ['context', 'car', 'third', 'unusable'] as const;
 export type Role = (typeof ROLES)[number];
@@ -66,4 +66,12 @@ export type VisionPhoto = {
   suggested_category?: number;
   category_confidence?: number;
   plate_verified?: boolean;
+  // TYMCZASOWE (debug): porównanie odczytu tablicy ALPR (PlateRecognizer, to co ląduje w `plate`
+  // powyżej gdy ALPR coś znajdzie) vs odczyt samego modelu, sprzed nadpisania. Backend:
+  // applyAlprPlate() w Vision.php. Usunąć razem z resztą miejsc oznaczonych "TYMCZASOWE (debug)"
+  // (UD.tsx, PairingScreen.tsx), gdy przestaniemy potrzebować tego porównania.
+  plate_debug?: {
+    model: { text: string | null; bbox: Box4 | null };
+    alpr: { text: string | null; bbox: Box4 | null } | null;
+  };
 };
