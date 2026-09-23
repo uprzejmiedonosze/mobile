@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": ["node"],
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      // src/lib/compose.ts imports 'expo-file-system/legacy' at module load time, which does not
+      // exist under Node. We only use the deterministic split/compose/draftOrder logic from that
+      // file, never its cache read/write, so a no-op stub is enough — see stubs/expo-file-system.ts.
+      "expo-file-system/legacy": ["./stubs/expo-file-system.ts"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}

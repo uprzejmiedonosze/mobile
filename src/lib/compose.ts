@@ -31,6 +31,65 @@ export type AnalysisRecord = {
 
 const CACHE_FILE = 'analysis.json';
 
+// "80% numeru się zgadza -> ten sam pojazd" — ustalone z użytkownikiem po realnym przypadku
+// (model odczytał "GD314RR", ALPR "GD311RR" dla tego samego auta: Levenshtein=1 na 7 znaków,
+// podobieństwo 6/7≈85.7%, łapie ten próg). Świadomie zostaje deterministyczne (nie LLM) — ta sama
+// zasada co reszta pliku i co stoi za hybrid-pr/ALPR: LLM zawodzi przy dokładnym odczycie tablic,
+// więc scalanie bliskich odczytów robi kod, nie kolejne pytanie do modelu.
+export const PLATE_SIMILARITY_THRESHOLD = 0.8;
+
+function levenshtein(a: string, b: string): number {
+  const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
+  for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+  for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    for (let j = 1; j <= b.length; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+function plateSimilarity(a: string, b: string): number {
+  if (!a.length && !b.length) return 1;
+  return 1 - levenshtein(a, b) / Math.max(a.length, b.length);
+}
+
+// Single-linkage nad DYSTYNKTYWNYMI tekstami tablic (nie nad zdjęciami) — ten sam wzorzec
+// (DFS/stos, nie zachłanne łączenie w jednym przebiegu) co clusterSession() w grouping.ts, tylko
+// inna metryka (Levenshtein zamiast haversine+czas).
+function clusterPlateTexts(texts: string[]): string[][] {
+  const clusters: string[][] = [];
+  const used = new Set<number>();
+  for (let i = 0; i < texts.length; i++) {
+    if (used.has(i)) continue;
+    const cluster: string[] = [texts[i]];
+    const stack = [i];
+    used.add(i);
+    while (stack.length) {
+      const cur = stack.pop()!;
+      for (let j = 0; j < texts.length; j++) {
+        if (used.has(j)) continue;
+        if (plateSimilarity(texts[cur], texts[j]) >= PLATE_SIMILARITY_THRESHOLD) {
+          used.add(j);
+          cluster.push(texts[j]);
+          stack.push(j);
+        }
+      }
+    }
+    clusters.push(cluster);
+  }
+  return clusters;
+}
+
+// Reprezentant klastra do kluczowania/wyświetlania — najczęstszy tekst w klastrze; przy remisie
+// pierwszy odkryty (kolejność Map = kolejność wstawiania = najniższy photo_index).
+function representativePlateText(texts: string[]): string {
+  const counts = new Map<string, number>();
+  for (const t of texts) counts.set(t, (counts.get(t) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+}
+
 function scorePhoto(p: VisionPhoto): [number, number] {
   return [(p.markers?.length ?? 0) * 2 + (p.quality ?? 0), p.quality ?? 0];
 }
@@ -38,21 +97,28 @@ function cmpScore(a: [number, number], b: [number, number]): number {
   return a[0] - b[0] || a[1] - b[1];
 }
 
-// Faza 7: podział po czytelnej tablicy; bez tablicy -> czasowo najbliższa grupa.
+// Faza 7: podział po czytelnej tablicy (dopasowanie rozmyte, PLATE_SIMILARITY_THRESHOLD —
+// patrz komentarz przy stałej); bez tablicy -> czasowo najbliższa grupa.
 export function splitByPlate(
   reportId: string,
   photoIds: string[],
   photos: VisionPhoto[],
 ): Array<{ subId: string; subPhotoIds: string[]; subPhotos: VisionPhoto[]; split: boolean }> {
-  const groups = new Map<string, number[]>();
+  const exact = new Map<string, number[]>();
   const nopic: number[] = [];
   photos.forEach((p, i) => {
     const t = p.plate?.readable ? p.plate.text : null;
     if (t) {
-      if (!groups.has(t)) groups.set(t, []);
-      groups.get(t)!.push(i);
+      if (!exact.has(t)) exact.set(t, []);
+      exact.get(t)!.push(i);
     } else nopic.push(i);
   });
+
+  const groups = new Map<string, number[]>();
+  for (const cluster of clusterPlateTexts([...exact.keys()])) {
+    const idxs = cluster.flatMap((t) => exact.get(t)!);
+    groups.set(representativePlateText(cluster), idxs);
+  }
   if (groups.size <= 1) return [{ subId: reportId, subPhotoIds: photoIds, subPhotos: photos, split: false }];
   for (const i of nopic) {
     let best: string | null = null;

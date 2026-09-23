@@ -1,0 +1,25 @@
+{
+  "name": "ud-vision-eval",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Batch price/quality evaluation harness for the UD Pro vision pipeline (outside the mobile app). See /Users/szn/.claude/plans/nie-jestem-zadowolony-z-curious-comet.md.",
+  "type": "module",
+  "scripts": {
+    "prep": "tsx prep.ts",
+    "groundtruth": "tsx groundtruth.ts",
+    "gt-editor": "tsx gt-editor.ts",
+    "run": "tsx run.ts",
+    "score": "tsx score.ts",
+    "report": "tsx report.ts",
+    "test": "tsx --test *.test.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "exifr": "^7.1.3",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "~6.0.3"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "_comment": "Roster z kroku 4 planu (nie-jestem-zadowolony-z-curious-comet.md): wyłącznie modele z endpointem EU I tańsze od bazy (openai/gpt-4o-mini, 0.15/0.60 USD za 1M). Ustalone przez GET /api/v1/models + /endpoints + /providers w dniu utworzenia planu. `npx tsx run.ts --refresh-models` re-weryfikuje ceny i dostępność endpointu przed każdą rundą. google/gemini-2.5-flash-lite USUNIĘTY na prośbę użytkownika (wycofywany do końca roku) — w rodzinie Gemini 3.x nic obecnie nie mieści się jednocześnie w filtrze EU i taniej-niż-baza (np. gemini-3.1-flash-lite to 0.25/1.50, powyżej bazy).",
+  "baselineModel": "openai/gpt-4o-mini",
+  "models": [
+    {
+      "id": "openai/gpt-4o-mini",
+      "providerTag": "azure/swedencentral",
+      "label": "baseline (produkcja) — przypięty do EU",
+      "isBaseline": true
+    },
+    {
+      "id": "openai/gpt-4o-mini",
+      "providerTag": null,
+      "label": "baseline (produkcja) — bez pinu, stan dzisiejszy",
+      "isBaseline": true,
+      "isUnpinned": true
+    },
+    {
+      "id": "openai/gpt-5-nano",
+      "providerTag": "azure/swedencentral",
+      "label": "GPT-5 nano"
+    },
+    {
+      "id": "google/gemma-3-27b-it",
+      "providerTag": "nebius/fp8",
+      "label": "Gemma 3 27B (Nebius, NL/FI)"
+    },
+    {
+      "id": "google/gemma-4-26b-a4b-it",
+      "providerTag": "nextbit/bf16",
+      "label": "Gemma 4 26B (Nextbit, ES)"
+    },
+    {
+      "id": "z-ai/glm-5.3-flash",
+      "providerTag": "nextbit/fp8",
+      "label": "GLM 5.3 Flash (Nextbit, ES)"
+    },
+    {
+      "id": "openai/gpt-4.1-nano",
+      "providerTag": "azure/swedencentral",
+      "label": "GPT-4.1 nano"
+    },
+    {
+      "id": "mistralai/ministral-3b-2512",
+      "providerTag": "mistral/eu",
+      "label": "Ministral 3B (Mistral EU)"
+    }
+  ]
+}

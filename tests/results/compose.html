@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Compose — podział / kategoria / draftOrder</title>
+<style>
+  :root { --bg:#0f1115; --panel:#181b22; --border:#2a2f3a; --text:#e6e8eb; --muted:#8b93a1; --green:#3ddc84; --orange:#ffb454; --red:#ff5a5a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:13px/1.4 -apple-system,system-ui,sans-serif; padding:20px 28px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .hint { color:var(--muted); font-size:12px; }
+  .grid { display:flex; flex-direction:column; gap:14px; margin-top:14px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 16px; }
+  .card-head { display:flex; align-items:center; gap:10px; margin-bottom:4px; flex-wrap:wrap; }
+  .badge { font-size:11px; padding:2px 8px; border-radius:999px; font-weight:700; }
+  .badge.ok { background:#132a1e; color:var(--green); }
+  .badge.warn { background:#3a2a10; color:var(--orange); }
+  .plate-line { font-weight:700; color:#4da3ff; margin-bottom:4px; }
+  .warn-line { color:var(--orange); font-size:12px; margin:2px 0; }
+  .skip-line { color:var(--muted); font-size:12px; margin:2px 0; }
+  .photos { display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; }
+  .photo { width:200px; }
+  .imgwrap { position:relative; background:#000; border-radius:6px; overflow:hidden; }
+  .imgwrap img { width:100%; display:block; }
+  .imgwrap svg { position:absolute; inset:0; width:100%; height:100%; }
+  .meta { font-size:11px; color:var(--muted); margin-top:4px; }
+  .meta b { color:var(--text); }
+  code { background:#20242c; padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div id="app">ładowanie…</div>
+<script>
+// Statyczna strona — czyta manifest.json (miniatury/wymiary) + composed.json (compose-local.ts,
+// czyli splitByPlate/compose/attachSharedContext/buildDraftOrder z src/lib/compose.ts, bez zmian).
+// Odśwież (F5) po każdym `make compose`.
+const CACHE_BASE = '../.cache/prep/';
+
+async function main() {
+  const el = document.getElementById('app');
+  let manifest, records;
+  try {
+    const mRes = await fetch(CACHE_BASE + 'manifest.json', { cache: 'no-store' });
+    if (!mRes.ok) throw new Error('brak manifest.json');
+    manifest = await mRes.json();
+  } catch (e) {
+    el.innerHTML = failMsg('Brak manifest.json — odpal najpierw <code>make step1</code>. (' + esc(String(e)) + ')');
+    return;
+  }
+  try {
+    const cRes = await fetch('composed.json', { cache: 'no-store' });
+    if (!cRes.ok) throw new Error('brak composed.json');
+    records = await cRes.json();
+  } catch (e) {
+    el.innerHTML = failMsg('Brak composed.json — odpal <code>make compose</code> (wymaga wyników z <code>make step2</code>). (' + esc(String(e)) + ')');
+    return;
+  }
+  const photoById = Object.fromEntries(manifest.photos.map((p) => [p.photoId, p]));
+  el.innerHTML = `
+    <h1>Compose — podział / kategoria / draftOrder</h1>
+    <p class="hint">${records.length} zgłoszeń (po podziale po tablicy z ${manifest.candidates.length} kandydatów). Odśwież (F5) po każdym <code>make compose</code>.</p>
+    <div class="grid">${records.map((rec) => recordCard(rec, photoById)).join('')}</div>
+  `;
+}
+
+function failMsg(msg) {
+  return `<h1>Compose — podział / kategoria / draftOrder</h1><p style="color:#ffb454">${msg}</p>`;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function recordCard(rec, photoById) {
+  const tiles = rec.draftOrder.map((d) => draftTile(d, rec, photoById)).join('');
+  return `<div class="card">
+    <div class="card-head">
+      <b>${esc(rec.reportId)}</b>
+      ${rec.splitFrom ? `<span class="hint">split z ${esc(rec.splitFrom)}</span>` : ''}
+      ${rec.needsReview ? '<span class="badge warn">REVIEW</span>' : '<span class="badge ok">OK</span>'}
+    </div>
+    <div class="plate-line">${esc(rec.plate ?? 'brak tablicy')} · kat. ${rec.categoryId}${rec.suggestedCategory != null && rec.suggestedCategory !== rec.categoryId ? ` <span class="hint">(model sugerował kat. ${rec.suggestedCategory})</span>` : ''}</div>
+    ${rec.sharedContext ? `<div class="skip-line">+ kontekst pożyczony z ${esc(rec.sharedContext.from)}</div>` : ''}
+    ${(rec.reviewReasons || []).map((r) => `<div class="warn-line">• ${esc(r)}</div>`).join('')}
+    <div class="photos">${tiles}</div>
+  </div>`;
+}
+
+function draftTile(d, rec, photoById) {
+  const meta = photoById[d.photoId];
+  const p = rec.photos.find((x) => x.photoId === d.photoId);
+  if (!meta) return `<div class="photo"><div class="meta">${esc(d.photoId)} — brak w manifeście</div></div>`;
+  const boxes = [];
+  if (p && p.car && p.car.bbox) boxes.push(rect(p.car.bbox, meta, '#3ddc84', false));
+  if (p && p.plate && p.plate.bbox) boxes.push(rect(p.plate.bbox, meta, p.plate_verified ? '#d32f2f' : '#e07b00', !p.plate_verified));
+  return `<div class="photo">
+    <div class="imgwrap">
+      <img src="${CACHE_BASE}${esc(meta.thumbFile)}">
+      <svg viewBox="0 0 ${meta.thumbW} ${meta.thumbH}" preserveAspectRatio="none">${boxes.join('')}</svg>
+    </div>
+    <div class="meta">
+      <b>${esc(d.role)}</b>${d.sharedFrom ? ` (pożyczony z ${esc(d.sharedFrom)})` : ''} · q=${(p ? p.quality : 0).toFixed(2)}
+    </div>
+  </div>`;
+}
+
+function rect(box, meta, color, dashed) {
+  const x = (box[0] / 1000) * meta.thumbW, y = (box[1] / 1000) * meta.thumbH;
+  const w = ((box[2] - box[0]) / 1000) * meta.thumbW, h = ((box[3] - box[1]) / 1000) * meta.thumbH;
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${color}" stroke-width="${meta.thumbW / 250}"${dashed ? ' stroke-dasharray="8,6"' : ''}/>`;
+}
+
+main().catch((e) => { document.getElementById('app').innerHTML = failMsg('Błąd: ' + esc(String(e))); });
+</script>
+</body>
+</html>

@@ -35,8 +35,15 @@ export type Candidate = {
 };
 
 export const SESS_GAP_S = 300;
-export const CLUSTER_DIST_M = 30;
-export const CLUSTER_TIME_S = 30;
+// 30m/30s -> 50m/60s: znaleziony w praktyce przypadek realnego auta rozdzielonego na dwa
+// kandydaty (skok GPS między kolejnymi zdjęciami tego samego, zaparkowanego — więc nieruchomego
+// — pojazdu: 508.7m w 56.0s, fizycznie niemożliwe dla auta, najpewniej niedokładny pierwszy fix
+// GPS po otwarciu aparatu). Oba progi podniesione z zapasem ponad ten przypadek. CLUSTER_TIME_S
+// most czasowy nadal NIE sprawdza dystansu (świadomie, jak dotychczas) — dłuższy próg trochę
+// zwiększa ryzyko zlepienia dwóch różnych aut sfotografowanych szybko po sobie, ale 60s to wciąż
+// mało czasu na przejście do zupełnie innego auta pieszo.
+export const CLUSTER_DIST_M = 50;
+export const CLUSTER_TIME_S = 60;
 
 export function haversineM(aLat: number, aLng: number, bLat: number, bLng: number): number {
   const r = (d: number) => (d * Math.PI) / 180;

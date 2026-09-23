@@ -48,6 +48,38 @@ describe('vision (ANALYSIS.md)', () => {
     expect(out[0].subPhotos.map((p) => p.photoId)).toEqual(['a', 'b']); // b najbliżej a
   });
 
+  it('splitByPlate scala tablice różniące się jedną cyfrą na 7 znaków (realny przypadek: model="GD314RR", ALPR="GD311RR", 6/7≈85.7%)', () => {
+    const photos = [
+      vp({ photo_index: 0, photoId: 'a', role: 'context', plate: { readable: true, text: 'GD314RR', bbox: [400, 500, 600, 560] } }),
+      vp({ photo_index: 1, photoId: 'b', plate: { readable: true, text: 'GD311RR', bbox: [400, 500, 600, 560] } }),
+    ];
+    const out = splitByPlate('R001', ['a', 'b'], photos);
+    expect(out).toHaveLength(1);
+    expect(out[0].split).toBe(false);
+    expect(out[0].subPhotoIds).toEqual(['a', 'b']);
+  });
+
+  it('splitByPlate NIE scala tablic poniżej progu 80% (2 różnice na 7 znaków, 5/7≈71.4%)', () => {
+    const photos = [
+      vp({ photo_index: 0, photoId: 'a', plate: { readable: true, text: 'GD314RR', bbox: [400, 500, 600, 560] } }),
+      vp({ photo_index: 1, photoId: 'b', plate: { readable: true, text: 'GD319RA', bbox: [400, 500, 600, 560] } }),
+    ];
+    const out = splitByPlate('R002', ['a', 'b'], photos);
+    expect(out).toHaveLength(2);
+    expect(out.every((s) => s.split)).toBe(true);
+  });
+
+  it('splitByPlate scala tranzytywnie przez most (A~B, B~C, ale A i C bezpośrednio niepodobne)', () => {
+    const photos = [
+      vp({ photo_index: 0, photoId: 'a', plate: { readable: true, text: 'AB123', bbox: [400, 500, 600, 560] } }), // A~B: 1/5 różnicy, 80%
+      vp({ photo_index: 1, photoId: 'b', plate: { readable: true, text: 'AB124', bbox: [400, 500, 600, 560] } }), // B~C: 1/5 różnicy, 80%
+      vp({ photo_index: 2, photoId: 'c', plate: { readable: true, text: 'AB144', bbox: [400, 500, 600, 560] } }), // A~C: 2/5 różnicy, 60% — most przez B musi je scalić
+    ];
+    const out = splitByPlate('R003', ['a', 'b', 'c'], photos);
+    expect(out).toHaveLength(1);
+    expect(out[0].subPhotoIds).toEqual(['a', 'b', 'c']);
+  });
+
   it('compose wybiera kontekst+auto i liczy kategorię regułą', () => {
     const ctx = vp({ photo_index: 0, photoId: 'a', role: 'context', plate: { readable: false, text: null, bbox: null }, markers: ['zebra_crossing'], suggested_category: 5 });
     const rec = compose('R001', ['a', 'b'], [ctx, vp({ photo_index: 1, photoId: 'b', suggested_category: 5 })]);

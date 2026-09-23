@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Step 2 — analiza LLM</title>
+<style>
+  :root { --bg:#0f1115; --panel:#181b22; --border:#2a2f3a; --text:#e6e8eb; --muted:#8b93a1; --green:#3ddc84; --orange:#ffb454; --red:#ff5a5a; --blue:#1e6fd9; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:13px/1.4 -apple-system,system-ui,sans-serif; padding:20px 28px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .hint { color:var(--muted); font-size:12px; }
+  .legend { display:flex; gap:14px; margin-top:6px; font-size:11px; color:var(--muted); flex-wrap:wrap; }
+  .legend span { display:inline-flex; align-items:center; gap:4px; }
+  .swatch { width:10px; height:10px; border-radius:2px; display:inline-block; }
+  .grid { display:flex; flex-direction:column; gap:14px; margin-top:14px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 16px; }
+  .card-head { display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
+  .badge { font-size:11px; padding:2px 8px; border-radius:999px; font-weight:700; }
+  .badge.muted { background:#232830; color:var(--muted); }
+  .warn-line { color:var(--orange); font-size:12px; margin:2px 0; }
+  .err-line { color:var(--red); font-size:12px; margin:2px 0; }
+  .photos { display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; }
+  .photo { width:230px; }
+  .imgwrap { position:relative; background:#000; border-radius:6px; overflow:hidden; }
+  .imgwrap img { width:100%; display:block; }
+  .imgwrap svg { position:absolute; inset:0; width:100%; height:100%; }
+  .meta { font-size:11px; color:var(--muted); margin-top:4px; line-height:1.6; }
+  .meta b { color:var(--text); }
+  .diff { color:var(--orange); font-weight:700; }
+  code { background:#20242c; padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div id="app">ładowanie…</div>
+<script>
+// Statyczna strona — czyta manifest.json (lista kandydatów/zdjęć, ta sama co step1.html) i
+// PRÓBUJE dociągnąć results/local/<reportId>.json dla każdego. Kandydat bez pliku = jeszcze nie
+// uruchomiony (albo padł błędem) — pokazuje to jawnie zamiast cichej pustki. Odśwież (F5) po
+// każdym `make step2`.
+const CACHE_BASE = '../.cache/prep/';
+const RESULTS_BASE = 'local/';
+
+async function main() {
+  const el = document.getElementById('app');
+  let manifest;
+  try {
+    const res = await fetch(CACHE_BASE + 'manifest.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error('brak manifest.json');
+    manifest = await res.json();
+  } catch (e) {
+    el.innerHTML = failMsg('Brak manifest.json — odpal najpierw <code>make step1</code>. (' + esc(String(e)) + ')');
+    return;
+  }
+  const photoById = Object.fromEntries(manifest.photos.map((p) => [p.photoId, p]));
+
+  const cards = await Promise.all(manifest.candidates.map(async (c) => {
+    let result = null;
+    try {
+      const r = await fetch(RESULTS_BASE + c.reportId + '.json', { cache: 'no-store' });
+      if (r.ok) result = await r.json();
+    } catch { /* traktuj jak brak wyniku */ }
+    return candidateCard(c, photoById, result);
+  }));
+
+  el.innerHTML = `
+    <h1>Step 2 — analiza LLM</h1>
+    <p class="hint">${manifest.candidates.length} kandydatów z manifestu. Odśwież stronę (F5) po każdym <code>make step2</code>.</p>
+    <div class="legend">
+      <span><span class="swatch" style="background:#3ddc84"></span>auto</span>
+      <span><span class="swatch" style="background:#d32f2f"></span>tablica zweryfikowana (ALPR)</span>
+      <span><span class="swatch" style="background:#e07b00"></span>tablica niepotwierdzona</span>
+      <span><span class="swatch" style="background:#1e6fd9"></span>odczyt tablicy wg modelu (przerywany)</span>
+    </div>
+    <div class="grid">${cards.join('')}</div>
+  `;
+}
+
+function failMsg(msg) {
+  return `<h1>Step 2 — analiza LLM</h1><p style="color:#ffb454">${msg}</p>`;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function candidateCard(c, photoById, result) {
+  if (!result) {
+    return `<div class="card">
+      <div class="card-head"><b>${esc(c.reportId)}</b> <span class="badge muted">brak wyniku</span></div>
+      <p class="hint">Jeszcze nie uruchomiono (albo padło błędem) —
+        <code>php src/tools/vision-local.php --candidate ${esc(c.reportId)}</code>
+        (w repo uprzejmiedonosze), albo <code>make step2 CANDIDATE=${esc(c.reportId)}</code>.</p>
+    </div>`;
+  }
+  // Numeracja R00x jest sekwencyjna po czasie (grupowanie w prep.ts) — dorzucenie/usunięcie
+  // zdjęcia przesuwa, które fizyczne zdjęcia trafiają pod dany reportId. Plik wyniku z poprzedniego
+  // przebiegu step2 może więc być liczony dla ZUPEŁNIE INNYCH zdjęć niż te, co dziś nosi ten sam
+  // reportId w manifest.json — porównanie zestawu photoId wyłapuje to zamiast cicho pokazać zły wynik.
+  const resultPhotoIds = new Set(result.photos.map((p) => p.photoId));
+  const manifestPhotoIds = new Set(c.photoIds);
+  const stale = resultPhotoIds.size !== manifestPhotoIds.size || [...manifestPhotoIds].some((id) => !resultPhotoIds.has(id));
+  if (stale) {
+    return `<div class="card">
+      <div class="card-head"><b>${esc(c.reportId)}</b> <span class="badge muted" style="color:#ff5a5a">WYNIK NIEAKTUALNY</span></div>
+      <p class="hint">Plik <code>local/${esc(c.reportId)}.json</code> policzony dla innego zestawu zdjęć niż obecny
+        ${esc(c.reportId)} w manifeście (numeracja R00x przesunęła się po zmianie zbioru wejściowego w step1) —
+        <code>make step2 CANDIDATE=${esc(c.reportId)}</code>, żeby przeliczyć.</p>
+    </div>`;
+  }
+  const photosByIdx = Object.fromEntries(result.photos.map((p) => [p.photo_index, p]));
+  const tiles = c.photoIds.map((pid, i) => photoTile(photoById[pid], photosByIdx[i])).join('');
+  const u = result.usage;
+  return `<div class="card">
+    <div class="card-head">
+      <b>${esc(c.reportId)}</b>
+      <span class="hint">${result.photos.length} zdjęć · $${u.cost_usd.toFixed(5)} · ${u.calls} wywołań · ${u.prompt_tokens}+${u.completion_tokens} tok.</span>
+    </div>
+    ${(result.warnings || []).map((w) => `<div class="warn-line">⚠ ${esc(w)}</div>`).join('')}
+    <div class="photos">${tiles}</div>
+  </div>`;
+}
+
+function photoTile(meta, p) {
+  if (!meta || !p) return '<div class="photo"><div class="meta err-line">brak dopasowania zdjęcia w wyniku</div></div>';
+  const boxes = [];
+  if (p.car && p.car.bbox) boxes.push(rect(p.car.bbox, meta, '#3ddc84', false));
+  if (p.plate && p.plate.bbox) {
+    const color = p.plate_verified ? '#d32f2f' : '#e07b00';
+    boxes.push(rect(p.plate.bbox, meta, color, !p.plate_verified));
+  }
+  if (p.plate_debug && p.plate_debug.model && p.plate_debug.model.bbox) {
+    boxes.push(rect(p.plate_debug.model.bbox, meta, '#1e6fd9', true));
+  }
+
+  const plateText = p.plate && p.plate.readable ? p.plate.text : '—';
+  const verifiedMark = p.plate_verified ? ' ✓' : (p.plate && p.plate.plate_check === 'unverified-box' ? ' ?' : '');
+  const dbg = p.plate_debug;
+  const dbgDiffers = dbg && (dbg.alpr ? dbg.alpr.text : null) !== (dbg.model ? dbg.model.text : null);
+
+  return `<div class="photo">
+    <div class="imgwrap">
+      <img src="${CACHE_BASE}${esc(meta.thumbFile)}">
+      <svg viewBox="0 0 ${meta.thumbW} ${meta.thumbH}" preserveAspectRatio="none">${boxes.join('')}</svg>
+    </div>
+    <div class="meta">
+      [${p.photo_index}] <b>${esc(p.role)}</b> q=${(p.quality ?? 0).toFixed(2)}<br>
+      tablica: ${esc(plateText)}${verifiedMark}<br>
+      ${dbg ? `<span class="${dbgDiffers ? 'diff' : ''}">ALPR: ${esc(dbg.alpr ? dbg.alpr.text : '—')} · model: ${esc(dbg.model ? dbg.model.text : '—')}</span><br>` : ''}
+      markery: ${esc((p.markers || []).join(', ') || '—')}<br>
+      kat: ${esc(p.suggested_category ?? '?')} (conf ${esc(p.category_confidence ?? '?')})
+    </div>
+  </div>`;
+}
+
+function rect(box, meta, color, dashed) {
+  const x = (box[0] / 1000) * meta.thumbW, y = (box[1] / 1000) * meta.thumbH;
+  const w = ((box[2] - box[0]) / 1000) * meta.thumbW, h = ((box[3] - box[1]) / 1000) * meta.thumbH;
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${color}" stroke-width="${meta.thumbW / 250}"${dashed ? ' stroke-dasharray="8,6"' : ''}/>`;
+}
+
+main().catch((e) => { document.getElementById('app').innerHTML = failMsg('Błąd: ' + esc(String(e))); });
+</script>
+</body>
+</html>

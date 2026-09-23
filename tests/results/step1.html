@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Step 1 — prep (resize/EXIF/grupowanie)</title>
+<style>
+  :root { --bg:#0f1115; --panel:#181b22; --border:#2a2f3a; --text:#e6e8eb; --muted:#8b93a1; --green:#3ddc84; --orange:#ffb454; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:13px/1.4 -apple-system,system-ui,sans-serif; padding:20px 28px; }
+  h1 { font-size:18px; margin:0 0 4px; }
+  .hint { color:var(--muted); font-size:12px; }
+  .grid { display:flex; flex-direction:column; gap:14px; margin-top:14px; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px 16px; }
+  .card-head { display:flex; align-items:center; gap:10px; margin-bottom:6px; flex-wrap:wrap; }
+  .badge { font-size:11px; padding:2px 8px; border-radius:999px; font-weight:700; }
+  .badge.ok { background:#132a1e; color:var(--green); }
+  .badge.warn { background:#3a2a10; color:var(--orange); }
+  .photos { display:flex; flex-wrap:wrap; gap:12px; margin-top:8px; }
+  .photo { width:200px; }
+  .photo img { width:100%; display:block; border-radius:6px; background:#000; }
+  .meta { font-size:11px; color:var(--muted); margin-top:4px; line-height:1.5; }
+  code { background:#20242c; padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div id="app">ładowanie…</div>
+<script>
+// Statyczna strona — nic tu nie jest generowane przy zapisie, wszystko czytane dynamicznie
+// przez fetch() z manifest.json przy KAŻDYM wczytaniu strony. Odśwież (F5) po `make step1`.
+const CACHE_BASE = '../.cache/prep/';
+
+async function main() {
+  const el = document.getElementById('app');
+  let res;
+  try {
+    res = await fetch(CACHE_BASE + 'manifest.json', { cache: 'no-store' });
+  } catch (e) {
+    el.innerHTML = failMsg('Nie udało się pobrać manifest.json (' + e + '). Otwarte przez file://? Trzeba przez serwer: <code>make serve</code>.');
+    return;
+  }
+  if (!res.ok) {
+    el.innerHTML = failMsg('Brak manifest.json — odpal najpierw: <code>make step1</code>.');
+    return;
+  }
+  render(await res.json());
+}
+
+function failMsg(msg) {
+  return `<h1>Step 1 — prep</h1><p style="color:#ffb454">${msg}</p>`;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function render(m) {
+  const photoById = Object.fromEntries(m.photos.map((p) => [p.photoId, p]));
+  document.getElementById('app').innerHTML = `
+    <h1>Step 1 — prep (resize/EXIF/grupowanie)</h1>
+    <p class="hint">${m.photos.length} zdjęć, ${m.dropped} odrzuconych (brak czasu), ${m.candidates.length} kandydatów.
+      Parametry: ${m.params.maxWidth}px / q${m.params.quality}. Wygenerowano: ${esc(m.generatedAt)}</p>
+    <div class="grid">${m.candidates.map((c) => candidateCard(c, photoById)).join('')}</div>
+  `;
+}
+
+function candidateCard(c, photoById) {
+  return `<div class="card">
+    <div class="card-head">
+      <b>${esc(c.reportId)}</b>
+      ${c.needsReview ? '<span class="badge warn">NEEDS_REVIEW</span>' : '<span class="badge ok">OK</span>'}
+      <span class="hint">${c.photoIds.length} zdjęć${c.hasGps ? '' : ' · brak GPS'}</span>
+      ${c.centroid ? `<span class="hint">centroid: ${c.centroid.lat.toFixed(5)}, ${c.centroid.lng.toFixed(5)}</span>` : ''}
+    </div>
+    <div class="photos">${c.photoIds.map((pid) => photoThumb(photoById[pid])).join('')}</div>
+  </div>`;
+}
+
+function photoThumb(p) {
+  if (!p) return '';
+  return `<div class="photo">
+    <img src="${CACHE_BASE}${esc(p.thumbFile)}" loading="lazy">
+    <div class="meta">
+      ${esc(p.photoId)}<br>
+      ${p.thumbW}x${p.thumbH} · ${(p.thumbBytes / 1024).toFixed(0)}kB<br>
+      dt=${esc(p.dtSrc ?? '—')} ${esc(p.exif.datetimeOriginal ?? '')}<br>
+      ${p.exif.hasGps ? `GPS ${p.exif.lat}, ${p.exif.lng}` : 'brak GPS'}
+    </div>
+  </div>`;
+}
+
+main().catch((e) => { document.getElementById('app').innerHTML = failMsg('Błąd: ' + esc(String(e))); });
+</script>
+</body>
+</html>

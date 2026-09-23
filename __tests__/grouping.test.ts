@@ -34,9 +34,14 @@ describe('grouping (GROUPING.md)', () => {
     expect(clusterSession(s)).toHaveLength(1);
   });
 
-  it('rozdziela gdy > 30 m i > 30 s (granica 46 m / 1 min)', () => {
-    const s = [mk('a', T0, 53.4285, 14.5528), mk('b', T0 + 60_000, 53.4289, 14.5528)]; // ~45 m, 60 s
+  it('rozdziela gdy > 50 m i > 60 s (granica ~67 m / 90 s)', () => {
+    const s = [mk('a', T0, 53.4285, 14.5528), mk('b', T0 + 90_000, 53.4291, 14.5528)]; // ~67 m, 90 s
     expect(clusterSession(s)).toHaveLength(2);
+  });
+
+  it('łączy przy 45 m mimo > 60 s (mieści się w nowym CLUSTER_DIST_M=50)', () => {
+    const s = [mk('a', T0, 53.4285, 14.5528), mk('b', T0 + 90_000, 53.4289, 14.5528)]; // ~45 m, 90 s
+    expect(clusterSession(s)).toHaveLength(1);
   });
 
   it('bez GPS łączy tylko mostem czasowym', () => {

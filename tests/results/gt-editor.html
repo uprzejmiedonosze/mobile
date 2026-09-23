@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>GT editor — UD Pro vision eval</title>
+<style>
+  :root { --bg:#0f1115; --panel:#181b22; --border:#2a2f3a; --text:#e6e8eb; --muted:#8b93a1; --accent:#4da3ff; --green:#3ddc84; --red:#ff5a5a; --orange:#ffb454; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:13px/1.4 -apple-system,system-ui,sans-serif; }
+  #app { display:flex; height:100vh; }
+  #sidebar { width:260px; overflow-y:auto; border-right:1px solid var(--border); background:var(--panel); flex-shrink:0; }
+  #sidebar h2 { font-size:12px; text-transform:uppercase; color:var(--muted); padding:10px 12px 4px; margin:0; }
+  .cand { border-bottom:1px solid var(--border); }
+  .cand-head { padding:8px 12px; font-weight:600; cursor:pointer; display:flex; justify-content:space-between; }
+  .cand-head:hover { background:#20242c; }
+  .photo-row { padding:6px 12px 6px 22px; cursor:pointer; color:var(--muted); font-size:12px; display:flex; align-items:center; gap:6px; }
+  .photo-row:hover, .photo-row.active { background:#20242c; color:var(--text); }
+  .dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .dot.unverified { background:var(--orange); }
+  .dot.verified { background:var(--green); }
+  #main { flex:1; overflow-y:auto; padding:16px 24px; }
+  #canvasWrap { position:relative; display:inline-block; background:#000; }
+  #photoImg { display:block; max-width:900px; width:100%; height:auto; }
+  #overlay { position:absolute; top:0; left:0; width:100%; height:100%; cursor:crosshair; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-top:14px; }
+  .panel h3 { margin:0 0 8px; font-size:12px; text-transform:uppercase; color:var(--muted); }
+  .row { display:flex; gap:10px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+  label { color:var(--muted); font-size:12px; }
+  input[type=text], input[type=number], select { background:#0f1115; border:1px solid var(--border); color:var(--text); border-radius:4px; padding:4px 6px; font-size:12px; }
+  input[type=number] { width:64px; }
+  .markers { display:flex; flex-wrap:wrap; gap:6px 12px; }
+  .markers label { display:flex; align-items:center; gap:4px; color:var(--text); cursor:pointer; }
+  .scene-row { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
+  .scene-row select, .scene-row input { flex-shrink:0; }
+  button { background:#20242c; border:1px solid var(--border); color:var(--text); border-radius:4px; padding:5px 10px; cursor:pointer; font-size:12px; }
+  button:hover { background:#2a2f3a; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#001; font-weight:600; }
+  .hint { color:var(--muted); font-size:11px; }
+  .legend { display:flex; gap:14px; align-items:center; margin-bottom:8px; font-size:11px; color:var(--muted); }
+  .swatch { display:inline-block; width:10px; height:10px; margin-right:4px; vertical-align:-1px; }
+  #topbar { position:sticky; top:0; background:var(--bg); padding:10px 0; z-index:5; display:flex; gap:10px; align-items:center; border-bottom:1px solid var(--border); margin-bottom:10px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <h2>Kandydaci</h2>
+    <div id="candList"></div>
+  </div>
+  <div id="main">
+    <div id="topbar">
+      <button class="primary" id="downloadBtn">⬇ Pobierz groundtruth.json</button>
+      <span class="hint">zapisz pobrany plik jako <code>tests/groundtruth.json</code> (nadpisując)</span>
+      <span id="photoTitle" style="margin-left:auto;font-weight:600"></span>
+    </div>
+    <div id="editor"></div>
+  </div>
+</div>
+<script>
+const GT = {"schemaVersion":1,"generatedAt":"2026-09-21T14:33:19.222Z","photos":{"PXL_20260914_081354709":{"photoId":"PXL_20260914_081354709","role":"car","car":{"present":true,"bbox":[281,12,969,705]},"plate":{"readable":true,"text":"GD311RR","bbox":[327,524,416,599]},"markers":["sidewalk_parking","zebra_crossing","intersection","heavy_vehicle","narrow_passage"],"scene":[{"object":"chodnik","relation":"under_car","distance_m":0,"confidence":1},{"object":"P-10_przejscie","relation":"right_of_car","distance_m":1,"confidence":0.9},{"object":"skrzyzowanie","relation":"right_of_car","distance_m":2,"confidence":0.8}],"categoryId":5,"source":{"plate":"platerecognizer","rest":"llm-bootstrap"},"verified":false},"PXL_20260914_081450783":{"photoId":"PXL_20260914_081450783","role":"car","car":{"present":true,"bbox":[198,275,984,780]},"plate":{"readable":false,"text":null,"bbox":null},"markers":["sidewalk_parking","heavy_vehicle","intersection","tram_crossing","narrow_passage"],"scene":[{"object":"chodnik","relation":"under_car","distance_m":0,"confidence":1},{"object":"torowisko","relation":"right_of_car","distance_m":2,"confidence":0.9},{"object":"skrzyzowanie","relation":"behind_car","distance_m":20,"confidence":0.8}],"categoryId":4,"source":{"plate":"llm-bootstrap","rest":"llm-bootstrap"},"verified":false},"PXL_20260914_081456501":{"photoId":"PXL_20260914_081456501","role":"car","car":{"present":true,"bbox":[254,46,754,690]},"plate":{"readable":true,"text":"GD311RR","bbox":[458,592,618,663]},"markers":["sidewalk_parking","heavy_vehicle","intersection","bike_lane","narrow_passage"],"scene":[{"object":"chodnik","relation":"under_car","distance_m":0,"confidence":1},{"object":"droga_dla_rowerow","relation":"behind_car","distance_m":6,"confidence":0.9},{"object":"skrzyzowanie","relation":"behind_car","distance_m":15,"confidence":0.8}],"categoryId":4,"source":{"plate":"platerecognizer","rest":"llm-bootstrap"},"verified":false},"PXL_20260915_095410107":{"photoId":"PXL_20260915_095410107","role":"context","car":{"present":true,"bbox":[266,563,513,700]},"plate":{"readable":true,"text":"ZS964PN","bbox":[278,653,301,665]},"markers":["sidewalk_parking","deep_sidewalk","d18_sign","t30_plate","b35_sign","vertical_sign_mismatch"],"scene":[{"object":"chodnik","relation":"under_car","distance_m":0,"confidence":1},{"object":"D-18","relation":"left_of_car","distance_m":2,"confidence":1},{"object":"T-30","relation":"left_of_car","distance_m":2,"confidence":0.9},{"object":"slupki","relation":"left_of_car","distance_m":3,"confidence":1},{"object":"B-35","relation":"not_related","distance_m":30,"confidence":0.8}],"categoryId":1,"source":{"plate":"platerecognizer","rest":"llm-bootstrap"},"verified":false},"PXL_20260915_095415318":{"photoId":"PXL_20260915_095415318","role":"car","car":{"present":true,"bbox":[408,480,592,656]},"plate":{"readable":true,"text":"ZS795SR","bbox":[510,551,548,563]},"markers":["sidewalk_parking","deep_sidewalk"],"scene":[{"object":"chodnik","relation":"under_car","distance_m":0,"confidence":1}],"categoryId":1,"source":{"plate":"platerecognizer","rest":"llm-bootstrap"},"verified":false},"PXL_20260918_101316924.MP":{"photoId":"PXL_20260918_101316924.MP","role":"car","car":{"present":true,"bbox":[471,515,692,741]},"plate":{"readable":true,"text":"65TW","bbox":[534,638,566,660]},"markers":["sidewalk_parking","zebra_crossing","intersection","tram_crossing","public_transport_access","greenery"],"scene":[{"object":"chodnik","relation":"right_of_car","distance_m":0,"confidence":1},{"object":"D-6","relation":"in_front_of_car","distance_m":8,"confidence":0.9},{"object":"P-10_przejscie","relation":"in_front_of_car","distance_m":8,"confidence":0.8},{"object":"skrzyzowanie","relation":"in_front_of_car","distance_m":15,"confidence":0.8},{"object":"torowisko","relation":"left_of_car","distance_m":5,"confidence":0.9},{"object":"trawnik","relation":"left_of_car","distance_m":7,"confidence":0.9}],"categoryId":5,"source":{"plate":"platerecognizer","rest":"llm-bootstrap"},"verified":false},"PXL_20260918_101319206":{"photoId":"PXL_20260918_101319206","role":"car","car":{"present":true,"bbox":[251,294,851,877]},"plate":{"readable":true,"text":"ZS689UJ","bbox":[317,553,441,632]},"markers":["sidewalk_parking","zebra_crossing","intersection","tram_crossing","public_transport_access","greenery"],"scene":[{"object":"chodnik","relation":"right_of_car","distance_m":0,"confidence":1},{"object":"torowisko","relation":"left_of_car","distance_m":4,"confidence":1},{"object":"D-6","relation":"in_front_of_car","distance_m":8,"confidence":0.9},{"object":"P-10_przejscie","relation":"in_front_of_car","distance_m":8,"confidence":0.8},{"object":"skrzyzowanie","relation":"in_front_of_car","distance_m":14,"confidence":0.8},{"object":"trawnik","relation":"left_of_car","distance_m":6,"confidence":0.9}],"categoryId":5,"source":{"plate":"platerecognizer","rest":"llm-bootstrap"},"verified":false},"PXL_20260918_101325860":{"photoId":"PXL_20260918_101325860","role":"third","car":{"present":true,"bbox":[141,326,658,829]},"plate":{"readable":true,"text":"ZS465TW","bbox":[226,622,348,680]},"markers":["sidewalk_parking","zebra_crossing","intersection","greenery"],"scene":[{"object":"chodnik","relation":"right_of_car","distance_m":0,"confidence":1},{"object":"D-6","relation":"in_front_of_car","distance_m":8,"confidence":1},{"object":"P-10_przejscie","relation":"in_front_of_car","distance_m":8,"confidence":0.9},{"object":"skrzyzowanie","relation":"in_front_of_car","distance_m":12,"confidence":0.9},{"object":"trawnik","relation":"left_of_car","distance_m":8,"confidence":0.9}],"categoryId":5,"source":{"plate":"platerecognizer","rest":"llm-bootstrap"},"verified":false},"PXL_20260919_065308349":{"photoId":"PXL_20260919_065308349","role":"context","car":{"present":false,"bbox":null},"plate":{"readable":false,"text":null,"bbox":null},"markers":["b36_sign","bike_lane","road_markings","greenery","intersection","zebra_crossing"],"scene":[{"object":"B-36","relation":"not_related","distance_m":null,"confidence":1},{"object":"C-13","relation":"not_related","distance_m":null,"confidence":1},{"object":"P-23_rower","relation":"not_related","distance_m":null,"confidence":1},{"object":"chodnik","relation":"not_related","distance_m":null,"confidence":1},{"object":"skrzyzowanie","relation":"not_related","distance_m":null,"confidence":0.8},{"object":"D-6","relation":"not_related","distance_m":null,"confidence":0.7}],"categoryId":14,"source":{"plate":"llm-bootstrap","rest":"llm-bootstrap"},"verified":false},"PXL_20260919_065333754.MP":{"photoId":"PXL_20260919_065333754.MP","role":"car","car":{"present":true,"bbox":[536,424,732,651]},"plate":{"readable":true,"text":"ZS235LY","bbox":[612,520,669,541]},"markers":["sidewalk_parking","bike_lane","road_markings","zebra_crossing","intersection","greenery"],"scene":[{"object":"chodnik","relation":"under_car","distance_m":0,"confidence":1},{"object":"droga_dla_rowerow","relation":"under_car","distance_m":0,"confidence":1},{"object":"P-10_przejscie","relation":"behind_car","distance_m":25,"confidence":0.9},{"object":"skrzyzowanie","relation":"behind_car","distance_m":40,"confidence":0.8},{"object":"trawnik","relation":"left_of_car","distance_m":10,"confidence":1}],"categoryId":14,"source":{"plate":"platerecognizer","rest":"llm-bootstrap"},"verified":false}},"candidates":{"R001":{"reportId":"R001","photoIds":["PXL_20260914_081354709"],"expectedPlate":"GD311RR","expectedCategoryId":5,"expectedSplitCount":1},"R002":{"reportId":"R002","photoIds":["PXL_20260914_081450783","PXL_20260914_081456501"],"expectedPlate":"GD311RR","expectedCategoryId":4,"expectedSplitCount":1},"R003":{"reportId":"R003","photoIds":["PXL_20260915_095410107","PXL_20260915_095415318"],"expectedPlate":"ZS964PN","expectedCategoryId":1,"expectedSplitCount":2},"R004":{"reportId":"R004","photoIds":["PXL_20260918_101316924.MP","PXL_20260918_101319206","PXL_20260918_101325860"],"expectedPlate":"65TW","expectedCategoryId":5,"expectedSplitCount":3},"R005":{"reportId":"R005","photoIds":["PXL_20260919_065308349","PXL_20260919_065333754.MP"],"expectedPlate":"ZS235LY","expectedCategoryId":14,"expectedSplitCount":1}}};
+const PHOTO_META = {"PXL_20260914_081354709":{"thumbFile":"PXL_20260914_081354709.jpg","w":1600,"h":1205},"PXL_20260914_081450783":{"thumbFile":"PXL_20260914_081450783.jpg","w":1600,"h":1205},"PXL_20260914_081456501":{"thumbFile":"PXL_20260914_081456501.jpg","w":1600,"h":1205},"PXL_20260915_095410107":{"thumbFile":"PXL_20260915_095410107.jpg","w":1600,"h":1205},"PXL_20260915_095415318":{"thumbFile":"PXL_20260915_095415318.jpg","w":1600,"h":1205},"PXL_20260918_101316924.MP":{"thumbFile":"PXL_20260918_101316924.MP.jpg","w":1600,"h":1205},"PXL_20260918_101319206":{"thumbFile":"PXL_20260918_101319206.jpg","w":1600,"h":1205},"PXL_20260918_101325860":{"thumbFile":"PXL_20260918_101325860.jpg","w":1600,"h":1205},"PXL_20260919_065308349":{"thumbFile":"PXL_20260919_065308349.jpg","w":1600,"h":1205},"PXL_20260919_065333754.MP":{"thumbFile":"PXL_20260919_065333754.MP.jpg","w":1600,"h":1205}};
+const CANDIDATES = [{"reportId":"R001","photoIds":["PXL_20260914_081354709"],"photo_index":[0],"startMs":1789373634000,"endMs":1789373634000,"centroid":{"lat":53.4307,"lng":14.5357},"hasGps":true,"needsReview":true},{"reportId":"R002","photoIds":["PXL_20260914_081450783","PXL_20260914_081456501"],"photo_index":[0,1],"startMs":1789373690000,"endMs":1789373696000,"centroid":{"lat":53.4263,"lng":14.5336},"hasGps":true,"needsReview":false},{"reportId":"R003","photoIds":["PXL_20260915_095410107","PXL_20260915_095415318"],"photo_index":[0,1],"startMs":1789466050000,"endMs":1789466055000,"centroid":{"lat":53.4333,"lng":14.5436},"hasGps":true,"needsReview":false},{"reportId":"R004","photoIds":["PXL_20260918_101316924.MP","PXL_20260918_101319206","PXL_20260918_101325860"],"photo_index":[0,1,2],"startMs":1789726396000,"endMs":1789726405000,"centroid":{"lat":53.4331,"lng":14.544400000000001},"hasGps":true,"needsReview":false},{"reportId":"R005","photoIds":["PXL_20260919_065308349","PXL_20260919_065333754.MP"],"photo_index":[0,1],"startMs":1789800788000,"endMs":1789800813000,"centroid":{"lat":53.4211,"lng":14.5493},"hasGps":true,"needsReview":false}];
+const CATEGORIES = [{"id":0,"title":"Pozostałe przypadki","short":"Musisz opisać wykroczenie w komentarzu powyżej"},{"id":1,"title":"Postój niezgodny z oznaczeniem","short":""},{"id":2,"title":"Przystanek","short":"Pojazd stał w obrębie zatoki przystankowej (jeśli jest) lub mniej niż 15 metrów od słupka „przystanek”"},{"id":3,"title":"Skrzyżowanie","short":"Pojazd stał w obrębie skrzyżowania (mniej niż 10 metrów)"},{"id":4,"title":"Zastawienie chodnika","short":"Pojazd utrudniał ruch pieszych lub zostawił mniej niż 1,5m na przejście"},{"id":5,"title":"Przejście dla pieszych","short":"Pojazd stał mniej niż 10m od przejścia dla pieszych"},{"id":6,"title":"Niszczenie zieleni","short":"Pojazd niszczył lub uszkadzał zieleń"},{"id":7,"title":"Postój niezgodny z oznaczeniem","short":""},{"id":8,"title":"W głębi chodnika","short":"Pojazd stał w głębi chodnika (np. za słupkami, pod budynkiem z dala od krawędzi jezdni)"},{"id":9,"title":"Utrudnianie ruchu rowerów","short":""},{"id":10,"title":"Postój za barierami ograniczającymi parkowanie","short":""},{"id":11,"title":"Ciężkie auto","short":"Pojazd o dopuszczalnej masie całkowitej większej niż 2,5 tony stał na chodniku"},{"id":12,"title":"Strefa zamieszkania","short":"Pojazd stał w strefie zamieszkania poza wyznaczonym miejscem"},{"id":13,"title":"Niepełnosprawni","short":"Pojazd bez odpowiednich uprawnień stał na kopercie dla niepełnosprawnych"},{"id":14,"title":"Zakaz zatrzymywania się","short":"Pojazd stał za zakazem zatrzymywania się"},{"id":15,"title":"Postój na zakazie","short":""},{"id":16,"title":"Tabliczka","short":"Pojazd stał niezgodnie z oznaczaniem na tabliczce wskazującej sposób parkowania"},{"id":17,"title":"Znaki poziome","short":"Pojazd przejechał linię ciągłą lub stanął na powierzchni wyłączonej z ruchu"},{"id":18,"title":"Jazda po chodniku","short":"Pojazd jechał wzdłuż chodnika lub po przejściu dla pieszych"},{"id":19,"title":"Korzystanie niezgodnie z przeznaczeniem","short":"Pojazd np. stał na sugerowanym przejściu dla pieszych"},{"id":20,"title":"Postój na DDR","short":""},{"id":21,"title":"Droga dla rowerów","short":"Pojazd stał na drodze na rowerów"},{"id":22,"title":"Wysepka rozdzielająca jezdnie","short":"Pojazd stał w odległości mniejszej niż 15 m od wysepki rozdzielającej jezdnie"},{"id":23,"title":"Przystanek bezczelny","short":"Pojazd stał w sposób utrudniający pieszym swobodny dostęp do pojazdu komunikacji publicznej"},{"id":24,"title":"Zakaz postoju","short":"Pojazd stał za zakazem postoju"},{"id":25,"title":"Zieleń","short":"Pojazd niszczył lub uszkadzał zieleń"},{"id":26,"title":"Zastawienie chodnika","short":"Pojazd utrudniał ruch pieszych lub zostawił mniej niż 1,5m na przejście chodnikiem"}];
+const MARKERS = ["bus_stop_sign","bus_bay","public_transport_access","zebra_crossing","intersection","tram_crossing","island_15m","sidewalk_parking","narrow_passage","deep_sidewalk","heavy_vehicle","b36_sign","b35_sign","d18_sign","t30_plate","road_markings","vertical_sign_mismatch","bike_lane","greenery","disabled_bay","residential_zone"];
+const ROLES = ["context","car","third","unusable"];
+const SCENE_OBJECTS = ["B-36","B-35","D-18","T-30","D-6","D-15","C-13","P-24_koperta","P-10_przejscie","P-14_przejazd_rowerowy","P-20_zygzak","P-23_rower","chodnik","trawnik","zatoka_autobusowa","wiata_przystankowa","skrzyzowanie","torowisko","wysepka","droga_dla_rowerow","slupki"];
+const SCENE_RELATIONS = ["under_car","in_front_of_car","behind_car","left_of_car","right_of_car","not_related"];
+const THUMB_BASE = '../.cache/prep/';
+
+let currentPhotoId = null;
+let drag = null; // {kind:'car'|'plate', x1,y1,x2,y2, active}
+
+function catOptions(selected) {
+  return CATEGORIES.map(c => `<option value="${c.id}" ${c.id===selected?'selected':''}>${c.id} — ${escapeHtml(c.title)}</option>`).join('');
+}
+function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function renderSidebar() {
+  const el = document.getElementById('candList');
+  el.innerHTML = CANDIDATES.map(c => {
+    const cand = GT.candidates[c.reportId] || {};
+    const rows = c.photoIds.map(pid => {
+      const p = GT.photos[pid] || {};
+      const dot = p.verified ? 'verified' : 'unverified';
+      return `<div class="photo-row" data-photo="${pid}"><span class="dot ${dot}"></span>${pid}</div>`;
+    }).join('');
+    return `<div class="cand">
+      <div class="cand-head" data-cand="${c.reportId}">${c.reportId} <span class="hint">(${c.photoIds.length})</span></div>
+      ${rows}
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.photo-row').forEach(row => row.addEventListener('click', () => selectPhoto(row.dataset.photo)));
+}
+
+function candidateOf(photoId) {
+  return CANDIDATES.find(c => c.photoIds.includes(photoId));
+}
+
+function selectPhoto(photoId) {
+  currentPhotoId = photoId;
+  document.querySelectorAll('.photo-row').forEach(r => r.classList.toggle('active', r.dataset.photo === photoId));
+  const cand = candidateOf(photoId);
+  document.getElementById('photoTitle').textContent = photoId + (cand ? ' — kandydat ' + cand.reportId : '');
+  renderEditor();
+}
+
+function boxToPx(box, w, h, dispW, dispH) {
+  if (!box) return null;
+  const sx = dispW / w, sy = dispH / h;
+  return { x1: box[0]/1000*w*sx, y1: box[1]/1000*h*sy, x2: box[2]/1000*w*sx, y2: box[3]/1000*h*sy };
+}
+
+function renderEditor() {
+  const p = GT.photos[currentPhotoId];
+  const meta = PHOTO_META[currentPhotoId];
+  if (!p || !meta) { document.getElementById('editor').innerHTML = '<p class="hint">Wybierz zdjęcie z listy po lewej.</p>'; return; }
+
+  const sceneRows = (p.scene || []).map((s, i) => sceneRowHtml(s, i)).join('');
+
+  document.getElementById('editor').innerHTML = `
+    <div class="legend">
+      <span><span class="swatch" style="background:#3ddc84"></span>auto (car)</span>
+      <span><span class="swatch" style="background:#ff5a5a"></span>tablica</span>
+      <span class="hint">Rysuj box: przytrzymaj i przeciągnij myszką po zdjęciu, potem wybierz car/tablica w dialogu.</span>
+    </div>
+    <div id="canvasWrap">
+      <img id="photoImg" src="${THUMB_BASE}${meta.thumbFile}">
+      <svg id="overlay" viewBox="0 0 ${meta.w} ${meta.h}" preserveAspectRatio="none"></svg>
+    </div>
+
+    <div class="panel">
+      <h3>Podstawowe</h3>
+      <div class="row">
+        <label>rola</label>
+        <select id="f-role">${ROLES.map(r => `<option value="${r}" ${r===p.role?'selected':''}>${r}</option>`).join('')}</select>
+        <label>zweryfikowane</label>
+        <input type="checkbox" id="f-verified" ${p.verified ? 'checked' : ''}>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Auto i tablica</h3>
+      <div class="row">
+        <label>auto obecne</label><input type="checkbox" id="f-car-present" ${p.car?.present ? 'checked' : ''}>
+        <label>box auta [x1,y1,x2,y2]</label>
+        <input type="number" id="f-car-x1" value="${bv(p.car?.bbox,0)}"><input type="number" id="f-car-y1" value="${bv(p.car?.bbox,1)}">
+        <input type="number" id="f-car-x2" value="${bv(p.car?.bbox,2)}"><input type="number" id="f-car-y2" value="${bv(p.car?.bbox,3)}">
+      </div>
+      <div class="row">
+        <label>tablica czytelna</label><input type="checkbox" id="f-plate-readable" ${p.plate?.readable ? 'checked' : ''}>
+        <label>tekst</label><input type="text" id="f-plate-text" value="${escapeHtml(p.plate?.text ?? '')}" style="width:110px">
+        <label>box tablicy</label>
+        <input type="number" id="f-plate-x1" value="${bv(p.plate?.bbox,0)}"><input type="number" id="f-plate-y1" value="${bv(p.plate?.bbox,1)}">
+        <input type="number" id="f-plate-x2" value="${bv(p.plate?.bbox,2)}"><input type="number" id="f-plate-y2" value="${bv(p.plate?.bbox,3)}">
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Markery (dla v0-v3)</h3>
+      <div class="markers">${MARKERS.map(m => `<label><input type="checkbox" class="f-marker" value="${m}" ${(p.markers||[]).includes(m)?'checked':''}>${m}</label>`).join('')}</div>
+    </div>
+
+    <div class="panel">
+      <h3>Scena (dla v4/v5) <button id="addSceneBtn" style="float:right">+ dodaj</button></h3>
+      <div id="sceneRows">${sceneRows}</div>
+    </div>
+
+    <div class="panel">
+      <h3>Kategoria tego zdjęcia</h3>
+      <select id="f-category">${catOptions(p.categoryId)}</select>
+    </div>
+
+    ${renderCandidatePanel()}
+  `;
+
+  attachEditorListeners();
+  renderOverlay();
+}
+
+function bv(box, i) { return box ? box[i] : ''; }
+
+function renderCandidatePanel() {
+  const cand = candidateOf(currentPhotoId);
+  if (!cand) return '';
+  const c = GT.candidates[cand.reportId] || {};
+  return `<div class="panel" style="border-color:var(--accent)">
+    <h3>Zgłoszenie ${cand.reportId} (całość, nie pojedyncze zdjęcie)</h3>
+    <div class="row">
+      <label>oczekiwana tablica</label><input type="text" id="c-plate" value="${escapeHtml(c.expectedPlate ?? '')}" style="width:110px">
+      <label>oczekiwana kategoria</label><select id="c-category">${catOptions(c.expectedCategoryId)}</select>
+      <label>oczekiwany split (ile pod-zgłoszeń)</label><input type="number" id="c-split" value="${c.expectedSplitCount ?? 1}" min="1" style="width:56px">
+    </div>
+  </div>`;
+}
+
+function readCandidatePanel() {
+  const cand = candidateOf(currentPhotoId);
+  if (!cand) return;
+  GT.candidates[cand.reportId] = {
+    ...GT.candidates[cand.reportId],
+    reportId: cand.reportId,
+    photoIds: cand.photoIds,
+    expectedPlate: document.getElementById('c-plate').value || null,
+    expectedCategoryId: Number(document.getElementById('c-category').value),
+    expectedSplitCount: Number(document.getElementById('c-split').value) || 1,
+  };
+}
+
+function sceneRowHtml(s, i) {
+  return `<div class="scene-row" data-idx="${i}">
+    <select class="sc-object">${SCENE_OBJECTS.map(o => `<option value="${o}" ${o===s.object?'selected':''}>${o}</option>`).join('')}</select>
+    <select class="sc-relation">${SCENE_RELATIONS.map(r => `<option value="${r}" ${r===s.relation?'selected':''}>${r}</option>`).join('')}</select>
+    <label>dystans(m)</label><input type="number" class="sc-distance" value="${s.distance_m}" step="0.5" style="width:56px">
+    <label>pewność</label><input type="number" class="sc-confidence" value="${s.confidence}" min="0" max="1" step="0.05" style="width:56px">
+    <button class="sc-remove">✕</button>
+  </div>`;
+}
+
+function readCurrentPhoto() {
+  const p = GT.photos[currentPhotoId];
+  p.role = document.getElementById('f-role').value;
+  p.verified = document.getElementById('f-verified').checked;
+  p.car = {
+    present: document.getElementById('f-car-present').checked,
+    bbox: readBoxInputs('f-car'),
+  };
+  p.plate = {
+    readable: document.getElementById('f-plate-readable').checked,
+    text: document.getElementById('f-plate-text').value || null,
+    bbox: readBoxInputs('f-plate'),
+  };
+  p.markers = [...document.querySelectorAll('.f-marker:checked')].map(el => el.value);
+  p.scene = [...document.querySelectorAll('.scene-row')].map(row => ({
+    object: row.querySelector('.sc-object').value,
+    relation: row.querySelector('.sc-relation').value,
+    distance_m: Number(row.querySelector('.sc-distance').value) || 0,
+    confidence: Number(row.querySelector('.sc-confidence').value) || 0,
+  }));
+  p.categoryId = Number(document.getElementById('f-category').value);
+  readCandidatePanel();
+}
+
+function readBoxInputs(prefix) {
+  const x1 = document.getElementById(prefix + '-x1').value;
+  const y1 = document.getElementById(prefix + '-y1').value;
+  const x2 = document.getElementById(prefix + '-x2').value;
+  const y2 = document.getElementById(prefix + '-y2').value;
+  if (x1 === '' || y1 === '' || x2 === '' || y2 === '') return null;
+  return [Number(x1), Number(y1), Number(x2), Number(y2)];
+}
+
+function attachEditorListeners() {
+  document.getElementById('editor').querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('change', () => { readCurrentPhoto(); renderOverlay(); refreshSidebarDot(); });
+  });
+  document.getElementById('addSceneBtn').addEventListener('click', () => {
+    const p = GT.photos[currentPhotoId];
+    p.scene = p.scene || [];
+    p.scene.push({ object: SCENE_OBJECTS[0], relation: SCENE_RELATIONS[0], distance_m: 0, confidence: 0.7 });
+    renderEditor();
+  });
+  document.getElementById('editor').addEventListener('click', (e) => {
+    if (e.target.classList.contains('sc-remove')) {
+      readCurrentPhoto();
+      const idx = Number(e.target.closest('.scene-row').dataset.idx);
+      GT.photos[currentPhotoId].scene.splice(idx, 1);
+      renderEditor();
+    }
+  });
+
+  const overlay = document.getElementById('overlay');
+  let start = null;
+  overlay.addEventListener('mousedown', (ev) => {
+    const rect = overlay.getBoundingClientRect();
+    const meta = PHOTO_META[currentPhotoId];
+    start = { x: (ev.clientX - rect.left) / rect.width * meta.w, y: (ev.clientY - rect.top) / rect.height * meta.h };
+  });
+  overlay.addEventListener('mouseup', (ev) => {
+    if (!start) return;
+    const rect = overlay.getBoundingClientRect();
+    const meta = PHOTO_META[currentPhotoId];
+    const end = { x: (ev.clientX - rect.left) / rect.width * meta.w, y: (ev.clientY - rect.top) / rect.height * meta.h };
+    const box = [Math.round(Math.min(start.x,end.x)/meta.w*1000), Math.round(Math.min(start.y,end.y)/meta.h*1000), Math.round(Math.max(start.x,end.x)/meta.w*1000), Math.round(Math.max(start.y,end.y)/meta.h*1000)];
+    start = null;
+    if (box[2]-box[0] < 5 || box[3]-box[1] < 5) return; // za mały, ignoruj (klik)
+    const kind = confirm('OK = box AUTA, Anuluj = box TABLICY') ? 'car' : 'plate';
+    setBoxInputs(kind === 'car' ? 'f-car' : 'f-plate', box);
+    if (kind === 'car') document.getElementById('f-car-present').checked = true;
+    else document.getElementById('f-plate-readable').checked = true;
+    readCurrentPhoto();
+    renderOverlay();
+  });
+}
+
+function setBoxInputs(prefix, box) {
+  document.getElementById(prefix + '-x1').value = box[0];
+  document.getElementById(prefix + '-y1').value = box[1];
+  document.getElementById(prefix + '-x2').value = box[2];
+  document.getElementById(prefix + '-y2').value = box[3];
+}
+
+function renderOverlay() {
+  const p = GT.photos[currentPhotoId];
+  const meta = PHOTO_META[currentPhotoId];
+  const svg = document.getElementById('overlay');
+  let boxes = '';
+  if (p.car?.bbox) boxes += rectSvg(p.car.bbox, meta, '#3ddc84');
+  if (p.plate?.bbox) boxes += rectSvg(p.plate.bbox, meta, '#ff5a5a');
+  svg.innerHTML = boxes;
+}
+function rectSvg(box, meta, color) {
+  const x = box[0]/1000*meta.w, y = box[1]/1000*meta.h, w = (box[2]-box[0])/1000*meta.w, h = (box[3]-box[1])/1000*meta.h;
+  return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${color}" stroke-width="${meta.w/250}"/>`;
+}
+
+function refreshSidebarDot() {
+  const row = document.querySelector(`.photo-row[data-photo="${currentPhotoId}"] .dot`);
+  if (row) row.className = 'dot ' + (GT.photos[currentPhotoId].verified ? 'verified' : 'unverified');
+}
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  if (currentPhotoId) readCurrentPhoto();
+  const blob = new Blob([JSON.stringify(GT, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'groundtruth.json';
+  a.click();
+});
+
+renderSidebar();
+</script>
+</body>
+</html>
