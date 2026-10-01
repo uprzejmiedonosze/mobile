@@ -17,8 +17,6 @@ const vp = (over: any = {}) => ({
   car: { present: true, bbox: [100, 100, 900, 900] as [number, number, number, number], desc: 'auto' },
   plate: { readable: true, text: 'ZS228FC', bbox: [400, 500, 600, 560] as [number, number, number, number] },
   markers: ['sidewalk_parking'],
-  suggested_category: 26,
-  category_confidence: 0.8,
   ...over,
 });
 
@@ -28,10 +26,11 @@ describe('vision (ANALYSIS.md)', () => {
   // przez tests/API/VisionTest.php. Tu zostaje tylko deterministyczny ogon
   // (grupowanie/split/kompozycja/kategorie), który wciąż liczy appka.
 
-  it('ruleCategory wg priorytetu (13 > 14 > 5 > 3 > 2 > 26)', () => {
-    expect(ruleCategory(['disabled_bay', 'b36_sign'])).toBe(13);
-    expect(ruleCategory(['b36_sign', 'zebra_crossing'])).toBe(14);
-    expect(ruleCategory(['zebra_crossing', 'sidewalk_parking'])).toBe(5);
+  it('ruleCategory wg priorytetu (13 > 5 > 3 > 2 > 26)', () => {
+    expect(ruleCategory(['disabled_bay', 'zebra_crossing'])).toBe(13);
+    expect(ruleCategory(['zebra_crossing', 'intersection'])).toBe(5);
+    expect(ruleCategory(['intersection', 'bus_bay'])).toBe(3);
+    expect(ruleCategory(['bus_bay', 'sidewalk_parking'])).toBe(2);
     expect(ruleCategory(['sidewalk_parking'])).toBe(26);
     expect(ruleCategory([])).toBe(0);
   });
@@ -81,25 +80,17 @@ describe('vision (ANALYSIS.md)', () => {
   });
 
   it('compose wybiera kontekst+auto i liczy kategorię regułą', () => {
-    const ctx = vp({ photo_index: 0, photoId: 'a', role: 'context', plate: { readable: false, text: null, bbox: null }, markers: ['zebra_crossing'], suggested_category: 5 });
-    const rec = compose('R001', ['a', 'b'], [ctx, vp({ photo_index: 1, photoId: 'b', suggested_category: 5 })]);
+    const ctx = vp({ photo_index: 0, photoId: 'a', role: 'context', plate: { readable: false, text: null, bbox: null }, markers: ['zebra_crossing'] });
+    const rec = compose('R001', ['a', 'b'], [ctx, vp({ photo_index: 1, photoId: 'b' })]);
     expect(rec.plate).toBe('ZS228FC');
     expect(rec.selected).toEqual([0, 1]);
     expect(rec.categoryId).toBe(5); // zebra > sidewalk
     expect(rec.needsReview).toBe(false);
   });
 
-  it('niezgodność sugestii z regułą daje review (nie cichy draft)', () => {
-    const ctx = vp({ photo_index: 0, photoId: 'a', role: 'context', plate: { readable: false, text: null, bbox: null }, markers: ['zebra_crossing'], suggested_category: 26 });
-    const rec = compose('R001', ['a', 'b'], [ctx, vp({ photo_index: 1, photoId: 'b' })]); // oba sugerują 26
-    expect(rec.categoryId).toBe(5); // reguła: zebra > sidewalk
-    expect(rec.needsReview).toBe(true);
-    expect(rec.reviewReasons.join(' ')).toMatch(/kategoria: kat\. 26 \(model\), kat\. 5 \(reguła\)/);
-  });
-
   it('shared context pożycza rodzeństwu i czyści powód', () => {
     const withCtx = compose('R003-1', ['a', 'b'], [
-      vp({ photo_index: 0, photoId: 'a', role: 'context', plate: { readable: false, text: null, bbox: null }, markers: ['bus_stop_sign'] }),
+      vp({ photo_index: 0, photoId: 'a', role: 'context', plate: { readable: false, text: null, bbox: null }, markers: ['bus_bay'] }),
       vp({ photo_index: 1, photoId: 'b' }),
     ]);
     const noCtx = compose('R003-2', ['c'], [vp({ photo_index: 0, photoId: 'c' })]);

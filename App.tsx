@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, BricolageGrotesque_700Bold } from '@expo-google-fonts/bricolage-grotesque';
 import { PublicSans_400Regular, PublicSans_700Bold } from '@expo-google-fonts/public-sans';
 import { PickerScreen } from './src/screens/PickerScreen';
+import { GroupingScreen } from './src/screens/GroupingScreen';
 import { AnalyzeScreen } from './src/screens/AnalyzeScreen';
 import { PairingScreen } from './src/screens/PairingScreen';
 import { ProposalsScreen } from './src/screens/ProposalsScreen';
@@ -14,6 +15,7 @@ import { AccountScreen } from './src/screens/AccountScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { UdLogo } from './src/components/UD';
 import { installGlobalLogHandlers, log } from './src/lib/log';
 import { useAuth } from './src/store/useAuth';
 import { udConfig, udEnv } from './src/config';
@@ -57,7 +59,7 @@ export default function App() {
       <StatusBar style="auto" />
       {!fontsLoaded || !ready || (logged && !registrationChecked) ? (
         <View style={{ flex: 1, backgroundColor: ud.surfaceLow, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: ud.primary, fontWeight: '900', fontSize: 30 }}>UD</Text>
+          <UdLogo height={40} />
           <Text style={{ color: ud.muted, marginTop: 8 }}>{ready ? 'sprawdzam konto…' : 'sprawdzam sesję…'}</Text>
         </View>
       ) : !logged ? (
@@ -71,6 +73,7 @@ export default function App() {
       ) : (
         <Stack.Navigator initialRouteName="Picker" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Picker" component={PickerScreen} />
+          <Stack.Screen name="Grouping" component={GroupingScreen} />
           <Stack.Screen name="Analyze" component={AnalyzeScreen} />
           <Stack.Screen name="Pairs" component={PairingScreen} />
           <Stack.Screen name="Proposals" component={ProposalsScreen} />

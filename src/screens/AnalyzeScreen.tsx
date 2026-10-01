@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { uploadConfig } from '../config';
@@ -6,7 +6,6 @@ import { log } from '../lib/log';
 import { attachSharedContext, buildDraftOrder, cacheKeyFor, compose, loadAnalysisCache, saveAnalysisCache, splitByPlate, type AnalysisRecord } from '../lib/compose';
 import { SCHEMA } from '../lib/vision';
 import { analyzeCandidate, type VisionItem } from '../api/vision';
-import { fetchCategories } from '../api/geo';
 import { useSession } from '../store/useSession';
 import { ud } from '../theme';
 import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
@@ -36,26 +35,26 @@ export function AnalyzeScreen({ navigation }: any) {
   const [rows, setRows] = useState<Row[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const startedRef = useRef(false);
   const go = (r: string) => navigation.navigate(r);
   const byId = new Map(photos.map((p) => [p.id, p]));
+  // Grupy odrzucone w kroku 2 (1 zdjęcie, brak pary kontekst+tablica) nie idą do wizji – nie da
+  // się z nich złożyć zgłoszenia, a to tylko marnowałoby żądanie do backendu.
+  const validCandidates = candidates.filter((c) => c.photoIds.length >= 2);
 
   const run = async () => {
-    log.info('wizja', `start: ${candidates.length} kandydatów (backend UD)`);
+    log.info('wizja', `start: ${validCandidates.length} kandydatów (backend UD)`);
     setBusy(true);
     setErr(null);
     setDone(0);
-    setRows(candidates.map((c) => ({ id: c.reportId, status: '…' })));
+    setRows(validCandidates.map((c) => ({ id: c.reportId, status: '…' })));
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     const cache = await loadAnalysisCache();
-    // /api/rest/config/categories jest publiczny (bez auth) – do nazw w komunikatach review.
-    const cats = await fetchCategories();
-    const catNames = new Map(cats.map((c) => [c.id, c.title]));
-    const catName = (id: number) => catNames.get(id) ?? `kat. ${id}`;
     const all: AnalysisRecord[] = [];
     let cacheDirty = false;
 
-    for (const cand of candidates) {
+    for (const cand of validCandidates) {
       const setRow = (status: string) =>
         setRows((prev) => prev.map((r) => (r.id === cand.reportId ? { ...r, status } : r)));
       try {
@@ -92,7 +91,7 @@ export function AnalyzeScreen({ navigation }: any) {
         const photoIds = analyzed.map((p) => p.photoId);
         const built: AnalysisRecord[] = [];
         for (const sub of splitByPlate(cand.reportId, photoIds, analyzed)) {
-          const rec = compose(sub.subId, sub.subPhotoIds, sub.subPhotos, catName);
+          const rec = compose(sub.subId, sub.subPhotoIds, sub.subPhotos);
           rec.cacheKey = cacheKeyFor(cand.reportId, cand.photoIds);
           rec.photoDims = photoDims;
           if (sub.split) rec.splitFrom = cand.reportId;
@@ -127,17 +126,27 @@ export function AnalyzeScreen({ navigation }: any) {
     go('Pairs');
   };
 
+  // Wchodzimy tu już w trybie analizy LLM – pomijamy pośredni ekran z samym przyciskiem
+  // Dalej, start od razu po wejściu na ekran (zamiast czekać na kliknięcie).
+  useEffect(() => {
+    if (startedRef.current || !validCandidates.length) return;
+    startedRef.current = true;
+    run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [validCandidates]);
+
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader onBack={() => go('Picker')} onNext={undefined} />
+      <UdHeader onBack={() => go('Grouping')} onNext={undefined} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 24 }}>
         <UdCard>
-          <Text style={{ color: ud.heading, fontWeight: '800', fontSize: 17 }}>Wizja: {candidates.length} kandydatów ({done}/{candidates.length}).</Text>
+          <Text style={{ color: ud.heading, fontWeight: '800', fontSize: 17 }}>Wizja: {validCandidates.length} kandydatów ({done}/{validCandidates.length}).</Text>
           <Text style={{ color: ud.muted, marginTop: 4 }}>Analiza po stronie serwera UD (1 żądanie na kandydata: role, tablice, markery, weryfikacja bbox). Kategorie liczy kod, nie model.</Text>
         </UdCard>
         {err ? (
           <UdCard>
             <Text style={{ color: 'red' }}>{err}</Text>
+            <UdButton title="Spróbuj ponownie" variant="accent" onPress={run} disabled={busy} />
           </UdCard>
         ) : null}
         {rows.map((r) => (
@@ -147,7 +156,6 @@ export function AnalyzeScreen({ navigation }: any) {
             </Text>
           </UdCard>
         ))}
-        <UdButton title={busy ? 'Analizuję…' : 'Dalej'} variant="accent" onPress={run} disabled={busy || !candidates.length} />
         {busy ? <UdButton title="Przerwij" variant="outline" onPress={() => abortRef.current?.abort()} /> : null}
       </ScrollView>
       <UdTabs current="Analyze" navigate={go} />

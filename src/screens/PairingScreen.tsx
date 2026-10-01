@@ -3,6 +3,8 @@ import { fetchVehicleInfo } from '../api/vehicle';
 import { reverseGeocode } from '../api/geo';
 import { fetchRecydywa } from '../api/recydywa';
 import { validIdToken } from '../api/udApi';
+import { fmtPlDateTimeShort } from '../lib/format';
+import { parseExifDtMs } from '../lib/grouping';
 import { normalizePlate } from '../lib/plate';
 import { log } from '../lib/log';
 import { useSession } from '../store/useSession';
@@ -89,10 +91,16 @@ export function PairingScreen({ navigation }: any) {
             <Text style={{ color: ud.muted }}>Brak rekordów – wróć i uruchom wizję.</Text>
           </UdCard>
         ) : null}
-        {analysis.map((rec) => (
+        {analysis.map((rec) => {
+          const lastPhotoId = rec.photoIds[rec.photoIds.length - 1];
+          const lastDt = byId.get(lastPhotoId)?.exif.datetimeOriginal;
+          const dtMs = lastDt ? parseExifDtMs(lastDt) : null;
+          const plate = normalizePlate(rec.plate) ?? 'brak tablicy';
+          const groupName = dtMs != null ? `${plate} · ${fmtPlDateTimeShort(dtMs)}` : plate;
+          return (
           <UdCard key={rec.reportId}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ color: ud.heading, fontWeight: '800', fontSize: 16 }}>{rec.reportId}</Text>
+              <Text style={{ color: ud.heading, fontWeight: '800', fontSize: 16 }}>{groupName}</Text>
               {rec.splitFrom ? <Text style={{ color: ud.muted }}>z {rec.splitFrom}</Text> : null}
               {rec.needsReview ? (
                 <Text style={{ backgroundColor: ud.accent, color: ud.onAccent, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 2, borderRadius: ud.radiusPill, overflow: 'hidden' }}>REVIEW</Text>
@@ -100,9 +108,7 @@ export function PairingScreen({ navigation }: any) {
                 <Text style={{ backgroundColor: ud.primaryContainer, color: ud.primary, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 2, borderRadius: ud.radiusPill, overflow: 'hidden' }}>OK</Text>
               )}
             </View>
-            <Text style={{ color: ud.primary, fontWeight: '800', marginTop: 4 }}>
-              {normalizePlate(rec.plate) ?? 'brak tablicy'} · kat. {rec.categoryId}
-            </Text>
+            <Text style={{ color: ud.primary, fontWeight: '800', marginTop: 4 }}>kat. {rec.categoryId}</Text>
             {rec.sharedContext ? <Text style={{ color: ud.muted }}>+ kontekst z {rec.sharedContext.from}</Text> : null}
             {rec.reviewReasons.map((r) => (
               <Text key={r} style={{ color: ud.warning }}>• {r}</Text>
@@ -136,7 +142,8 @@ export function PairingScreen({ navigation }: any) {
               );
             })}
           </UdCard>
-        ))}
+          );
+        })}
         <UdButton title="Dalej" variant="accent" onPress={build} disabled={!analysis.length} />
       </ScrollView>
       <UdTabs current="Analyze" navigate={go} />

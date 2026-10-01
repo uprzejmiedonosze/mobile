@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, Text, TextInput, View } from 'react-native';
-import { useAuth } from '../store/useAuth';
+import { googleSignInReady, useAuth } from '../store/useAuth';
 import { udConfig, udEnv } from '../config';
 import { ud } from '../theme';
 import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
@@ -57,7 +57,7 @@ export function AccountScreen({ navigation }: any) {
           </UdCard>
         )}
 
-        {!logged ? (
+        {!logged && googleSignInReady ? (
           <UdCard>
             <Text style={{ color: ud.heading, fontWeight: '700' }}>Google</Text>
             <Text style={{ color: ud.muted, marginTop: 4 }}>
@@ -69,6 +69,11 @@ export function AccountScreen({ navigation }: any) {
               onPress={a.signInWithGoogle}
               disabled={a.status === 'link-sending' || a.status === 'verifying' || a.status === 'google-signing'}
             />
+          </UdCard>
+        ) : null}
+        {!logged && !googleSignInReady ? (
+          <UdCard>
+            <Text style={{ color: ud.muted }}>Logowanie Google niedostępne w Expo Go (wymaga dev clienta) – użyj linku e-mail powyżej.</Text>
           </UdCard>
         ) : null}
       </ScrollView>
