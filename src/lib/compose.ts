@@ -30,40 +30,85 @@ export type AnalysisRecord = {
 const CACHE_FILE = 'analysis.json';
 
 // "80% numeru się zgadza -> ten sam pojazd" — ustalone z użytkownikiem po realnym przypadku
-// (model odczytał "GD314RR", ALPR "GD311RR" dla tego samego auta: Levenshtein=1 na 7 znaków,
-// podobieństwo 6/7≈85.7%, łapie ten próg). Świadomie zostaje deterministyczne (nie LLM) — ta sama
+// (model odczytał "GD314RR", ALPR "GD311RR" dla tego samego auta). Liczone bez wspólnego
+// wyróżnika powiatu ("314RR" vs "311RR": 1 błąd na 5 znaków = 80%), patrz fullSimilarity(). Świadomie zostaje deterministyczne (nie LLM) — ta sama
 // zasada co reszta pliku i co stoi za hybrid-pr/ALPR: LLM zawodzi przy dokładnym odczycie tablic,
 // więc scalanie bliskich odczytów robi kod, nie kolejne pytanie do modelu.
 export const PLATE_SIMILARITY_THRESHOLD = 0.8;
 
-function levenshtein(a: string, b: string): number {
+// Pomyłki OCR między znakami podobnymi wizualnie kosztują pół błędu (realny przypadek: częściowy
+// odczyt ALPR "KBR0" przy tablicy "Z0JKBRO" — zero vs litera O).
+const CONFUSABLE = new Set(['0O', '0D', '0Q', 'OQ', '1I', '2Z', '5S', '6G', '8B'].flatMap((p) => [p, p[1] + p[0]]));
+const subCost = (a: string, b: string) => (a === b ? 0 : CONFUSABLE.has(a + b) ? 0.5 : 1);
+
+function editDistance(a: string, b: string): number {
   const dp: number[][] = Array.from({ length: a.length + 1 }, () => new Array(b.length + 1).fill(0));
   for (let i = 0; i <= a.length; i++) dp[i][0] = i;
   for (let j = 0; j <= b.length; j++) dp[0][j] = j;
   for (let i = 1; i <= a.length; i++) {
     for (let j = 1; j <= b.length; j++) {
-      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+      dp[i][j] = Math.min(dp[i - 1][j - 1] + subCost(a[i - 1], b[j - 1]), dp[i - 1][j] + 1, dp[i][j - 1] + 1);
     }
   }
   return dp[a.length][b.length];
 }
 
-function plateSimilarity(a: string, b: string): number {
-  if (!a.length && !b.length) return 1;
-  return 1 - levenshtein(a, b) / Math.max(a.length, b.length);
+// Wyróżnik powiatu (wiodące litery, max 3: ZS, ZSZ, ZPL…) powtarza się u wielu aut w tej samej
+// okolicy, więc nie jest dowodem, że to ten sam pojazd — liczy się dalsza część tablicy.
+function regionPrefixLen(t: string): number {
+  return t.match(/^[A-Z]{1,3}/)?.[0].length ?? 0;
 }
 
-// Rozmyte dopasowanie jak wyżej, plus częściowy odczyt ALPR auta z boku kadru: krótszy tekst
-// (≥4 znaki) będący podciągiem dłuższego — realny przypadek: ALPR "45TW" przy tablicy "ZS465TW"
-// (podobieństwo 57%, poniżej progu). Luźne, więc używane tylko do przydziału ról/kontekstu na
-// podstawie alpr_all, nie do dzielenia kandydata po tablicy.
+// Dwie pełne tablice (długość różna max o 1): podobieństwo po odcięciu WSPÓLNEGO wyróżnika powiatu.
+function fullSimilarity(a: string, b: string): number {
+  const maxK = Math.min(regionPrefixLen(a), regionPrefixLen(b));
+  let k = 0;
+  while (k < maxK && a[k] === b[k]) k++;
+  const ra = a.slice(k);
+  const rb = b.slice(k);
+  if (!ra.length && !rb.length) return 1;
+  return 1 - editDistance(ra, rb) / Math.max(ra.length, rb.length);
+}
+
+// Częściowy odczyt (np. auto z boku kadru): krótszy tekst s dopasowany do dowolnego fragmentu l
+// (całe s, fragment l). Wymaga ≤1 błędu na 4 znaki ORAZ min. 3 trafionych znaków poza
+// wyróżnikiem powiatu l — sam "ZS6…" pasowałby do połowy aut w Szczecinie.
+export const PARTIAL_MAX_COST_PER_CHAR = 0.25;
+function partialMatch(s: string, l: string): boolean {
+  const m = s.length;
+  const n = l.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++) dp[i][0] = i;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = Math.min(dp[i - 1][j - 1] + subCost(s[i - 1], l[j - 1]), dp[i - 1][j] + 1, dp[i][j - 1] + 1);
+    }
+  }
+  let end = 0;
+  for (let j = 1; j <= n; j++) if (dp[m][j] < dp[m][end]) end = j;
+  if (dp[m][end] > PARTIAL_MAX_COST_PER_CHAR * m) return false;
+
+  const p = regionPrefixLen(l);
+  let hits = 0;
+  for (let i = m, j = end; i > 0; ) {
+    const c = j > 0 ? subCost(s[i - 1], l[j - 1]) : Infinity;
+    if (j > 0 && dp[i][j] === dp[i - 1][j - 1] + c) {
+      if (c < 1 && j - 1 >= p) hits++;
+      i--;
+      j--;
+    } else if (dp[i][j] === dp[i - 1][j] + 1) i--;
+    else j--;
+  }
+  return hits >= 3;
+}
+
+// Jedno dopasowanie tablic dla całego ogona: podział kandydata po tablicy, przydział ról i wybór
+// pożyczonego kontekstu. Dwa różne auta o podobnych numerach obok siebie to rzadkość, więc fuzzy
+// jest tu bezpieczniejszy niż rozbicie jednego auta na dwa zgłoszenia przez jeden zły znak.
 export function plateMatches(a: string, b: string): boolean {
-  if (plateSimilarity(a, b) >= PLATE_SIMILARITY_THRESHOLD) return true;
   const [s, l] = a.length <= b.length ? [a, b] : [b, a];
-  if (s.length < 4 || s.length === l.length) return false;
-  let j = 0;
-  for (const c of l) if (c === s[j]) j++;
-  return j === s.length;
+  if (l.length - s.length <= 1) return fullSimilarity(a, b) >= PLATE_SIMILARITY_THRESHOLD;
+  return s.length >= 4 && partialMatch(s, l);
 }
 
 export function vehicleAreaFor(p: VisionPhoto, plate: string): number {
@@ -107,7 +152,7 @@ function clusterPlateTexts(texts: string[]): string[][] {
       const cur = stack.pop()!;
       for (let j = 0; j < texts.length; j++) {
         if (used.has(j)) continue;
-        if (plateSimilarity(texts[cur], texts[j]) >= PLATE_SIMILARITY_THRESHOLD) {
+        if (plateMatches(texts[cur], texts[j])) {
           used.add(j);
           cluster.push(texts[j]);
           stack.push(j);

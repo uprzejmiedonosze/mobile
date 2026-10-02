@@ -59,7 +59,7 @@ describe('vision (ANALYSIS.md)', () => {
     expect(out[0].subPhotoIds).toEqual(['a', 'b']);
   });
 
-  it('splitByPlate NIE scala tablic poniżej progu 80% (2 różnice na 7 znaków, 5/7≈71.4%)', () => {
+  it('splitByPlate NIE scala tablic poniżej progu 80% ("314RR" vs "319RA": 2 różnice na 5 znaków)', () => {
     const photos = [
       vp({ photo_index: 0, photoId: 'a', plate: { readable: true, text: 'GD314RR', bbox: [400, 500, 600, 560] } }),
       vp({ photo_index: 1, photoId: 'b', plate: { readable: true, text: 'GD319RA', bbox: [400, 500, 600, 560] } }),
@@ -71,13 +71,21 @@ describe('vision (ANALYSIS.md)', () => {
 
   it('splitByPlate scala tranzytywnie przez most (A~B, B~C, ale A i C bezpośrednio niepodobne)', () => {
     const photos = [
-      vp({ photo_index: 0, photoId: 'a', plate: { readable: true, text: 'AB123', bbox: [400, 500, 600, 560] } }), // A~B: 1/5 różnicy, 80%
-      vp({ photo_index: 1, photoId: 'b', plate: { readable: true, text: 'AB124', bbox: [400, 500, 600, 560] } }), // B~C: 1/5 różnicy, 80%
-      vp({ photo_index: 2, photoId: 'c', plate: { readable: true, text: 'AB144', bbox: [400, 500, 600, 560] } }), // A~C: 2/5 różnicy, 60% — most przez B musi je scalić
+      vp({ photo_index: 0, photoId: 'a', plate: { readable: true, text: 'ZS12345', bbox: [400, 500, 600, 560] } }), // A~B: "12345"/"12346" 80%
+      vp({ photo_index: 1, photoId: 'b', plate: { readable: true, text: 'ZS12346', bbox: [400, 500, 600, 560] } }), // B~C: "12346"/"12446" 80%
+      vp({ photo_index: 2, photoId: 'c', plate: { readable: true, text: 'ZS12446', bbox: [400, 500, 600, 560] } }), // A~C: 60% — most przez B
     ];
     const out = splitByPlate('R003', ['a', 'b', 'c'], photos);
     expect(out).toHaveLength(1);
     expect(out[0].subPhotoIds).toEqual(['a', 'b', 'c']);
+  });
+
+  it('splitByPlate łączy częściowy odczyt tablicy z pełnym (to samo auto)', () => {
+    const photos = [
+      vp({ photo_index: 0, photoId: 'a', plate: { readable: true, text: 'ZS465TW', bbox: [400, 500, 600, 560] } }),
+      vp({ photo_index: 1, photoId: 'b', plate: { readable: true, text: '45TW', bbox: [400, 500, 600, 560] } }),
+    ];
+    expect(splitByPlate('R004', ['a', 'b'], photos)).toHaveLength(1);
   });
 
   it('compose wybiera kontekst+auto i liczy kategorię regułą', () => {
@@ -106,11 +114,16 @@ describe('vision (ANALYSIS.md)', () => {
   // stagingu (2026-10-01, kadr 1600x1204), role "od modelu" też 1:1 z tamtego przebiegu.
   const det = (text: string, area: number) => ({ text, score: 0.99, plate_bbox: null, vehicle_bbox: null, vehicle_area: area });
 
-  it('plateMatches łapie częściowy odczyt ALPR (45TW ⊂ ZS465TW), ale nie inną tablicę', () => {
-    expect(plateMatches('45TW', 'ZS465TW')).toBe(true);
+  it('plateMatches: częściowe odczyty i mylone znaki pasują, sam wyróżnik powiatu nie', () => {
+    expect(plateMatches('45TW', 'ZS465TW')).toBe(true); // 1 brakujący znak na 4
+    expect(plateMatches('KBR0', 'Z0JKBRO')).toBe(true); // realny przypadek: 0 vs O
+    expect(plateMatches('ZS679SW', 'ZS6795W')).toBe(true); // S vs 5
+    expect(plateMatches('GD314RR', 'GD311RR')).toBe(true); // "314RR" vs "311RR" = 80%
     expect(plateMatches('45TW', 'ZS689UJ')).toBe(false);
-    expect(plateMatches('GD314RR', 'GD311RR')).toBe(true);
-    expect(plateMatches('ZS1', 'ZS150UP')).toBe(false); // < 4 znaki — za luźne
+    expect(plateMatches('ZS1', 'ZS150UP')).toBe(false); // < 4 znaki
+    expect(plateMatches('ZS67', 'ZS679SW')).toBe(false); // tylko 2 znaki poza "ZS"
+    expect(plateMatches('ZSZ1', 'ZSZ1234')).toBe(false); // tylko 1 znak poza "ZSZ"
+    expect(plateMatches('ZS12345', 'ZS99945')).toBe(false); // wspólny "ZS" nie wystarcza
   });
 
   it('R005: dwa zbliżenia tego samego auta oznaczone przez model jako car -> mniejsze ujęcie staje się kontekstem', () => {
