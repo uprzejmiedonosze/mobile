@@ -1,5 +1,6 @@
-import { attachSharedContext, buildDraftOrder, compose, splitByPlate } from '../src/lib/compose';
+import { attachSharedContext, buildDraftOrder, compose, plateMatches, splitByPlate } from '../src/lib/compose';
 import { ruleCategory } from '../src/lib/vision';
+import { describeRecord, shortPhotoId } from '../src/lib/trace';
 
 jest.mock('expo-file-system/legacy', () => ({
   documentDirectory: '/tmp/',
@@ -99,5 +100,75 @@ describe('vision (ANALYSIS.md)', () => {
     expect(noCtx.reviewReasons).not.toContain('brak zdjecia kontekstu');
     buildDraftOrder(noCtx);
     expect(noCtx.draftOrder[0]).toMatchObject({ role: 'context', sharedFrom: 'R003-1' });
+  });
+
+  // --- SCHEMA 8: role z ALPR (alpr_all), nie od modelu. Pola pojazdów 1:1 z odpowiedzi ALPR na
+  // stagingu (2026-10-01, kadr 1600x1204), role "od modelu" też 1:1 z tamtego przebiegu.
+  const det = (text: string, area: number) => ({ text, score: 0.99, plate_bbox: null, vehicle_bbox: null, vehicle_area: area });
+
+  it('plateMatches łapie częściowy odczyt ALPR (45TW ⊂ ZS465TW), ale nie inną tablicę', () => {
+    expect(plateMatches('45TW', 'ZS465TW')).toBe(true);
+    expect(plateMatches('45TW', 'ZS689UJ')).toBe(false);
+    expect(plateMatches('GD314RR', 'GD311RR')).toBe(true);
+    expect(plateMatches('ZS1', 'ZS150UP')).toBe(false); // < 4 znaki — za luźne
+  });
+
+  it('R005: dwa zbliżenia tego samego auta oznaczone przez model jako car -> mniejsze ujęcie staje się kontekstem', () => {
+    const photos = [
+      vp({ photo_index: 0, photoId: 'x', role: 'car', plate: { readable: true, text: 'ZS150UP', bbox: null },
+        alpr_all: [det('ZPL96783', 0.0160), det('ZS150UP', 0.3399)] }),
+      vp({ photo_index: 1, photoId: 'y', role: 'car', plate: { readable: true, text: 'ZS150UP', bbox: null },
+        alpr_all: [det('ZS150UP', 0.2500)] }),
+    ];
+    const rec = compose('R005', ['x', 'y'], photos);
+    expect(rec.photos.map((p) => p.role)).toEqual(['car', 'context']);
+    expect(rec.reviewReasons).not.toContain('brak zdjecia kontekstu');
+    expect(rec.needsReview).toBe(false);
+  });
+
+  it('R001: szerokie ujęcie z dwoma autami jest kontekstem dla obu zgłoszeń (duplikat), third innego auta staje się car', () => {
+    const photos = [
+      vp({ photo_index: 0, photoId: 'a', role: 'car', plate: { readable: true, text: 'ZS689UJ', bbox: null },
+        alpr_all: [det('Z0RECAR', 0.0163), det('45TW', 0.0503), det('ZS689UJ', 0.2556)] }),
+      vp({ photo_index: 1, photoId: 'b', role: 'car', plate: { readable: true, text: 'ZS689UJ', bbox: null },
+        alpr_all: [det('ZS689UJ', 0.3492)] }),
+      vp({ photo_index: 2, photoId: 'c', role: 'third', plate: { readable: true, text: 'ZS465TW', bbox: null },
+        alpr_all: [det('ZS465TW', 0.3500)] }),
+    ];
+    const recs = splitByPlate('R001', ['a', 'b', 'c'], photos).map((s) => compose(s.subId, s.subPhotoIds, s.subPhotos));
+    attachSharedContext(recs);
+    recs.forEach(buildDraftOrder);
+
+    expect(recs.map((r) => r.plate)).toEqual(['ZS689UJ', 'ZS465TW']);
+    expect(recs[0].draftOrder).toEqual([{ photoId: 'a', role: 'context' }, { photoId: 'b', role: 'car' }]);
+    expect(recs[1].draftOrder).toEqual([{ photoId: 'a', role: 'context', sharedFrom: 'R001-1' }, { photoId: 'c', role: 'car' }]);
+    expect(recs.every((r) => !r.needsReview)).toBe(true);
+  });
+
+  it('bez danych ALPR o tablicy grupy zostają role od modelu', () => {
+    const photos = [
+      vp({ photo_index: 0, photoId: 'a', role: 'context', plate: { readable: false, text: null, bbox: null }, markers: ['zebra_crossing'] }),
+      vp({ photo_index: 1, photoId: 'b' }),
+    ];
+    expect(compose('R007', ['a', 'b'], photos).photos.map((p) => p.role)).toEqual(['context', 'car']);
+  });
+
+  it('plate_check (poziom zdjęcia, jak w backendzie) daje review tylko na zdjęciu auta, nie na kontekście', () => {
+    const ctx = vp({ photo_index: 0, photoId: 'a', role: 'context', plate: { readable: false, text: null, bbox: null }, markers: ['zebra_crossing'], plate_check: 'unverified-box' });
+    expect(compose('R009', ['a', 'b'], [ctx, vp({ photo_index: 1, photoId: 'b' })]).needsReview).toBe(false);
+    const car = vp({ photo_index: 1, photoId: 'b', plate_check: 'unverified-box' });
+    const rec = compose('R010', ['a', 'b'], [{ ...ctx, plate_check: undefined }, car]);
+    expect(rec.reviewReasons).toContain('pozycja tablicy niepotwierdzona');
+  });
+
+  it('trace: skrócone photoId i opis rekordu z rolą od modelu i polem pojazdu', () => {
+    const id = '1790934191008-2-file:///data/ImagePicker/ed5d92ed-92ca-4026.jpeg';
+    expect(shortPhotoId(id)).toBe('#2/ed5d92ed');
+    const rec = compose('R005', ['x', 'y'], [
+      vp({ photo_index: 0, photoId: 'x', alpr_all: [det('ZS228FC', 0.34)] }),
+      vp({ photo_index: 1, photoId: 'y', alpr_all: [det('ZS228FC', 0.25)] }),
+    ]);
+    buildDraftOrder(rec);
+    expect(describeRecord(rec)).toContain('context (model: car) a=0.250');
   });
 });

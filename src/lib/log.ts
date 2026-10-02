@@ -8,15 +8,24 @@ function stamp(): string {
   return d.toTimeString().slice(0, 8) + '.' + String(d.getMilliseconds()).padStart(3, '0');
 }
 
+// Długie wpisy (np. pełna odpowiedź wizji) dzielimy na części zamiast ucinać — ucięcie na 2000
+// znakach gubiło dane ostatnich zdjęć kandydata, a bez nich nie da się odtworzyć decyzji.
+const MAX_LINE = 1800;
+
 function emit(level: LogLevel, tag: string, msg: string) {
-  const line = `[${stamp()}][${tag}] ${msg.slice(0, 2000)}`;
-  try {
-    if (level === 'error') console.error(line);
-    else if (level === 'warn') console.warn(line);
-    else console.log(line);
-  } catch {
-    /* brak konsoli */
-  }
+  const parts: string[] = [];
+  for (let i = 0; i < msg.length || i === 0; i += MAX_LINE) parts.push(msg.slice(i, i + MAX_LINE));
+  const ts = stamp();
+  parts.forEach((part, k) => {
+    const line = `[${ts}][${tag}]${parts.length > 1 ? ` (${k + 1}/${parts.length})` : ''} ${part}`;
+    try {
+      if (level === 'error') console.error(line);
+      else if (level === 'warn') console.warn(line);
+      else console.log(line);
+    } catch {
+      /* brak konsoli */
+    }
+  });
 }
 
 export const log = {

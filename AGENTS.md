@@ -50,7 +50,10 @@ Pipeline stages, in order:
    for the prompt/validation/normalization — the app no longer has a local copy). The server does
    the LLM call (role: context/car/third/unusable, markers, bbox in 0–1000 space), validation, a
    retry-crop for unreadable plates, and a bbox re-verification, all internally, and returns the
-   final `photos[]`. Splits a cluster by plate (`R014` → `R014-1/2/3`), composes 2–3 photos
+   final `photos[]`, including every ALPR detection per photo (`alpr_all`, SCHEMA 8). Roles
+   (context/car/third) are re-assigned client-side from those detections (`assignRoles` in
+   `compose.ts`: car = photo where that plate's vehicle is largest, context = the widest other
+   shot), because the model's cross-photo role choices proved unreliable. Splits a cluster by plate (`R014` → `R014-1/2/3`), composes 2–3 photos
    (`src/lib/compose.ts`), and allows "borrowed context" between siblings (rule B) — this
    deterministic tail is the only part still run client-side. Report category comes from a
    deterministic marker rule (`ruleCategory` in `src/lib/vision.ts`) — the model only advises.

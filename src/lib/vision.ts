@@ -5,7 +5,7 @@
 // VisionPhoto jako lustro kontraktu odpowiedzi POST /api/rest/vision/candidate.
 // Każda zmiana promptu/markerów w Vision.php MUSI podbić SCHEMA tu i VISION_SCHEMA tam.
 
-export const SCHEMA = 7; // = VISION_SCHEMA w backendzie; appka gejtuje na tym cache analizy
+export const SCHEMA = 8; // = VISION_SCHEMA w backendzie; appka gejtuje na tym cache analizy
 
 export const ROLES = ['context', 'car', 'third', 'unusable'] as const;
 export type Role = (typeof ROLES)[number];
@@ -50,15 +50,28 @@ export function ruleCategory(markers: string[]): number {
 
 export type Box4 = [number, number, number, number]; // x1,y1,x2,y2 w 0..1000
 
+// Pojedynczy odczyt ALPR ze zdjęcia (SCHEMA 8, backend: alprDetections() w Vision.php).
+// vehicle_area = pole pojazdu jako ułamek kadru (0..1) — z tego compose.ts przydziela role.
+export type AlprDetection = {
+  text: string;
+  score: number | null;
+  plate_bbox: Box4 | null;
+  vehicle_bbox: Box4 | null;
+  vehicle_area: number | null;
+};
+
 export type VisionPhoto = {
   photo_index: number;
   photoId: string;
   role: Role;
+  role_model?: Role; // rola od modelu, gdy assignRoles() (compose.ts) ją nadpisało — do trace/UI
   quality: number;
   car: { present: boolean; bbox: Box4 | null; desc: string | null };
-  plate: { readable: boolean; text: string | null; bbox: Box4 | null; from_crop?: boolean; plate_check?: string };
+  plate: { readable: boolean; text: string | null; bbox: Box4 | null; from_crop?: boolean };
+  plate_check?: 'unverified-box'; // backend: odczyt ALPR poza autem wskazanym przez model, wrócono do odczytu modelu
   markers: Marker[];
   plate_verified?: boolean;
+  alpr_all?: AlprDetection[];
   // TYMCZASOWE (debug): porównanie odczytu tablicy ALPR (PlateRecognizer, to co ląduje w `plate`
   // powyżej gdy ALPR coś znajdzie) vs odczyt samego modelu, sprzed nadpisania. Backend:
   // applyAlprPlate() w Vision.php. Usunąć razem z resztą miejsc oznaczonych "TYMCZASOWE (debug)"

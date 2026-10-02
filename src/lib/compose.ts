@@ -53,6 +53,45 @@ function plateSimilarity(a: string, b: string): number {
   return 1 - levenshtein(a, b) / Math.max(a.length, b.length);
 }
 
+// Rozmyte dopasowanie jak wyżej, plus częściowy odczyt ALPR auta z boku kadru: krótszy tekst
+// (≥4 znaki) będący podciągiem dłuższego — realny przypadek: ALPR "45TW" przy tablicy "ZS465TW"
+// (podobieństwo 57%, poniżej progu). Luźne, więc używane tylko do przydziału ról/kontekstu na
+// podstawie alpr_all, nie do dzielenia kandydata po tablicy.
+export function plateMatches(a: string, b: string): boolean {
+  if (plateSimilarity(a, b) >= PLATE_SIMILARITY_THRESHOLD) return true;
+  const [s, l] = a.length <= b.length ? [a, b] : [b, a];
+  if (s.length < 4 || s.length === l.length) return false;
+  let j = 0;
+  for (const c of l) if (c === s[j]) j++;
+  return j === s.length;
+}
+
+export function vehicleAreaFor(p: VisionPhoto, plate: string): number {
+  const hits = (p.alpr_all ?? []).filter((d) => d.vehicle_area != null && plateMatches(d.text, plate));
+  return Math.max(0, ...hits.map((d) => d.vehicle_area as number));
+}
+
+// Role z ALPR (SCHEMA 8), nie od modelu: gpt-5-nano mimo instrukcji w prompcie daje dwa 'car' dla
+// tego samego auta (brak kontekstu -> review) albo 'third' dla innego pojazdu. Tu: car = zdjęcie,
+// na którym pojazd z tablicą grupy jest największy (najbliżej autora); kontekst = z pozostałych
+// to, na którym jest najmniejszy albo go nie widać (najszersze ujęcie); reszta = third.
+// 'unusable' zostaje. Gdy ALPR nie widzi tej tablicy na żadnym zdjęciu — zostają role modelu.
+export function assignRoles(photos: VisionPhoto[], plate: string | null): VisionPhoto[] {
+  if (!plate) return photos;
+  const q = (i: number) => photos[i].quality ?? 0;
+  const usable = photos
+    .map((p, i) => ({ i, area: vehicleAreaFor(p, plate) }))
+    .filter(({ i }) => photos[i].role !== 'unusable');
+  if (!usable.some((u) => u.area > 0)) return photos;
+  const [car, ...rest] = [...usable].sort((a, b) => b.area - a.area || q(b.i) - q(a.i));
+  const ctx = rest.sort((a, b) => a.area - b.area || q(b.i) - q(a.i))[0];
+  return photos.map((p, i) => {
+    if (p.role === 'unusable') return p;
+    const role = i === car.i ? 'car' : i === ctx?.i ? 'context' : 'third';
+    return role === p.role ? p : { ...p, role, role_model: p.role };
+  });
+}
+
 // Single-linkage nad DYSTYNKTYWNYMI tekstami tablic (nie nad zdjęciami) — ten sam wzorzec
 // (DFS/stos, nie zachłanne łączenie w jednym przebiegu) co clusterSession() w grouping.ts, tylko
 // inna metryka (Levenshtein zamiast haversine+czas).
@@ -153,6 +192,7 @@ export function compose(
   const plates = subPhotos.filter((p) => p.plate?.readable).map((p) => p.plate.text as string);
   const plate = plates[0] ?? null;
   if (new Set(plates).size > 1) reasons.push(`rozne tablice [${[...new Set(plates)]}] — mozliwy split kandydata`);
+  subPhotos = assignRoles(subPhotos, plate);
 
   const ctx = subPhotos.map((p, i) => (p.role === 'context' ? i : -1)).filter((i) => i >= 0);
   const cars = subPhotos.map((p, i) => (['car', 'third'].includes(p.role) && p.plate?.readable ? i : -1)).filter((i) => i >= 0);
@@ -186,7 +226,9 @@ export function compose(
   const markers = [...new Set(selected.flatMap((i) => subPhotos[i].markers ?? []))].sort();
   const ruleCid = ruleCategory(markers);
   if (ruleCid === 0) reasons.push('brak markera kategorii');
-  if (selected.some((i) => subPhotos[i].plate?.plate_check === 'unverified-box')) reasons.push('pozycja tablicy niepotwierdzona');
+  // Tylko zdjęcie auta — na kontekście rozjazd ALPR/model jest normalny (ALPR czyta zgłaszane auto,
+  // model opisuje inne, dominujące w kadrze).
+  if (selected.some((i) => subPhotos[i].role === 'car' && subPhotos[i].plate_check === 'unverified-box')) reasons.push('pozycja tablicy niepotwierdzona');
 
   return {
     reportId: subId,
@@ -219,7 +261,10 @@ export function attachSharedContext(recs: AnalysisRecord[]): void {
     if (!rec.plate) continue;
     const sib = pool.filter((c) => c.from !== rec.reportId);
     if (!sib.length) continue;
-    sib.sort((a, b) => cmpScore(b.score, a.score));
+    // Najpierw kontekst rodzeństwa, na którym ALPR widzi też to auto (szerokie ujęcie z kilkoma
+    // pojazdami, wspólne dla kilku zgłoszeń), dopiero potem ogólnie najlepszy.
+    const showsPlate = (c: (typeof sib)[number]) => (c.photo.alpr_all ?? []).some((d) => plateMatches(d.text, rec.plate!));
+    sib.sort((a, b) => Number(showsPlate(b)) - Number(showsPlate(a)) || cmpScore(b.score, a.score));
     const best = sib[0];
     rec.sharedContext = { from: best.from, photoId: best.photoId, role: 'context' };
     rec.reviewReasons = rec.reviewReasons.filter((r) => r !== 'brak zdjecia kontekstu');

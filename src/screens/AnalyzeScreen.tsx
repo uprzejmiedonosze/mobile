@@ -5,6 +5,7 @@ import { uploadConfig } from '../config';
 import { log } from '../lib/log';
 import { attachSharedContext, buildDraftOrder, cacheKeyFor, compose, loadAnalysisCache, saveAnalysisCache, splitByPlate, type AnalysisRecord } from '../lib/compose';
 import { SCHEMA } from '../lib/vision';
+import { describePhoto, describeRecord } from '../lib/trace';
 import { analyzeCandidate, type VisionItem } from '../api/vision';
 import { useSession } from '../store/useSession';
 import { ud } from '../theme';
@@ -66,6 +67,7 @@ export function AnalyzeScreen({ navigation }: any) {
           log.info('wizja', `${cand.reportId}: cache (${related.map((r) => r.reportId).join(',')}), pomijam`);
           const first = related[0];
           setRow(`cache: ${related.map((r) => r.plate ?? '—').join(',')} kat.${related.map((r) => r.categoryId).join(',')}${related.some((r) => r.needsReview) ? ' [REVIEW]' : ''}`);
+          for (const r of related) log.info('trace', `cache ${describeRecord(r)}`);
           all.push(...related);
           void first;
           continue;
@@ -87,6 +89,7 @@ export function AnalyzeScreen({ navigation }: any) {
           // belt-and-braces: backend już echouje photoId, ale gdyby nie – dociągamy po indeksie.
           if (!p.photoId) p.photoId = items.find((i) => i.photo_index === p.photo_index)?.photoId ?? '';
         }
+        for (const p of analyzed) log.info('trace', `${cand.reportId} ${describePhoto(p)}`);
         // split + compose + shared context + draft order
         const photoIds = analyzed.map((p) => p.photoId);
         const built: AnalysisRecord[] = [];
@@ -100,6 +103,7 @@ export function AnalyzeScreen({ navigation }: any) {
         attachSharedContext(built);
         for (const rec of built) {
           buildDraftOrder(rec);
+          log.info('trace', describeRecord(rec));
           cache[cacheKeyFor(cand.reportId, cand.photoIds) + (rec.splitFrom ? `:${rec.reportId}` : '')] = rec;
           all.push(rec);
         }

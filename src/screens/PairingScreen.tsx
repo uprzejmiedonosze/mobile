@@ -53,7 +53,7 @@ export function PairingScreen({ navigation }: any) {
           closeupPhotoId: carItem && carItem.photoId !== ctxItem?.photoId ? carItem.photoId : null,
           plateId,
           plateKey: rec.plate,
-          plateVerified: verified ? true : rec.photos.some((p) => p.plate?.plate_check === 'unverified-box') ? false : null,
+          plateVerified: verified ? true : rec.photos.some((p) => p.plate_check === 'unverified-box') ? false : null,
           datetime: carPhoto?.exif.datetimeOriginal ?? ctxPhoto?.exif.datetimeOriginal ?? null,
           lat,
           lng,
@@ -121,7 +121,7 @@ export function PairingScreen({ navigation }: any) {
                     uri={byId.get(d.photoId)?.uri}
                     plateBox={toBBox(ph?.plate?.bbox)}
                     vehicleBox={toBBox(ph?.car?.bbox)}
-                    plateVerified={ph?.plate_verified === true ? true : ph?.plate?.plate_check === 'unverified-box' ? false : null}
+                    plateVerified={ph?.plate_verified === true ? true : ph?.plate_check === 'unverified-box' ? false : null}
                     debugPlateBox={toBBox(ph?.plate_debug?.model?.bbox)}
                     naturalWidth={rec.photoDims?.[d.photoId]?.w}
                     naturalHeight={rec.photoDims?.[d.photoId]?.h}
@@ -130,7 +130,7 @@ export function PairingScreen({ navigation }: any) {
                   <Text style={{ color: ud.muted }}>
                     {d.role}
                     {d.sharedFrom ? ` (pożyczony z ${d.sharedFrom})` : ''} · q={ph?.quality?.toFixed(2) ?? '?'}
-                    {ph?.plate_verified ? ' · box ✓' : ph?.plate?.plate_check === 'unverified-box' ? ' · box ?' : ''}
+                    {ph?.plate_verified ? ' · box ✓' : ph?.plate_check === 'unverified-box' ? ' · box ?' : ''}
                   </Text>
                   {/* TYMCZASOWE (debug): usunąć razem z plate_debug (src/lib/vision.ts), gdy porównanie ALPR/model przestanie być potrzebne. */}
                   {ph?.plate_debug ? (
