@@ -90,7 +90,7 @@ const label = { color: ud.muted, fontSize: 13, marginTop: 12 } as const;
 // Odpowiednik /app/account (register.html.twig, tryb edycji): dane konta, ustawienia, wylogowanie.
 // Passkeye (lista/usuń) i „Skasuj konto” przez REST; dodanie passkeya wymaga WebAuthn w natywnej apce – na razie na www.
 function ProfileCards({ onLogout }: { onLogout: () => void }) {
-  const [p, setP] = useState({ name: '', email: '', address: '', msisdn: '', edelivery: '', shareRecydywa: true });
+  const [p, setP] = useState({ name: '', email: '', address: '', msisdn: '', edelivery: '', shareRecydywa: true, bylam: 'byłam/em' });
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);

@@ -21,13 +21,15 @@ export type UserProfile = {
   msisdn: string;
   edelivery: string;
   shareRecydywa: boolean;
+  bylam: string; // „byłem”/„byłam”/„byłam/em” – fraza odmieniona przez płeć (sexStrings z backendu, jak config.sex na webie)
 };
 
 // GET /api/rest/user/ → { data: { name, email, address, msisdn, edelivery, shareRecydywa }, stats, ... }.
 export async function fetchProfile(): Promise<UserProfile> {
   const res = await authFetch('/api/rest/user/');
   if (!res.ok) throw new Error(`Nie udało się pobrać danych konta (HTTP ${res.status}).`);
-  const d = ((await res.json()) as any)?.data ?? {};
+  const j = (await res.json()) as any;
+  const d = j?.data ?? {};
   return {
     name: d.name ?? '',
     email: d.email ?? '',
@@ -35,6 +37,7 @@ export async function fetchProfile(): Promise<UserProfile> {
     msisdn: d.msisdn ?? '',
     edelivery: d.edelivery ?? '',
     shareRecydywa: d.shareRecydywa ?? false,
+    bylam: j?.sexStrings?.bylam ?? 'byłam/em',
   };
 }
 

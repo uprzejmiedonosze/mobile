@@ -8,6 +8,7 @@ import {
   createDraft, fetchReport, fetchVehicleDescription, finishReport, saveReport, searchAddress, type ReportForm,
 } from '../api/reports';
 import { ApiError, validIdToken } from '../api/udApi';
+import { fetchProfile } from '../api/user';
 import { log } from '../lib/log';
 import { appendAutoLine, dropMatchingExtension, fmtLongDate, isExtensionDisabled, plural } from '../lib/reports';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
@@ -114,6 +115,7 @@ export function NewReportScreen({ navigation, route }: any) {
   const [plateTouched, setPlateTouched] = useState(false); // web chowa wycinek tablicy po ręcznej zmianie numeru
   const [dateText, setDateText] = useState('');
   const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
+  const [bylam, setBylam] = useState('byłam/em'); // odmiana przez płeć użytkownika
   const [weightWarning, setWeightWarning] = useState<string | null>(null);
   const [addrNote, setAddrNote] = useState<string | null>(null);
   const autoLine = useRef<string | null>(null); // ostatnia automatyczna linia „Pojazd marki …” w komentarzu
@@ -134,6 +136,7 @@ export function NewReportScreen({ navigation, route }: any) {
   }, []);
 
   useEffect(() => { hydrate(); }, [hydrate]);
+  useEffect(() => { fetchProfile().then((p) => setBylam(p.bylam)).catch(() => {}); }, []);
   useEffect(() => {
     fetchCategories().then(setCats);
     fetchConfig<Groups>('category-groups').then(setGroups);
@@ -294,7 +297,7 @@ export function NewReportScreen({ navigation, route }: any) {
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       <UdHeader />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-        <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>{editId ? `Edycja${app?.number ? ` ${app.number}` : ''}` : 'Nowe zgłoszenie'}</Text>
+        {editId ? <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>{`Edycja${app?.number ? ` ${app.number}` : ''}`}</Text> : null}
 
         <PhotosSection
           tiles={tiles}
@@ -302,7 +305,6 @@ export function NewReportScreen({ navigation, route }: any) {
           phase={local ? batch.phase : 'idle'}
           uploading={batch.uploading}
           note={batch.note}
-          hints={[selectedCat?.contextImageHint, selectedCat?.carImageHint].filter(Boolean) as string[]}
           editable={local}
           onPick={batch.pick}
           onAssign={batch.assign}
@@ -310,7 +312,6 @@ export function NewReportScreen({ navigation, route }: any) {
         />
         {fieldErr('images')}
 
-        <H>Data i miejsce</H>
         <L>Data i czas zgłoszenia</L>
         {editDate ? (
           <TextInput style={input} value={dateText} onChangeText={(t) => { setDateText(t); const iso = parseTyped(t); if (iso) setForm((f) => ({ ...f, datetime: iso, dtFromPicture: false })); }} placeholder="RRRR-MM-DD GG:MM" keyboardType="numbers-and-punctuation" />
@@ -350,7 +351,7 @@ export function NewReportScreen({ navigation, route }: any) {
         <Radio on={unit === 'SA'} onPress={() => set('unit', 'SA')}>Policja{form.geo?.saName ? ` – ${form.geo.saName}` : ''}</Radio>
         {forcePolice ? <Text style={{ color: ud.muted, fontSize: 12 }}>Ta kategoria jest zawsze zgłaszana na Policję.</Text> : null}
 
-        <H>Kategoria</H>
+        <H>Wybierz rodzaj wykroczenia</H>
         {topCats.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} />)}
         {!showAllCats ? (
           <Pressable onPress={() => setShowAllCats(true)}><Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, marginTop: 8 }}>Pokaż wszystkie</Text></Pressable>
@@ -380,7 +381,8 @@ export function NewReportScreen({ navigation, route }: any) {
 
         <H>Oświadczenia</H>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Text style={{ flex: 1, color: ud.text }}>Świadek momentu parkowania</Text>
+          {/* jak na www: `bylam` z backendu (sexStrings) – „Byłem/Byłam/Byłam/em świadkiem …” */}
+          <Text style={{ flex: 1, color: ud.text }}>{bylam.charAt(0).toUpperCase() + bylam.slice(1)} świadkiem momentu parkowania</Text>
           <Switch value={form.witness} onValueChange={(v) => set('witness', v)} trackColor={{ true: ud.primary }} />
         </View>
 

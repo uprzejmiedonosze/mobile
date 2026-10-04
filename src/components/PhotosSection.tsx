@@ -10,13 +10,12 @@ const SLOTS: Slot[] = ['context', 'car', 'third'];
 
 // Jedno pole na 2–3 zdjęcia: kafelki z podglądem (od razu), pod każdym wybór roli. Role podpowiada analiza
 // (usePhotoBatch); dotknięcie innej roli zamienia zdjęcia miejscami.
-export function PhotosSection({ tiles, slots, phase, uploading, note, hints, editable, onPick, onAssign, onRemove }: {
+export function PhotosSection({ tiles, slots, phase, uploading, note, editable, onPick, onAssign, onRemove }: {
   tiles: Tile[];
   slots: Slots;
   phase: Phase;
   uploading: Slot[];
   note: string | null;
-  hints: string[];
   editable: boolean; // false = zdjęcia z serwera (edycja istniejącego zgłoszenia) – role bez zmian
   onPick: () => void;
   onAssign: (id: string, to: Slot | null) => void;
@@ -26,12 +25,6 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, hints, edi
   const slotOf = (id: string) => SLOTS.find((s) => slots[s] === id) ?? null;
   return (
     <View style={{ marginTop: 14 }}>
-      <Text style={{ fontFamily: ud.fontBodyBold, color: ud.text }}>Zdjęcia (2 lub 3)</Text>
-      <Text style={{ color: ud.muted, fontSize: 13 }}>
-        Wybierz od razu wszystkie: zdjęcie z miejscem (kontekst), zdjęcie auta z tablicą i opcjonalnie dodatkowe. Same rozpoznamy, które jest które.
-      </Text>
-      {hints.map((h) => <Text key={h} style={{ color: ud.muted, fontSize: 12, marginTop: 2 }}>{h}</Text>)}
-
       {tiles.length === 0 ? (
         <Pressable onPress={onPick} style={{ marginTop: 8, height: 150, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>＋ Dodaj 2 lub 3 zdjęcia z galerii</Text>
