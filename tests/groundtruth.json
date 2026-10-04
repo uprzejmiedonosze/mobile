@@ -1,0 +1,593 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-21T14:33:19.222Z",
+  "photos": {
+    "PXL_20260914_081354709": {
+      "photoId": "PXL_20260914_081354709",
+      "role": "car",
+      "car": {
+        "present": true,
+        "bbox": [
+          281,
+          12,
+          969,
+          705
+        ]
+      },
+      "plate": {
+        "readable": true,
+        "text": "GD311RR",
+        "bbox": [
+          327,
+          524,
+          416,
+          599
+        ]
+      },
+      "markers": [
+        "intersection",
+        "sidewalk_parking",
+        "narrow_passage",
+        "heavy_vehicle",
+        "road_markings"
+      ],
+      "scene": [
+        {
+          "object": "chodnik",
+          "relation": "under_car",
+          "distance_m": 0,
+          "confidence": 1
+        },
+        {
+          "object": "P-10_przejscie",
+          "relation": "right_of_car",
+          "distance_m": 1,
+          "confidence": 0.9
+        },
+        {
+          "object": "skrzyzowanie",
+          "relation": "right_of_car",
+          "distance_m": 2,
+          "confidence": 0.8
+        }
+      ],
+      "categoryId": 5,
+      "source": {
+        "plate": "platerecognizer",
+        "rest": "llm-bootstrap"
+      },
+      "verified": true
+    },
+    "PXL_20260914_081450783": {
+      "photoId": "PXL_20260914_081450783",
+      "role": "car",
+      "car": {
+        "present": true,
+        "bbox": [
+          114,
+          229,
+          924,
+          780
+        ]
+      },
+      "plate": {
+        "readable": false,
+        "text": null,
+        "bbox": null
+      },
+      "markers": [
+        "intersection",
+        "sidewalk_parking",
+        "narrow_passage",
+        "heavy_vehicle",
+        "road_markings"
+      ],
+      "scene": [
+        {
+          "object": "chodnik",
+          "relation": "under_car",
+          "distance_m": 0,
+          "confidence": 1
+        },
+        {
+          "object": "P-10_przejscie",
+          "relation": "behind_car",
+          "distance_m": 2,
+          "confidence": 0.9
+        },
+        {
+          "object": "skrzyzowanie",
+          "relation": "behind_car",
+          "distance_m": 20,
+          "confidence": 0.8
+        }
+      ],
+      "categoryId": 4,
+      "source": {
+        "plate": "llm-bootstrap",
+        "rest": "llm-bootstrap"
+      },
+      "verified": true
+    },
+    "PXL_20260914_081456501": {
+      "photoId": "PXL_20260914_081456501",
+      "role": "car",
+      "car": {
+        "present": true,
+        "bbox": [
+          254,
+          46,
+          754,
+          690
+        ]
+      },
+      "plate": {
+        "readable": true,
+        "text": "GD311RR",
+        "bbox": [
+          458,
+          592,
+          618,
+          663
+        ]
+      },
+      "markers": [
+        "intersection",
+        "sidewalk_parking",
+        "narrow_passage",
+        "heavy_vehicle"
+      ],
+      "scene": [
+        {
+          "object": "chodnik",
+          "relation": "under_car",
+          "distance_m": 0,
+          "confidence": 1
+        },
+        {
+          "object": "skrzyzowanie",
+          "relation": "right_of_car",
+          "distance_m": 3,
+          "confidence": 1
+        }
+      ],
+      "categoryId": 3,
+      "source": {
+        "plate": "platerecognizer",
+        "rest": "llm-bootstrap"
+      },
+      "verified": true
+    },
+    "PXL_20260915_095410107": {
+      "photoId": "PXL_20260915_095410107",
+      "role": "context",
+      "car": {
+        "present": true,
+        "bbox": [
+          266,
+          563,
+          513,
+          700
+        ]
+      },
+      "plate": {
+        "readable": true,
+        "text": "ZS964PN",
+        "bbox": [
+          278,
+          653,
+          301,
+          665
+        ]
+      },
+      "markers": [
+        "sidewalk_parking",
+        "deep_sidewalk",
+        "d18_sign",
+        "t30_plate",
+        "vertical_sign_mismatch"
+      ],
+      "scene": [
+        {
+          "object": "chodnik",
+          "relation": "under_car",
+          "distance_m": 0,
+          "confidence": 1
+        },
+        {
+          "object": "D-18",
+          "relation": "left_of_car",
+          "distance_m": 2,
+          "confidence": 1
+        },
+        {
+          "object": "T-30",
+          "relation": "left_of_car",
+          "distance_m": 2,
+          "confidence": 0.9
+        },
+        {
+          "object": "slupki",
+          "relation": "left_of_car",
+          "distance_m": 3,
+          "confidence": 1
+        }
+      ],
+      "categoryId": 18,
+      "source": {
+        "plate": "platerecognizer",
+        "rest": "llm-bootstrap"
+      },
+      "verified": true
+    },
+    "PXL_20260915_095415318": {
+      "photoId": "PXL_20260915_095415318",
+      "role": "car",
+      "car": {
+        "present": true,
+        "bbox": [
+          408,
+          480,
+          592,
+          656
+        ]
+      },
+      "plate": {
+        "readable": true,
+        "text": "ZS795SR",
+        "bbox": [
+          510,
+          551,
+          548,
+          563
+        ]
+      },
+      "markers": [
+        "sidewalk_parking",
+        "deep_sidewalk"
+      ],
+      "scene": [
+        {
+          "object": "chodnik",
+          "relation": "under_car",
+          "distance_m": 0,
+          "confidence": 1
+        }
+      ],
+      "categoryId": 1,
+      "source": {
+        "plate": "platerecognizer",
+        "rest": "llm-bootstrap"
+      },
+      "verified": true
+    },
+    "PXL_20260918_101316924.MP": {
+      "photoId": "PXL_20260918_101316924.MP",
+      "role": "car",
+      "car": {
+        "present": true,
+        "bbox": [
+          471,
+          515,
+          692,
+          741
+        ]
+      },
+      "plate": {
+        "readable": true,
+        "text": "65TW",
+        "bbox": [
+          534,
+          638,
+          566,
+          660
+        ]
+      },
+      "markers": [
+        "public_transport_access",
+        "zebra_crossing",
+        "intersection",
+        "tram_crossing",
+        "sidewalk_parking",
+        "greenery"
+      ],
+      "scene": [
+        {
+          "object": "P-10_przejscie",
+          "relation": "in_front_of_car",
+          "distance_m": 0,
+          "confidence": 1
+        },
+        {
+          "object": "D-18",
+          "relation": "behind_car",
+          "distance_m": 2,
+          "confidence": 0.7
+        }
+      ],
+      "categoryId": 5,
+      "source": {
+        "plate": "platerecognizer",
+        "rest": "llm-bootstrap"
+      },
+      "verified": true
+    },
+    "PXL_20260918_101319206": {
+      "photoId": "PXL_20260918_101319206",
+      "role": "car",
+      "car": {
+        "present": true,
+        "bbox": [
+          251,
+          294,
+          851,
+          877
+        ]
+      },
+      "plate": {
+        "readable": true,
+        "text": "ZS689UJ",
+        "bbox": [
+          317,
+          553,
+          441,
+          632
+        ]
+      },
+      "markers": [
+        "public_transport_access",
+        "zebra_crossing",
+        "intersection",
+        "tram_crossing",
+        "sidewalk_parking",
+        "greenery"
+      ],
+      "scene": [],
+      "categoryId": 5,
+      "source": {
+        "plate": "platerecognizer",
+        "rest": "llm-bootstrap"
+      },
+      "verified": true
+    },
+    "PXL_20260918_101325860": {
+      "photoId": "PXL_20260918_101325860",
+      "role": "third",
+      "car": {
+        "present": true,
+        "bbox": [
+          141,
+          326,
+          658,
+          829
+        ]
+      },
+      "plate": {
+        "readable": true,
+        "text": "ZS465TW",
+        "bbox": [
+          226,
+          622,
+          348,
+          680
+        ]
+      },
+      "markers": [
+        "zebra_crossing",
+        "intersection"
+      ],
+      "scene": [
+        {
+          "object": "chodnik",
+          "relation": "right_of_car",
+          "distance_m": 0,
+          "confidence": 1
+        },
+        {
+          "object": "D-6",
+          "relation": "in_front_of_car",
+          "distance_m": 8,
+          "confidence": 1
+        },
+        {
+          "object": "P-10_przejscie",
+          "relation": "in_front_of_car",
+          "distance_m": 8,
+          "confidence": 0.9
+        },
+        {
+          "object": "skrzyzowanie",
+          "relation": "in_front_of_car",
+          "distance_m": 12,
+          "confidence": 0.9
+        }
+      ],
+      "categoryId": 5,
+      "source": {
+        "plate": "platerecognizer",
+        "rest": "llm-bootstrap"
+      },
+      "verified": true
+    },
+    "PXL_20260919_065308349": {
+      "photoId": "PXL_20260919_065308349",
+      "role": "context",
+      "car": {
+        "present": false,
+        "bbox": null
+      },
+      "plate": {
+        "readable": false,
+        "text": null,
+        "bbox": null
+      },
+      "markers": [
+        "b36_sign",
+        "bike_lane",
+        "road_markings",
+        "greenery",
+        "intersection",
+        "zebra_crossing"
+      ],
+      "scene": [
+        {
+          "object": "B-36",
+          "relation": "not_related",
+          "distance_m": null,
+          "confidence": 1
+        },
+        {
+          "object": "C-13",
+          "relation": "not_related",
+          "distance_m": null,
+          "confidence": 1
+        },
+        {
+          "object": "P-23_rower",
+          "relation": "not_related",
+          "distance_m": null,
+          "confidence": 1
+        },
+        {
+          "object": "chodnik",
+          "relation": "not_related",
+          "distance_m": null,
+          "confidence": 1
+        },
+        {
+          "object": "skrzyzowanie",
+          "relation": "not_related",
+          "distance_m": null,
+          "confidence": 0.8
+        },
+        {
+          "object": "D-6",
+          "relation": "not_related",
+          "distance_m": null,
+          "confidence": 0.7
+        }
+      ],
+      "categoryId": 14,
+      "source": {
+        "plate": "llm-bootstrap",
+        "rest": "llm-bootstrap"
+      },
+      "verified": true
+    },
+    "PXL_20260919_065333754.MP": {
+      "photoId": "PXL_20260919_065333754.MP",
+      "role": "car",
+      "car": {
+        "present": true,
+        "bbox": [
+          536,
+          424,
+          732,
+          651
+        ]
+      },
+      "plate": {
+        "readable": true,
+        "text": "ZS235LY",
+        "bbox": [
+          612,
+          520,
+          669,
+          541
+        ]
+      },
+      "markers": [
+        "zebra_crossing",
+        "intersection",
+        "sidewalk_parking",
+        "road_markings",
+        "bike_lane",
+        "greenery"
+      ],
+      "scene": [
+        {
+          "object": "chodnik",
+          "relation": "under_car",
+          "distance_m": 0,
+          "confidence": 1
+        },
+        {
+          "object": "droga_dla_rowerow",
+          "relation": "under_car",
+          "distance_m": 0,
+          "confidence": 1
+        },
+        {
+          "object": "P-10_przejscie",
+          "relation": "behind_car",
+          "distance_m": 25,
+          "confidence": 0.9
+        },
+        {
+          "object": "skrzyzowanie",
+          "relation": "behind_car",
+          "distance_m": 40,
+          "confidence": 0.8
+        }
+      ],
+      "categoryId": 14,
+      "source": {
+        "plate": "platerecognizer",
+        "rest": "llm-bootstrap"
+      },
+      "verified": true
+    }
+  },
+  "candidates": {
+    "R001": {
+      "reportId": "R001",
+      "photoIds": [
+        "PXL_20260914_081354709"
+      ],
+      "expectedPlate": "GD311RR",
+      "expectedCategoryId": 1,
+      "expectedSplitCount": 1
+    },
+    "R002": {
+      "reportId": "R002",
+      "photoIds": [
+        "PXL_20260914_081450783",
+        "PXL_20260914_081456501"
+      ],
+      "expectedPlate": "GD311RR",
+      "expectedCategoryId": 3,
+      "expectedSplitCount": 1
+    },
+    "R003": {
+      "reportId": "R003",
+      "photoIds": [
+        "PXL_20260915_095410107",
+        "PXL_20260915_095415318"
+      ],
+      "expectedPlate": "ZS795SR",
+      "expectedCategoryId": 18,
+      "expectedSplitCount": 2
+    },
+    "R004": {
+      "reportId": "R004",
+      "photoIds": [
+        "PXL_20260918_101316924.MP",
+        "PXL_20260918_101319206",
+        "PXL_20260918_101325860"
+      ],
+      "expectedPlate": "65TW",
+      "expectedCategoryId": 5,
+      "expectedSplitCount": 3
+    },
+    "R005": {
+      "reportId": "R005",
+      "photoIds": [
+        "PXL_20260919_065308349",
+        "PXL_20260919_065333754.MP"
+      ],
+      "expectedPlate": "ZS235LY",
+      "expectedCategoryId": 14,
+      "expectedSplitCount": 1
+    }
+  }
+}
