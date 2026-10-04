@@ -68,7 +68,6 @@ export type VisionPhoto = {
   quality: number;
   car: { present: boolean; bbox: Box4 | null; desc: string | null };
   plate: { readable: boolean; text: string | null; bbox: Box4 | null; from_crop?: boolean };
-  plate_check?: 'unverified-box'; // backend: odczyt ALPR poza autem wskazanym przez model, wrócono do odczytu modelu
   markers: Marker[];
   plate_verified?: boolean;
   alpr_all?: AlprDetection[];

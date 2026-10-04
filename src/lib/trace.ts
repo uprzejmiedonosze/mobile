@@ -22,7 +22,7 @@ export function describePhoto(p: VisionPhoto): string {
   return [
     `zdj.${p.photo_index} ${shortPhotoId(p.photoId)}`,
     `role=${p.role} q=${num(p.quality, 2)}`,
-    `plate=${plate}${p.plate_check ? ` (${p.plate_check})` : ''}`,
+    `plate=${plate}`,
     `car=${p.car?.present ? box(p.car.bbox) : '—'} "${p.car?.desc ?? ''}"`,
     `markers=${(p.markers ?? []).join(',') || '—'}`,
     `alpr=${p.alpr_all ? `[${alpr}]` : 'n/d'}`,

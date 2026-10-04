@@ -271,9 +271,6 @@ export function compose(
   const markers = [...new Set(selected.flatMap((i) => subPhotos[i].markers ?? []))].sort();
   const ruleCid = ruleCategory(markers);
   if (ruleCid === 0) reasons.push('brak markera kategorii');
-  // Tylko zdjęcie auta — na kontekście rozjazd ALPR/model jest normalny (ALPR czyta zgłaszane auto,
-  // model opisuje inne, dominujące w kadrze).
-  if (selected.some((i) => subPhotos[i].role === 'car' && subPhotos[i].plate_check === 'unverified-box')) reasons.push('pozycja tablicy niepotwierdzona');
 
   return {
     reportId: subId,

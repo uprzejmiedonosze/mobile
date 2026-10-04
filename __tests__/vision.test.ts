@@ -166,14 +166,6 @@ describe('vision (ANALYSIS.md)', () => {
     expect(compose('R007', ['a', 'b'], photos).photos.map((p) => p.role)).toEqual(['context', 'car']);
   });
 
-  it('plate_check (poziom zdjęcia, jak w backendzie) daje review tylko na zdjęciu auta, nie na kontekście', () => {
-    const ctx = vp({ photo_index: 0, photoId: 'a', role: 'context', plate: { readable: false, text: null, bbox: null }, markers: ['zebra_crossing'], plate_check: 'unverified-box' });
-    expect(compose('R009', ['a', 'b'], [ctx, vp({ photo_index: 1, photoId: 'b' })]).needsReview).toBe(false);
-    const car = vp({ photo_index: 1, photoId: 'b', plate_check: 'unverified-box' });
-    const rec = compose('R010', ['a', 'b'], [{ ...ctx, plate_check: undefined }, car]);
-    expect(rec.reviewReasons).toContain('pozycja tablicy niepotwierdzona');
-  });
-
   it('trace: skrócone photoId i opis rekordu z rolą od modelu i polem pojazdu', () => {
     const id = '1790934191008-2-file:///data/ImagePicker/ed5d92ed-92ca-4026.jpeg';
     expect(shortPhotoId(id)).toBe('#2/ed5d92ed');
