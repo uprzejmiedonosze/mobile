@@ -12,11 +12,26 @@ const Eyebrow = ({ children }: { children: string }) => (
 
 const Section = ({ children }: React.PropsWithChildren) => <View style={{ marginTop: 22 }}>{children}</View>;
 
+// Kafelek statystyki jak na www (.stat-card): biała karta z cienką ramką, duża liczba i opis; wyróżniony
+// (kwota mandatów) = zielona karta na całą szerokość.
 function Stat({ value, label, onPress, highlight }: { value: string; label: string; onPress?: () => void; highlight?: boolean }) {
   return (
-    <Pressable onPress={onPress} disabled={!onPress} style={{ width: '48%', paddingVertical: 8, marginBottom: 6 }}>
-      <Text style={{ fontFamily: ud.fontDisplay, color: highlight || onPress ? ud.primary : ud.heading, fontSize: 28 }}>{value}</Text>
-      <Text style={{ color: ud.muted, fontSize: 13, marginTop: 2 }}>{label}</Text>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      style={{
+        width: highlight ? '100%' : '48.5%',
+        backgroundColor: highlight ? ud.primary : ud.surface,
+        borderRadius: 22,
+        borderWidth: highlight ? 0 : 1,
+        borderColor: '#e6e3dc',
+        paddingHorizontal: 24,
+        paddingVertical: 22,
+        marginBottom: 12,
+      }}
+    >
+      <Text style={{ fontFamily: ud.fontDisplay, color: highlight ? '#fff' : ud.heading, fontSize: 30 }}>{value}</Text>
+      <Text style={{ color: highlight ? ud.primaryOutline : ud.muted, fontSize: 16, marginTop: 6 }}>{label}</Text>
     </Pressable>
   );
 }

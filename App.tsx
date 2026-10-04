@@ -56,10 +56,11 @@ export default function App() {
     <SafeAreaProvider>
     <ErrorBoundary>
     <NavigationContainer>
-      <StatusBar style="auto" />
+      {/* zielony nagłówek (UdHeader) → jasne ikony; jasny ekran startowy → ciemne */}
+      <StatusBar style={!fontsLoaded || !ready || (logged && !registrationChecked) ? 'dark' : 'light'} />
       {!fontsLoaded || !ready || (logged && !registrationChecked) ? (
         <View style={{ flex: 1, backgroundColor: ud.surfaceLow, alignItems: 'center', justifyContent: 'center' }}>
-          <UdLogo height={40} />
+          <UdLogo height={32} />
           <Text style={{ color: ud.muted, marginTop: 8 }}>{ready ? 'sprawdzam konto…' : 'sprawdzam sesję…'}</Text>
         </View>
       ) : !logged ? (

@@ -89,8 +89,9 @@ export async function changeStatus(appId: string, status: string): Promise<void>
   if (!res.ok) throw new Error(`Nie udało się zmienić statusu (HTTP ${res.status}).`);
 }
 
-export function imageUrl(img: AppImage | undefined, app: UdApp): string | null {
-  const p = img?.thumb;
+// `full` = oryginał (url, ≤1600 px) zamiast miniatury – do powiększania zdjęcia.
+export function imageUrl(img: AppImage | undefined, app: UdApp, full = false): string | null {
+  const p = (full && img?.url) || img?.thumb;
   if (!p) return null;
   const abs = /^https?:\/\//.test(p) ? p : `${udConfig.base}/${p.replace(/^\//, '')}`;
   return `${abs}?v=${app.statusHistory?.length ?? 0}`;

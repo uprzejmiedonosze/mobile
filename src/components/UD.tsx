@@ -3,33 +3,35 @@ import { Image, Pressable, Text, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
 import { TAB_ICONS } from '../assets/tabIcons';
-import { UD_LOGO_ASPECT, UD_LOGO_SVG } from '../assets/udLogoSvg';
+import { UD_LOGO_ASPECT, UD_LOGO_COLOR, UD_LOGO_SVG } from '../assets/udLogoSvg';
 import { ud } from '../theme';
 import type { BBox } from '../types';
 
-// Oficjalne logo UD (https://uprzejmiedonosze.net/img/ud-logo-mobile.svg), zamiast tekstu "UD".
-export function UdLogo({ height = 24 }: { height?: number }) {
-  return <SvgXml xml={UD_LOGO_SVG} height={height} width={height * UD_LOGO_ASPECT} />;
+// Pełne oficjalne logo UD (ikona + napis), zamiast tekstu "UD".
+export function UdLogo({ height = 24, color }: { height?: number; color?: string }) {
+  // `color` podmienia zielony z oficjalnego SVG (np. biały logotyp na zielonym nagłówku)
+  const xml = color ? UD_LOGO_SVG.replaceAll(UD_LOGO_COLOR, color) : UD_LOGO_SVG;
+  return <SvgXml xml={xml} height={height} width={height * UD_LOGO_ASPECT} />;
 }
 
-// Nagłówek jak na webie: ← wróć | logo UD | żółty Dalej.
+// Nagłówek (odwrócony względem webu): zielone tło, białe logo UD, ← wróć | żółty Dalej.
 // paddingTop zawiera inset statusbara (zegar/bateria/kamera) – ten obszar jest
 // zarezerwowany przez system i nie wolno tam kłaść nawigacji.
 export function UdHeader({ title, onBack, onNext, nextLabel = 'Dalej' }: { title?: string; onBack?: () => void; onNext?: () => void; nextLabel?: string }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: insets.top + 12, paddingBottom: 12, backgroundColor: ud.surface, borderBottomWidth: 1, borderBottomColor: ud.hairline }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: insets.top + 12, paddingBottom: 12, backgroundColor: ud.primary }}>
       {onBack ? (
         <Pressable onPress={onBack} hitSlop={12} style={{ minWidth: 70 }}>
-          <Text style={{ color: ud.primary, fontWeight: '700', fontSize: 16 }}>← wróć</Text>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>← wróć</Text>
         </Pressable>
       ) : (
         <View style={{ minWidth: 70 }} />
       )}
       {title ? (
-        <Text style={{ color: ud.primary, fontFamily: ud.fontDisplay, fontSize: 26, letterSpacing: 1 }}>{title}</Text>
+        <Text style={{ color: '#fff', fontFamily: ud.fontDisplay, fontSize: 26, letterSpacing: 1 }}>{title}</Text>
       ) : (
-        <UdLogo height={24} />
+        <View style={{ transform: [{ translateY: -3 }] }}><UdLogo height={24} color="#ffffff" /></View> /* optycznie wyżej o 3 px */
       )}
       {onNext ? (
         <Pressable onPress={onNext} style={{ backgroundColor: ud.accent, borderRadius: ud.radiusPill, paddingHorizontal: 20, paddingVertical: 10 }}>

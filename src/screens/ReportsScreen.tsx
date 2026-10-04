@@ -6,6 +6,7 @@ import { fetchRecydywa } from '../api/recydywa';
 import { validIdToken } from '../api/udApi';
 import { log } from '../lib/log';
 import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plural, reportBody, shortAddress, statusColor, witnessText } from '../lib/reports';
+import { ImageViewer } from '../components/ImageViewer';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import type { Category, RecydywaInfo } from '../types';
 import { ud } from '../theme';
@@ -29,13 +30,14 @@ function PlateBadge({ plate }: { plate?: string }) {
   );
 }
 
-function Photos({ app }: { app: UdApp }) {
-  const urls = [app.contextImage, app.carImage, app.thirdImage].map((i) => imageUrl(i, app)).filter(Boolean) as string[];
-  if (!urls.length) return null;
+function Photos({ thumbs, onPress }: { thumbs: string[]; onPress: (index: number) => void }) {
+  if (!thumbs.length) return null;
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 10 }}>
-      {urls.map((u) => (
-        <Image key={u} source={{ uri: u }} style={{ width: 220, height: 160, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream }} resizeMode="cover" />
+      {thumbs.map((u, i) => (
+        <Pressable key={u} onPress={() => onPress(i)}>
+          <Image source={{ uri: u }} style={{ width: 220, height: 160, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream }} resizeMode="cover" />
+        </Pressable>
       ))}
     </ScrollView>
   );
@@ -56,13 +58,15 @@ type CardProps = {
   categories: Map<number, Category>;
   onStatus: (id: string, status: string) => Promise<void>;
   onEdit: (id: string) => void;
+  open: boolean;
+  onToggle: (id: string) => void;
 };
 
-function ReportCard({ app, statuses, categories, onStatus, onEdit }: CardProps) {
-  const [open, setOpen] = useState(false);
+function ReportCard({ app, statuses, categories, onStatus, onEdit, open, onToggle }: CardProps) {
   const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState(false);
   const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
+  const [viewer, setViewer] = useState<number | null>(null);
   const police = app.recipient?.isPolice ?? !!app.stopAgresji; // recipient liczy backend (recipientData w API.php)
   const statusName = statuses[app.status]?.name ?? app.status;
   const cat = categories.get(Number(app.category));
@@ -75,6 +79,13 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit }: CardProps) 
     validIdToken().then((t) => fetchRecydywa(plate, t)).then(setRecydywa).catch(() => {});
   }, [open, plate, app.status, recydywa]);
 
+  const slots = [app.contextImage, app.carImage, app.thirdImage];
+  const thumbs = slots.map((i) => imageUrl(i, app)).filter(Boolean) as string[];
+  const fulls = slots.map((i) => imageUrl(i, app, true)).filter(Boolean) as string[];
+  // Zwinięte zgłoszenie: dotknięcie czegokolwiek (także zdjęcia) rozwija; rozwinięte: zdjęcie się powiększa.
+  const toggle = () => onToggle(app.id);
+  const accent = statusColor(app.status).stroke;
+
   const allowed = (statuses[app.status]?.allowed ?? []).filter((k) => statuses[k] && (statuses[k] as any).action);
 
   const pick = async (k: string) => {
@@ -84,8 +95,9 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit }: CardProps) 
   };
 
   return (
-    <View style={{ paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: ud.hairline }}>
-      <Pressable onPress={() => setOpen((o) => !o)} style={{ paddingVertical: 8 }}>
+    // Biała karta bez ramki; odróżnia ją pasek w kolorze statusu z lewej.
+    <Pressable onPress={toggle} style={{ backgroundColor: ud.surface, paddingLeft: 12, paddingRight: 12, paddingVertical: 10, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: accent === '#FFFFFF' ? '#C5C5C5' : accent, borderTopRightRadius: ud.radiusSm, borderBottomRightRadius: ud.radiusSm }}>
+      <View style={{ paddingVertical: 4 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <StatusDot status={app.status} label={statusName} police={police} />
           <Text style={{ color: ud.muted, fontSize: 13 }}>{fmtShortDate(app.date)}</Text>
@@ -98,9 +110,10 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit }: CardProps) 
           <Text style={{ color: ud.muted, fontSize: 16 }}>{open ? '⌃' : '⌄'}</Text>
         </View>
         {cat ? <Text numberOfLines={open ? 0 : 1} style={{ color: ud.muted, fontSize: 13, marginTop: 2 }}>{cat.title}</Text> : null}
-      </Pressable>
+      </View>
 
-      <Photos app={app} />
+      <Photos thumbs={thumbs} onPress={(i) => (open ? setViewer(i) : toggle())} />
+      <ImageViewer urls={fulls} index={viewer} onClose={() => setViewer(null)} />
 
       {open ? (
         <View style={{ paddingBottom: 12 }}>
@@ -156,13 +169,14 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit }: CardProps) 
           </Row>
         </View>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
 export function ReportsScreen({ navigation, route }: any) {
   const go = (r: string) => navigation.navigate(r);
   const [apps, setApps] = useState<UdApp[]>([]);
+  const [openId, setOpenId] = useState<string | null>(null); // rozwinięte jest zawsze najwyżej jedno zgłoszenie
   const [statuses, setStatuses] = useState<Record<string, StatusDef>>({});
   const [cats, setCats] = useState<Category[]>([]);
   const [filter, setFilter] = useState<string>(route?.params?.filter ?? 'all'); // 'all' = brak aktywnego chipa
@@ -181,11 +195,18 @@ export function ReportsScreen({ navigation, route }: any) {
   const chips = useMemo(() => filterChips(statuses, counts), [statuses, counts]);
   const categories = useMemo(() => new Map(cats.map((c) => [c.id, c])), [cats]);
 
+  // Liczniki chipów zawsze z serwera (pełna baza, nie wczytana strona) – wołane przy wejściu na ekran,
+  // odświeżeniu listy i po zmianie statusu, żeby np. „WYSYŁAM (1)” nie wisiało po zakończonej wysyłce.
+  const refreshCounts = useCallback(
+    () => fetchStatusCounts().then(setCounts).catch((e) => log.warn('zgloszenia', String(e?.message ?? e))),
+    [],
+  );
+
   useEffect(() => {
     fetchStatuses().then(setStatuses);
-    fetchStatusCounts().then(setCounts).catch((e) => log.warn('zgloszenia', String(e?.message ?? e)));
+    refreshCounts();
     fetchCategories().then(setCats);
-  }, []);
+  }, [refreshCounts]);
 
   // Debounce wyszukiwarki – backend robi LIKE po całym JSON-ie zgłoszenia.
   useEffect(() => {
@@ -196,9 +217,11 @@ export function ReportsScreen({ navigation, route }: any) {
   const load = useCallback(async (reset: boolean) => {
     const id = ++reqId.current;
     setErr(null);
+    if (reset) refreshCounts();
     try {
       const offset = reset ? 0 : apps.length;
-      const page = await fetchApps({ status: filter, search: query, offset });
+      // bez aktywnego chipa = „active” (jak domyślna lista na www: bez archiwum; archiwum po wybraniu chipa)
+      const page = await fetchApps({ status: filter === 'all' ? 'active' : filter, search: query, offset });
       if (id !== reqId.current) return;
       setApps((prev) => (reset ? page : [...prev, ...page]));
       setMore(page.length === PAGE_SIZE);
@@ -210,7 +233,7 @@ export function ReportsScreen({ navigation, route }: any) {
     } finally {
       if (id === reqId.current) { setLoading(false); setRefreshing(false); }
     }
-  }, [filter, query, apps.length]);
+  }, [filter, query, apps.length, refreshCounts]);
 
   useEffect(() => {
     setLoading(true);
@@ -218,13 +241,37 @@ export function ReportsScreen({ navigation, route }: any) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, query]);
 
+  // Powrót na ekran (np. z podsumowania po „Potwierdź i wyślij”) → świeża lista i liczniki.
+  const firstFocus = useRef(true);
+  const [focused, setFocused] = useState(true);
+  useEffect(() => {
+    const onFocus = navigation.addListener('focus', () => {
+      setFocused(true);
+      if (firstFocus.current) { firstFocus.current = false; return; } // pierwsze wejście ładują efekty wyżej
+      load(true);
+    });
+    const onBlur = navigation.addListener('blur', () => setFocused(false));
+    return () => { onFocus(); onBlur(); };
+  }, [navigation, load]);
+
+  // Wysyłka trwa chwilę (status „Wysyłam”) – dopóki jakieś zgłoszenie jest w tym stanie, odświeżamy co 5 s.
+  const sending = apps.some((a) => a.status === 'sending');
+  useEffect(() => {
+    if (!sending || !focused) return; // ekran w tle nie odpytuje serwera
+    const t = setInterval(() => load(true), 5000);
+    return () => clearInterval(t);
+  }, [sending, focused, load]);
+
+  // Aktywny filtr, którego już nie ma wśród chipów (liczba spadła do 0), wraca do „wszystkie”.
+  useEffect(() => {
+    if (filter !== 'all' && Object.keys(counts).length && !chips.some((c) => c.key === filter)) setFilter('all');
+  }, [filter, counts, chips]);
+
   const onStatus = async (id: string, status: string) => {
     try {
       await changeStatus(id, status);
-      const from = apps.find((a) => a.id === id)?.status;
       setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
-      // Liczniki chipów przesuwamy lokalnie (jak updateCounters() na webie), bez ponownego pobierania.
-      setCounts((c) => ({ ...c, ...(from ? { [from]: Math.max(0, Number(c[from] ?? 0) - 1) } : {}), [status]: Number(c[status] ?? 0) + 1 }));
+      refreshCounts();
     } catch (e: any) {
       setErr(e?.message ?? String(e));
     }
@@ -265,7 +312,7 @@ export function ReportsScreen({ navigation, route }: any) {
         <FlatList
           data={apps}
           keyExtractor={(a) => a.id}
-          renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onStatus={onStatus} onEdit={(id) => navigation.navigate('NewReport', { editId: id })} />}
+          renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onStatus={onStatus} onEdit={(id) => navigation.navigate('NewReport', { editId: id })} open={openId === item.id} onToggle={(id) => setOpenId((cur) => (cur === id ? null : id))} />}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={ud.primary} />}
           onEndReachedThreshold={0.5}
