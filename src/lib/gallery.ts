@@ -20,7 +20,12 @@ function normalizeGeo4(v: number): number {
 }
 
 export async function pickPhotosFromGallery(existing: number): Promise<Omit<PhotoItem, 'exif'>[]> {
-  const left = MAX_PHOTOS - existing;
+  return pickPhotos(MAX_PHOTOS - existing);
+}
+
+// Wybór do `limit` zdjęć z galerii (EXIF + GPS z MediaLibrary) – tryb batch daje MAX_PHOTOS,
+// formularz zgłoszenia 3 (kontekst, auto, dodatkowe).
+export async function pickPhotos(left: number): Promise<PhotoItem[]> {
   if (left <= 0) return [];
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) {
@@ -81,13 +86,7 @@ export async function pickPhotosFromGallery(existing: number): Promise<Omit<Phot
       fileName: a.fileName ?? null,
       exif,
     };
-  }) as (Omit<PhotoItem, 'exif'> & { exif: ExifMeta })[] as any;
-}
-
-// Jedno zdjęcie z galerii (formularz zgłoszenia) – ta sama ścieżka co wybór wielu (EXIF + GPS z MediaLibrary).
-export async function pickPhoto(): Promise<PhotoItem | null> {
-  const [photo] = (await pickPhotosFromGallery(MAX_PHOTOS - 1)) as PhotoItem[];
-  return photo ?? null;
+  }) as PhotoItem[] as any;
 }
 
 function toNum(v: any): number | null {

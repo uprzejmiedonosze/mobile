@@ -35,7 +35,7 @@ export type UdApp = {
     address?: string; addressGPS?: string; city?: string; voivodeship?: string; district?: string;
     county?: string; municipality?: string; postcode?: string; lat?: number | null; lng?: number | null;
   };
-  carInfo?: { plateId?: string; brand?: string; model?: string };
+  carInfo?: { plateId?: string; brand?: string; model?: string; plateImage?: string }; // plateImage = wycinek tablicy z ALPR
   recipient?: Recipient | null;
   contextImage?: AppImage;
   carImage?: AppImage;

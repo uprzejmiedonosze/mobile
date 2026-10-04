@@ -5,16 +5,19 @@ import { fetchConfig } from '../api/dashboard';
 import { fetchCategories, reverseGeocode } from '../api/geo';
 import { fetchRecydywa } from '../api/recydywa';
 import {
-  createDraft, deleteReportImage, fetchReport, fetchVehicleDescription, finishReport, saveReport, searchAddress, uploadReportImage,
-  type PictureType, type ReportForm,
+  createDraft, fetchReport, fetchVehicleDescription, finishReport, saveReport, searchAddress, type ReportForm,
 } from '../api/reports';
 import { ApiError, validIdToken } from '../api/udApi';
-import { pickPhoto } from '../lib/gallery';
 import { log } from '../lib/log';
-import { appendAutoLine, fmtLongDate, plural } from '../lib/reports';
+import { appendAutoLine, dropMatchingExtension, fmtLongDate, isExtensionDisabled, plural } from '../lib/reports';
+import { MapPicker, type PickedPlace } from '../components/MapPicker';
+import { PhotosSection, type Tile } from '../components/PhotosSection';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import { usePhotoBatch } from '../lib/usePhotoBatch';
+import type { Slot, Suggestion } from '../lib/suggest';
 import { udConfig } from '../config';
 import { useNewReport } from '../store/useNewReport';
+import { toast } from '../store/useToast';
 import { ud } from '../theme';
 import type { Category, GeoAddress, RecydywaInfo } from '../types';
 
@@ -60,7 +63,7 @@ function formFromApp(a: UdApp, prev: Form = EMPTY): Form {
     datetime: a.date ?? prev.datetime,
     dtFromPicture: a.dtFromPicture ?? prev.dtFromPicture,
     category: Number(a.category ?? 0),
-    extensions: (a.extensions ?? []).map(Number),
+    extensions: dropMatchingExtension((a.extensions ?? []).map(Number), Number(a.category ?? 0)),
     comment: a.userComment ?? prev.comment,
     witness: !!a.statements?.witness,
     unit: a.stopAgresji ? 'SA' : 'SM',
@@ -95,24 +98,6 @@ function Radio({ on, onPress, children, disabled }: { on: boolean; onPress: () =
   );
 }
 
-function PhotoSlot({ title, hint, app, type, busy, onPick, onRemove }: {
-  title: string; hint?: string; app: UdApp | null; type: PictureType; busy: boolean; onPick: () => void; onRemove?: () => void;
-}) {
-  const uri = app ? imageUrl(app[type], app) : null;
-  return (
-    <View style={{ marginTop: 14 }}>
-      <Text style={{ fontFamily: ud.fontBodyBold, color: ud.text }}>{title}</Text>
-      {hint ? <Text style={{ color: ud.muted, fontSize: 13 }}>{hint}</Text> : null}
-      <Pressable onPress={onPick} disabled={busy} style={{ marginTop: 6, height: 190, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        {uri ? <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" /> : <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>＋ Dodaj zdjęcie z galerii</Text>}
-        {busy ? <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.6)', alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={ud.primary} /></View> : null}
-      </Pressable>
-      {uri && onRemove ? <Pressable onPress={onRemove} disabled={busy}><Text style={{ color: ud.muted, textDecorationLine: 'underline', marginTop: 6 }}>usuń zdjęcie</Text></Pressable> : null}
-      {uri && !onRemove ? <Pressable onPress={onPick} disabled={busy}><Text style={{ color: ud.muted, textDecorationLine: 'underline', marginTop: 6 }}>zmień zdjęcie</Text></Pressable> : null}
-    </View>
-  );
-}
-
 export function NewReportScreen({ navigation, route }: any) {
   const go = (r: string) => navigation.navigate(r);
   const editId: string | undefined = route?.params?.editId;
@@ -125,8 +110,9 @@ export function NewReportScreen({ navigation, route }: any) {
   const [exts, setExts] = useState<Record<string, Extension>>({});
   const [showAllCats, setShowAllCats] = useState(false);
   const [editDate, setEditDate] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [plateTouched, setPlateTouched] = useState(false); // web chowa wycinek tablicy po ręcznej zmianie numeru
   const [dateText, setDateText] = useState('');
-  const [uploading, setUploading] = useState<PictureType | null>(null);
   const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
   const [weightWarning, setWeightWarning] = useState<string | null>(null);
   const [addrNote, setAddrNote] = useState<string | null>(null);
@@ -137,7 +123,15 @@ export function NewReportScreen({ navigation, route }: any) {
   const edited = useRef({ plate: false, address: false }); // ręczne poprawki nie są nadpisywane danymi ze zdjęcia
 
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
-  const fail = (e: any) => { const m = e?.message ?? String(e); log.error('nowe', m); setErr({ field: e instanceof ApiError ? e.field : undefined, text: m }); };
+  // Błąd pola (422 z `field`) – przy polu; wszystko inne (upload, sieć…) jako toast, bo formularz jest długi
+  // i komunikat na jego dole nie jest widoczny.
+  const fail = useCallback((e: any) => {
+    const m = e?.message ?? String(e);
+    log.error('nowe', m);
+    const field = e instanceof ApiError ? e.field : undefined;
+    if (field) setErr({ field, text: m });
+    else toast.error(m);
+  }, []);
 
   useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => {
@@ -212,32 +206,58 @@ export function NewReportScreen({ navigation, route }: any) {
     } catch (e) { setAddrNote(null); log.warn('nowe', String((e as any)?.message ?? e)); }
   };
 
-  const ensureDraft = async (): Promise<UdApp> => {
-    if (app) return app;
-    const a = await createDraft();
-    setApp(a);
-    if (!editId) setDraftId(a.id);
-    return a;
+  // Szkic powstaje przy pierwszym zdjęciu (jak na webie); promise chroni przed podwójnym utworzeniem,
+  // gdy wybór zdjęć i wysyłka wołają to równocześnie.
+  const appRef = useRef(app); appRef.current = app;
+  const draftRef = useRef<Promise<UdApp> | null>(null);
+  const ensureDraft = useCallback(async (): Promise<UdApp> => {
+    if (appRef.current) return appRef.current;
+    draftRef.current ??= createDraft().then((a) => {
+      appRef.current = a;
+      setApp(a);
+      if (!editId) setDraftId(a.id);
+      return a;
+    });
+    return draftRef.current;
+  }, [editId, setDraftId]);
+
+  // Analiza zdjęć podpowiada kategorię (z markerów) i tablicę – tylko tam, gdzie użytkownik jeszcze nic nie wybrał.
+  const onSuggestion = useCallback((s: Suggestion) => {
+    setForm((f) => {
+      const category = f.category === 0 && s.categoryId > 0 ? s.categoryId : f.category;
+      return {
+      ...f,
+      category,
+      extensions: dropMatchingExtension(f.extensions, category),
+      plateId: f.plateId || edited.current.plate ? f.plateId : s.plate ?? '',
+    }; });
+  }, []);
+
+  const batch = usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError: fail });
+  const uploading = batch.busy;
+
+  // Bez lokalnych zdjęć (edycja / wznowiony szkic) pokazujemy te z serwera, role bez zmian.
+  const SERVER: Record<Slot, 'contextImage' | 'carImage' | 'thirdImage'> = { context: 'contextImage', car: 'carImage', third: 'thirdImage' };
+  const serverTiles: Tile[] = (['context', 'car', 'third'] as Slot[]).flatMap((slot) => {
+    const uri = app ? imageUrl(app[SERVER[slot]], app) : null;
+    return uri ? [{ id: slot, uri }] : [];
+  });
+  const local = batch.photos.length > 0;
+  const tiles: Tile[] = local ? batch.photos.map((p) => ({ id: p.id, uri: p.uri })) : serverTiles;
+  const tileSlots = local ? batch.slots : { context: serverTiles.some((t) => t.id === 'context') ? 'context' : null, car: serverTiles.some((t) => t.id === 'car') ? 'car' : null, third: serverTiles.some((t) => t.id === 'third') ? 'third' : null };
+
+  // Jak na webie: wybór kategorii odznacza i blokuje rozszerzenie o tym samym id.
+  const chooseCategory = (id: number) => setForm((f) => ({ ...f, category: id, extensions: dropMatchingExtension(f.extensions, id) }));
+
+  const onMapConfirm = (r: PickedPlace) => {
+    edited.current.address = true; // wybór z mapy ma pierwszeństwo przed GPS zdjęcia
+    setAddrNote(null);
+    setForm((f) => ({ ...f, lat: r.lat, lng: r.lng, geo: r.geo, address: r.geo?.display || f.address }));
+    setMapOpen(false);
   };
 
-  const pick = async (type: PictureType) => {
-    setErr(null);
-    try {
-      const photo = await pickPhoto();
-      if (!photo) return;
-      setUploading(type);
-      const draft = await ensureDraft();
-      const a = await uploadReportImage(draft.id, type, photo.uri, { dateTime: photo.exif.datetimeOriginal ? exifToIso(photo.exif.datetimeOriginal) : null, lat: photo.exif.lat, lng: photo.exif.lng });
-      applyApp(a);
-      if (type === 'carImage' && !a.date) setForm((f) => ({ ...f, datetime: f.datetime || nowIso(), dtFromPicture: false }));
-    } catch (e) { fail(e); } finally { setUploading(null); }
-  };
-
-  const remove = async (type: PictureType) => {
-    if (!app) return;
-    setUploading(type);
-    try { setApp(await deleteReportImage(app.id, type)); } catch (e) { fail(e); } finally { setUploading(null); }
-  };
+  useEffect(() => { setPlateTouched(false); }, [app?.carInfo?.plateImage]);
+  const plateImg = app?.carInfo?.plateImage && !plateTouched ? imageUrl({ thumb: app.carInfo.plateImage }, app) : null;
 
   const selectedCat = cats.find((c) => c.id === form.category);
   const forcePolice = !!selectedCat?.stopAgresjiOnly;
@@ -249,7 +269,7 @@ export function NewReportScreen({ navigation, route }: any) {
 
   const submit = async () => {
     setErr(null);
-    if (!app?.contextImage?.thumb || !app?.carImage?.thumb) { setErr({ field: 'images', text: 'Dodaj zdjęcie kontekstu i zdjęcie auta.' }); return; }
+    if (!app?.contextImage?.thumb || !app?.carImage?.thumb) { setErr({ field: 'images', text: 'Dodaj zdjęcie kontekstu i zdjęcie auta.' }); toast.error('Dodaj zdjęcie kontekstu i zdjęcie auta.'); return; }
     setSubmitting(true);
     try {
       const body: ReportForm = {
@@ -276,10 +296,19 @@ export function NewReportScreen({ navigation, route }: any) {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>{editId ? `Edycja${app?.number ? ` ${app.number}` : ''}` : 'Nowe zgłoszenie'}</Text>
 
-        <PhotoSlot title="1. Zdjęcie kontekstu" hint={selectedCat?.contextImageHint || 'Pokaż miejsce i otoczenie pojazdu.'} app={app} type="contextImage" busy={uploading === 'contextImage'} onPick={() => pick('contextImage')} />
+        <PhotosSection
+          tiles={tiles}
+          slots={tileSlots}
+          phase={local ? batch.phase : 'idle'}
+          uploading={batch.uploading}
+          note={batch.note}
+          hints={[selectedCat?.contextImageHint, selectedCat?.carImageHint].filter(Boolean) as string[]}
+          editable={local}
+          onPick={batch.pick}
+          onAssign={batch.assign}
+          onRemove={batch.remove}
+        />
         {fieldErr('images')}
-        <PhotoSlot title="2. Zdjęcie auta" hint={selectedCat?.carImageHint || 'Cały pojazd z widoczną tablicą rejestracyjną.'} app={app} type="carImage" busy={uploading === 'carImage'} onPick={() => pick('carImage')} />
-        <PhotoSlot title="3. Dodatkowe zdjęcie (opcjonalnie)" app={app} type="thirdImage" busy={uploading === 'thirdImage'} onPick={() => pick('thirdImage')} onRemove={() => remove('thirdImage')} />
 
         <H>Data i miejsce</H>
         <L>Data i czas zgłoszenia</L>
@@ -294,7 +323,13 @@ export function NewReportScreen({ navigation, route }: any) {
         {fieldErr('datetime')}
 
         <L>Numer rejestracyjny</L>
-        <TextInput style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }]} value={form.plateId} autoCapitalize="characters" autoCorrect={false} placeholder="np. ZS 060NH" onChangeText={(t) => { edited.current.plate = true; set('plateId', t); }} />
+        <TextInput style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }]} value={form.plateId} autoCapitalize="characters" autoCorrect={false} placeholder="np. ZS 060NH" onChangeText={(t) => { edited.current.plate = true; setPlateTouched(true); set('plateId', t); }} />
+        {plateImg ? (
+          <View style={{ marginTop: 8 }}>
+            <Image source={{ uri: plateImg }} style={{ height: 56, width: 220, backgroundColor: ud.surfaceCream, borderRadius: 4 }} resizeMode="contain" />
+            <Text style={{ color: ud.muted, fontSize: 12, marginTop: 4 }}>Sprawdź automatycznie pobrany numer rejestracyjny</Text>
+          </View>
+        ) : null}
         {fieldErr('plateId')}
         {weightWarning ? <Text style={{ color: ud.warning, marginTop: 6 }}>{weightWarning}</Text> : null}
         {recydywa && recydywa.appsCnt > 0 ? (
@@ -305,6 +340,10 @@ export function NewReportScreen({ navigation, route }: any) {
         <TextInput style={input} value={form.address} maxLength={70} placeholder="Ulica 10a, Miasto" onChangeText={(t) => { edited.current.address = true; setAddrNote(null); set('address', t); }} onEndEditing={lookupAddress} />
         {addrNote ? <Text style={{ color: ud.warning, marginTop: 4 }}>{addrNote}</Text> : null}
         {fieldErr('address')}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 8 }}>
+          <Pressable onPress={() => setMapOpen(true)}><Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>📍 Wskaż na mapie</Text></Pressable>
+        </View>
+        {form.lat == null ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 4 }}>Brak lokalizacji ze zdjęcia – wskaż miejsce na mapie albo wpisz adres („Ulica 10, Miasto”).</Text> : null}
 
         <L>Zgłoszenie trafi do</L>
         <Radio on={unit === 'SM'} disabled={forcePolice} onPress={() => set('unit', 'SM')}>Straż miejska{form.geo?.smName ? ` – ${form.geo.smName}` : ''}</Radio>
@@ -312,18 +351,18 @@ export function NewReportScreen({ navigation, route }: any) {
         {forcePolice ? <Text style={{ color: ud.muted, fontSize: 12 }}>Ta kategoria jest zawsze zgłaszana na Policję.</Text> : null}
 
         <H>Kategoria</H>
-        {topCats.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => set('category', c.id)} />)}
+        {topCats.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} />)}
         {!showAllCats ? (
           <Pressable onPress={() => setShowAllCats(true)}><Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, marginTop: 8 }}>Pokaż wszystkie</Text></Pressable>
         ) : (
           catGroups.map((g) => (
             <View key={g.name}>
               <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, marginTop: 16 }}>{g.name}</Text>
-              {g.items.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => set('category', c.id)} />)}
+              {g.items.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} />)}
             </View>
           ))
         )}
-        <CategoryRow c={{ id: 0, title: 'Pozostałe przypadki', short: 'Opisz sytuację w komentarzu.' }} on={form.category === 0} onPress={() => set('category', 0)} />
+        <CategoryRow c={{ id: 0, title: 'Pozostałe przypadki', short: 'Opisz sytuację w komentarzu.' }} on={form.category === 0} onPress={() => chooseCategory(0)} />
 
         <L>Komentarz{form.category === 0 ? ' (wymagany)' : ''}</L>
         <TextInput style={[input, { minHeight: 80, textAlignVertical: 'top' }]} multiline value={form.comment} onChangeText={(t) => set('comment', t)} placeholder="Dodatkowy opis wykroczenia" />
@@ -334,7 +373,7 @@ export function NewReportScreen({ navigation, route }: any) {
             <H>Czy pojazd dodatkowo:</H>
             {Object.entries(exts).filter(([, e]) => !e.disabled).map(([id, e]) => {
               const n = Number(id);
-              return <Check key={id} on={form.extensions.includes(n)} onPress={() => set('extensions', form.extensions.includes(n) ? form.extensions.filter((x) => x !== n) : [...form.extensions, n])}>{`${e.title}${e.price ? ` (mandat: ${e.price})` : ''}`}</Check>;
+              return <Check key={id} disabled={isExtensionDisabled(n, form.category)} on={form.extensions.includes(n)} onPress={() => set('extensions', form.extensions.includes(n) ? form.extensions.filter((x) => x !== n) : [...form.extensions, n])}>{`${e.title}${e.price ? ` (mandat: ${e.price})` : ''}`}</Check>;
             })}
           </>
         ) : null}
@@ -345,12 +384,12 @@ export function NewReportScreen({ navigation, route }: any) {
           <Switch value={form.witness} onValueChange={(v) => set('witness', v)} trackColor={{ true: ud.primary }} />
         </View>
 
-        {err && !err.field ? <Text style={{ color: ud.plateVerified, marginTop: 14 }}>{err.text}</Text> : null}
         <View style={{ marginTop: 20 }}>
-          <UdButton title={submitting ? 'Wysyłam…' : 'Potwierdź i wyślij'} onPress={submit} disabled={submitting || !!uploading} />
+          <UdButton title={submitting ? 'Wysyłam…' : 'Potwierdź i wyślij'} onPress={submit} disabled={submitting || uploading} />
         </View>
         <Text style={{ color: ud.muted, fontSize: 12, marginTop: 6 }}>Zgłoszenie zostanie potwierdzone i wysłane do wskazanego adresata (jeśli ma automatyczny kanał wysyłki).</Text>
       </ScrollView>
+      <MapPicker visible={mapOpen} initial={form.lat != null && form.lng != null ? { lat: form.lat, lng: form.lng } : null} onConfirm={onMapConfirm} onClose={() => setMapOpen(false)} />
       <UdTabs current="NewReport" navigate={go} />
     </View>
   );
@@ -370,10 +409,4 @@ function CategoryRow({ c, on, onPress }: { c: Category; on: boolean; onPress: ()
       </View>
     </Pressable>
   );
-}
-
-// EXIF "2026:09:10 19:43:00" → ISO "2026-09-10T19:43:00" (to samo robi web w images.js)
-function exifToIso(s: string): string | null {
-  const m = /^(\d{4})[:-](\d{2})[:-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(s);
-  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}` : null;
 }

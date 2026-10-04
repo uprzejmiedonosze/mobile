@@ -85,3 +85,15 @@ export function appendAutoLine(comment: string, line: string | null, replace?: s
   }
   return lines.join('\n');
 }
+
+// EXIF "2026:09:10 19:43:00" → ISO "2026-09-10T19:43:00" (to samo robi web w images.js)
+export function exifToIso(s: string | null): string | null {
+  const m = s ? /^(\d{4})[:-](\d{2})[:-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(s) : null;
+  return m ? `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}` : null;
+}
+
+// „Czy pojazd dodatkowo:” – web (new-app/on-load.js::validateExtensions): rozszerzenie o tym samym id co
+// wybrana kategoria jest zablokowane i odznaczone (nie dokładamy kategorii głównej do samej siebie).
+export const isExtensionDisabled = (extId: number, category: number): boolean => extId === category;
+export const dropMatchingExtension = (extensions: number[], category: number): number[] =>
+  extensions.filter((e) => !isExtensionDisabled(e, category));

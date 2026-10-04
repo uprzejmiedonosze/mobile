@@ -13,6 +13,7 @@ import { ReportsScreen } from './src/screens/ReportsScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 
+import { ToastHost } from './src/components/ToastHost';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { UdLogo } from './src/components/UD';
 import { installGlobalLogHandlers, log } from './src/lib/log';
@@ -79,6 +80,7 @@ export default function App() {
         </Stack.Navigator>
       )}
     </NavigationContainer>
+    <ToastHost />
     </ErrorBoundary>
     </SafeAreaProvider>
   );

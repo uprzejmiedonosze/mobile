@@ -50,6 +50,12 @@
           "isAccessMediaLocationEnabled": true
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Pokazanie Twojej lokalizacji na mapie przy wskazywaniu miejsca wykroczenia."
+        }
+      ],
       "expo-secure-store",
       "@react-native-google-signin/google-signin",
       "expo-font"

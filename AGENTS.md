@@ -11,8 +11,11 @@ Everything goes through the JWT REST API (`/api/rest/*`, Firebase Bearer) — ne
 
 **Report creation (`NewReportScreen`, 1:1 with the web form).** One scrolling form; the client stays thin,
 the domain logic lives in the backend:
-`POST /app/new` (lazy, on first photo) → `POST /app/{id}/image` ×3 (multipart; server runs ALPR and reads
-date/GPS from the car photo) → form (reverse geocode `/geo/{lat},{lng}/n`, typed address `/geo/search`,
+**one picker for 2–3 photos** (`usePhotoBatch`, `PhotosSection`): thumbnails show instantly, then the photos go to
+`POST /api/rest/vision/candidate` and `suggestSlots` (`src/lib/suggest.ts`, reusing the batch pipeline's
+`splitByPlate`/`assignRoles`/`compose`) decides which one is context / car / extra and suggests the category;
+the user can swap roles. `POST /app/new` (lazy) → `POST /app/{id}/image` per slot, in the suggested roles (multipart;
+server runs ALPR and reads date/GPS from the car photo) → form (reverse geocode `/geo/{lat},{lng}/n`, typed address `/geo/search`,
 recydywa `/recydywa/{plate}`, vehicle `/vehicle/{plate}`) → `POST /app/{id}` (server-side validation, 422 + `field`)
 → `POST /app/{id}/finish {send:true}` (confirm + send; same side effects as web `/app/done`) → `ReportDoneScreen`.
 The draft id is persisted (`useNewReport`, like web `$_SESSION['newAppId']`); "EDYTUJ" on the list opens the same

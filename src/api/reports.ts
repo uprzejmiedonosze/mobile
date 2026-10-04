@@ -1,5 +1,6 @@
 // Tworzenie/edycja zgłoszenia – cienkie wrappery na JWT REST (/api/rest/app/*, patrz API.md w backendzie).
 // Cała logika domenowa (walidacja, SM/Policja, numer, efekty uboczne „Potwierdź”) siedzi w backendzie.
+import { File } from 'expo-file-system';
 import { downscale } from '../lib/resize';
 import type { GeoAddress } from '../types';
 import { toGeoAddress } from './geo';
@@ -60,10 +61,13 @@ export async function uploadReportImage(
   type: PictureType,
   uri: string,
   meta: { dateTime?: string | null; lat?: number | null; lng?: number | null } = {},
+  prescaled = false, // true = `uri` jest już po downscale() (np. to samo zdjęcie poszło do analizy)
 ): Promise<UdApp> {
-  const small = await downscale(uri);
+  const small = prescaled ? { uri } : await downscale(uri);
   const form = new FormData();
-  form.append('image', { uri: small.uri, name: `${type}.jpg`, type: 'image/jpeg' } as any);
+  // UWAGA: globalny fetch to expo/fetch (SDK 57) – nie rozumie RN-owego {uri, name, type} w FormData
+  // ("Unsupported FormDataPart implementation"); przyjmuje string, Blob albo obiekt z bytes(), czyli File.
+  form.append('image', new File(small.uri) as unknown as Blob);
   form.append('pictureType', type);
   if (type === 'carImage') {
     if (meta.dateTime) {
