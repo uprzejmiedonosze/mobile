@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollVie
 import { fetchDashboard, fmtInt, num, stripHtml, type Dashboard } from '../api/dashboard';
 import { udConfig } from '../config';
 import { log } from '../lib/log';
+import { plural } from '../lib/reports';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import { ud } from '../theme';
 
@@ -69,7 +70,6 @@ export function DashboardScreen({ navigation }: any) {
   useEffect(() => { load(); }, [load]);
 
   const s = d?.stats ?? {};
-  const levels = d?.levels ?? [];
   const myBadges = s.badges ?? [];
   const active = num(s.active), fined = num(s['confirmed-fined']), instructed = num(s['confirmed-instructed']);
   const patron = myBadges.includes('patron');
@@ -90,26 +90,22 @@ export function DashboardScreen({ navigation }: any) {
               <UdButton title="Nowe zgłoszenie" onPress={() => go('NewReport')} />
             </View>
 
-            {levels.length ? (
+            {d.rank ? (
               <Section>
                 <Eyebrow>Twoja ranga</Eyebrow>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                  {levels.map((l, i) => {
-                    const on = l.active;
-                    return (
-                      <View key={l.id} style={{ flex: 1, alignItems: 'center' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch' }}>
-                          <View style={{ flex: 1, height: 2, backgroundColor: i ? ud.primaryOutline : 'transparent' }} />
-                          <View style={{ width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? ud.primary : ud.surface, borderWidth: 2, borderColor: on ? ud.primary : ud.primaryOutline }}>
-                            <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: on ? '#fff' : ud.muted }}>{i + 1}</Text>
-                          </View>
-                          <View style={{ flex: 1, height: 2, backgroundColor: i < levels.length - 1 ? ud.primaryOutline : 'transparent' }} />
-                        </View>
-                        <Text style={{ fontSize: 11, marginTop: 4, textAlign: 'center', color: on ? ud.primary : ud.muted, fontFamily: on ? ud.fontBodyBold : ud.fontBody }}>{l.desc}</Text>
-                      </View>
-                    );
-                  })}
+                <Text style={{ color: ud.muted, fontSize: 13 }}>Ranga {d.rank.index} z {d.rank.total}</Text>
+                <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 30, marginTop: 2 }}>{d.rank.desc}</Text>
+                {/* pasek z segmentem na każdą rangę – bez etykiet, więc nic się nie łamie na wąskim ekranie */}
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
+                  {Array.from({ length: d.rank.total }, (_, k) => (
+                    <View key={k} style={{ flex: 1, height: 10, borderRadius: 5, backgroundColor: k < d.rank.index ? ud.primary : ud.primaryOutline, opacity: k === d.rank.index - 1 ? 1 : k < d.rank.index ? 0.55 : 1 }} />
+                  ))}
                 </View>
+                <Text style={{ color: ud.text, marginTop: 12, lineHeight: 21 }}>
+                  {d.rank.next
+                    ? `Do rangi „${d.rank.next.desc}” brakuje ${plural(d.rank.next.missing, ['punktów karnych', 'punktu karnego', 'punktów karnych'])} (masz ${d.rank.points} z ${d.rank.next.points}).`
+                    : 'To najwyższa ranga – gratulacje!'}
+                </Text>
               </Section>
             ) : null}
 

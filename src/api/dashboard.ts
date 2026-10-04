@@ -13,6 +13,8 @@ export type UserStats = {
   [status: string]: unknown; // liczniki per status, np. 'confirmed-fined'
 };
 export type DashLevel = { id: string; desc: string; active: boolean };
+// Ranga „N z M” + ile brakuje do następnej (liczone w backendzie: dashboardData() → rank)
+export type DashRank = { index: number; total: number; desc: string; points: number; next: { desc: string; points: number; missing: number } | null };
 export type DashBadge = { id: string; name: string; desc: string; img: string | null; earned: boolean; former: boolean };
 
 export type Dashboard = {
@@ -20,6 +22,7 @@ export type Dashboard = {
   stats: UserStats;
   introMsg: string; // HTML (<strong>)
   levels: DashLevel[];
+  rank: DashRank;
   badges: DashBadge[];
 };
 
