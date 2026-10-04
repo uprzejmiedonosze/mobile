@@ -26,13 +26,14 @@ function Stat({ value, label, onPress, highlight }: { value: string; label: stri
         borderRadius: 22,
         borderWidth: highlight ? 0 : 1,
         borderColor: '#e6e3dc',
-        paddingHorizontal: 24,
-        paddingVertical: 22,
+        paddingHorizontal: 18,
+        paddingVertical: 20,
         marginBottom: 12,
+        minHeight: highlight ? undefined : 98, // kafelki w rzędzie mają równą wysokość
       }}
     >
       <Text style={{ fontFamily: ud.fontDisplay, color: highlight ? '#fff' : ud.heading, fontSize: 30 }}>{value}</Text>
-      <Text style={{ color: highlight ? ud.primaryOutline : ud.muted, fontSize: 16, marginTop: 6 }}>{label}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={{ color: highlight ? ud.primaryOutline : ud.muted, fontSize: 13, marginTop: 4 }}>{label}</Text>
     </Pressable>
   );
 }
@@ -103,7 +104,7 @@ export function DashboardScreen({ navigation }: any) {
                 </View>
                 <Text style={{ color: ud.text, marginTop: 12, lineHeight: 21 }}>
                   {d.rank.next
-                    ? `Do rangi „${d.rank.next.desc}” brakuje ${plural(d.rank.next.missing, ['punktów karnych', 'punktu karnego', 'punktów karnych'])} (masz ${d.rank.points} z ${d.rank.next.points}).`
+                    ? `Do rangi „${d.rank.next.desc}” brakuje ${plural(d.rank.next.missing, ['punktów karnych', 'punktu karnego', 'punktów karnych'])}.`
                     : 'To najwyższa ranga – gratulacje!'}
                 </Text>
               </Section>

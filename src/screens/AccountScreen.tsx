@@ -143,7 +143,7 @@ function ProfileCards({ onLogout }: { onLogout: () => void }) {
   return (
     <>
       <View style={{ marginTop: 20 }}>
-        <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 28 }}>Dane konta</Text>
+        <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 34 }}>Dane konta</Text>
         <Text style={{ color: ud.muted, marginTop: 4 }}>
           Imię, nazwisko i adres są wymagane przez SM do przyjęcia zgłoszenia. Dane osobowe są szyfrowane na serwerze.
         </Text>
@@ -160,7 +160,7 @@ function ProfileCards({ onLogout }: { onLogout: () => void }) {
       </View>
 
       <View style={{ marginTop: 20 }}>
-        <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 28 }}>Ustawienia</Text>
+        <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 22 }}>Ustawienia</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 12 }}>
           <Text style={{ flex: 1, color: ud.text }}>
             Pozwalam na prezentowanie pierwszego zdjęcia każdego zgłoszenia w galerii recydywistów (wyłączone = mocno „rozpikselowane”).
@@ -172,7 +172,7 @@ function ProfileCards({ onLogout }: { onLogout: () => void }) {
       </View>
 
       <View style={{ marginTop: 20 }}>
-        <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 28 }}>Passkeye</Text>
+        <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 22 }}>Passkeye</Text>
         <Text style={{ color: ud.muted, marginTop: 4 }}>Logowanie odciskiem palca, twarzą lub PIN-em – bez hasła i poczty.</Text>
         {passkeys === null ? null : passkeys.length === 0 ? (
           <Text style={{ color: ud.muted, marginTop: 8 }}>Nie masz jeszcze żadnego passkeya.</Text>
@@ -191,7 +191,7 @@ function ProfileCards({ onLogout }: { onLogout: () => void }) {
       </View>
 
       <View style={{ marginTop: 20 }}>
-        <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 28 }}>Strefa niebezpieczna</Text>
+        <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 22 }}>Strefa niebezpieczna</Text>
         <Text style={{ color: ud.muted, marginTop: 4 }}>Skasowanie konta jest nieodwracalne: usuniemy Twoje dane, zgłoszenia i zdjęcia (kopie zapasowe i logi znikną w ciągu 14 dni).</Text>
         {!confirmDelete ? (
           <Text style={{ color: ud.plateVerified, textDecorationLine: 'underline', marginTop: 10 }} onPress={() => setConfirmDelete(true)}>Skasuj konto</Text>
