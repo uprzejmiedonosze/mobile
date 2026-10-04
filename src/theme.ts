@@ -8,7 +8,8 @@ export const ud = {
   accent: '#E2C439',
   onAccent: '#16241d',
   surface: '#ffffff',
-  surfaceLow: '#f5f8f5',
+  surfaceLow: '#f4f3ef', // tło sekcji /app na webie (body.app-shell w my-apps.scss)
+  tabInactive: '#8a9690',
   surfaceCream: '#eceae4',
   text: '#16241d',
   heading: '#0f2118',

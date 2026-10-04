@@ -84,6 +84,12 @@ export async function pickPhotosFromGallery(existing: number): Promise<Omit<Phot
   }) as (Omit<PhotoItem, 'exif'> & { exif: ExifMeta })[] as any;
 }
 
+// Jedno zdjęcie z galerii (formularz zgłoszenia) – ta sama ścieżka co wybór wielu (EXIF + GPS z MediaLibrary).
+export async function pickPhoto(): Promise<PhotoItem | null> {
+  const [photo] = (await pickPhotosFromGallery(MAX_PHOTOS - 1)) as PhotoItem[];
+  return photo ?? null;
+}
+
 function toNum(v: any): number | null {
   if (v == null) return null;
   if (typeof v === 'object' && v !== null && 'value' in (v as any)) return Number((v as any).value);

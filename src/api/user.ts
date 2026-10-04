@@ -3,7 +3,7 @@
 // isTermsConfirmed = termsConfirmation > LATEST_TERMS_UPDATE.
 import { udConfig } from '../config';
 import { logFetch } from '../lib/log';
-import { authFetch } from './udApi';
+import { apiJson, authFetch } from './udApi';
 
 export type TermsDoc = { terms: unknown[]; updated: string };
 
@@ -14,11 +14,45 @@ export async function ensureUserRow(): Promise<void> {
   if (!res.ok) throw new Error(`Nie udało się założyć konta UD (HTTP ${res.status}).`);
 }
 
-export async function updateUserProfile(name: string, address: string): Promise<void> {
+export type UserProfile = {
+  name: string;
+  email: string;
+  address: string;
+  msisdn: string;
+  edelivery: string;
+  shareRecydywa: boolean;
+};
+
+// GET /api/rest/user/ → { data: { name, email, address, msisdn, edelivery, shareRecydywa }, stats, ... }.
+export async function fetchProfile(): Promise<UserProfile> {
+  const res = await authFetch('/api/rest/user/');
+  if (!res.ok) throw new Error(`Nie udało się pobrać danych konta (HTTP ${res.status}).`);
+  const d = ((await res.json()) as any)?.data ?? {};
+  return {
+    name: d.name ?? '',
+    email: d.email ?? '',
+    address: d.address ?? '',
+    msisdn: d.msisdn ?? '',
+    edelivery: d.edelivery ?? '',
+    shareRecydywa: d.shareRecydywa ?? false,
+  };
+}
+
+// POST /api/rest/user/ – backend ma domyślne '' dla msisdn/edelivery i 'Y' dla shareRecydywa,
+// więc przy zapisie edycji zawsze wysyłamy komplet pól (inaczej puste nadpisałyby zapisane).
+export async function updateUserProfile(
+  name: string,
+  address: string,
+  extra: { msisdn?: string; edelivery?: string; shareRecydywa?: boolean } = {},
+): Promise<void> {
+  const body: Record<string, string> = { name, address };
+  if (extra.msisdn !== undefined) body.msisdn = extra.msisdn;
+  if (extra.edelivery !== undefined) body.edelivery = extra.edelivery;
+  if (extra.shareRecydywa !== undefined) body.shareRecydywa = extra.shareRecydywa ? 'Y' : 'N';
   const res = await authFetch('/api/rest/user/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, address }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Nie udało się zapisać danych (HTTP ${res.status}).`);
 }
@@ -33,4 +67,27 @@ export async function fetchTerms(): Promise<TermsDoc> {
 export async function confirmTerms(): Promise<void> {
   const res = await authFetch('/api/rest/user/confirm-terms', { method: 'PATCH' });
   if (!res.ok) throw new Error(`Nie udało się potwierdzić regulaminu (HTTP ${res.status}).`);
+}
+
+export type Passkey = { id: string; label: string; createdAt: string; lastUsedAt: string | null };
+
+// Passkeye (web: /app/account). Lista i usuwanie przez REST; dodanie passkeya wymaga WebAuthn w natywnej
+// aplikacji (powiązanie RP/origin) – na razie tylko na www.
+export async function fetchPasskeys(): Promise<Passkey[]> {
+  const j = await apiJson<{ passkeys: Passkey[] }>(await authFetch('/api/rest/user/passkeys'), 'Nie udało się pobrać passkeyów');
+  return j.passkeys;
+}
+
+export async function removePasskey(id: string): Promise<void> {
+  await apiJson(await authFetch(`/api/rest/user/passkeys/${encodeURIComponent(id)}`, { method: 'DELETE' }), 'Nie udało się usunąć passkeya');
+}
+
+// „Skasuj konto” – nieodwracalne; wymaga ponownego wpisania własnego e-maila (jak formularz na www).
+export async function deleteAccount(email: string): Promise<void> {
+  const res = await authFetch('/api/rest/user/', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  await apiJson(res, 'Nie udało się skasować konta');
 }

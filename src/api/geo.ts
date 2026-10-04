@@ -11,6 +11,28 @@ import { log, logFetch } from '../lib/log';
 
 export const UD_BASE = udConfig.base;
 
+// Odpowiedź /geo/.../n i /geo/search → GeoAddress (jedno miejsce parsowania).
+export function toGeoAddress(j: any): GeoAddress {
+  const a = j?.address ?? j;
+  const road = a?.road ?? '';
+  const num = a?.house_number ?? '';
+  const city = a?.city ?? '';
+  return {
+    display: (a?.address as string) ?? `${road} ${num}, ${city}`.trim(),
+    road,
+    houseNumber: num,
+    city,
+    district: a?.district ?? '',
+    voivodeship: a?.voivodeship ?? '',
+    county: a?.county ?? '',
+    municipality: a?.municipality ?? '',
+    postcode: a?.postcode ?? '',
+    // podpowiedź odbiorcy jak `#unitToggle` na webie: nazwa SM (sm) i jednostki Policji (sa) dla tego adresu
+    smName: j?.sm?.address?.[0] ?? null,
+    saName: j?.sa?.address?.[0] ?? null,
+  };
+}
+
 export async function reverseGeocode(lat: number, lng: number, token?: string): Promise<GeoAddress | null> {
   const url = `${UD_BASE}/api/rest/geo/${lat.toFixed(4)},${lng.toFixed(4)}/n`;
   try {
@@ -19,21 +41,7 @@ export async function reverseGeocode(lat: number, lng: number, token?: string): 
       log.warn('geo', `HTTP ${res.status} dla ${lat.toFixed(4)},${lng.toFixed(4)} (pewnie brak auth – adres ręcznie)`);
       return null;
     }
-    const j = (await res.json()) as any;
-    const a = j?.address ?? j;
-    const road = a?.road ?? '';
-    const num = a?.house_number ?? '';
-    const city = a?.city ?? '';
-    return {
-      display: (a?.address as string) ?? `${road} ${num}, ${city}`.trim(),
-      road,
-      houseNumber: num,
-      city,
-      district: a?.district ?? '',
-      voivodeship: a?.voivodeship ?? '',
-      county: a?.county ?? '',
-      municipality: a?.municipality ?? '',
-    };
+    return toGeoAddress((await res.json()) as any);
   } catch (e: any) {
     log.warn('geo', `reverseGeocode: ${String(e?.message ?? e).slice(0, 200)}`);
     return null;
@@ -48,6 +56,14 @@ function normalizeCategory(id: string | number, v: any): Category {
     title: v?.title ?? v?.informal ?? `kat. ${id}`,
     formal: v?.formal,
     fine: v?.price ?? v?.fine ?? v?.mandate,
+    short: v?.short,
+    mandate: v?.mandate,
+    points: v?.points,
+    groups: Array.isArray(v?.groups) ? v.groups : undefined,
+    order: v?.order,
+    stopAgresjiOnly: !!v?.stopAgresjiOnly,
+    contextImageHint: v?.contextImageHint,
+    carImageHint: v?.carImageHint,
   };
 }
 

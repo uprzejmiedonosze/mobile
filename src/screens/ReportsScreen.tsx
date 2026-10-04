@@ -1,0 +1,286 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { changeStatus, fetchApps, fetchStatusCounts, fetchStatuses, imageUrl, PAGE_SIZE, type StatusDef, type UdApp } from '../api/apps';
+import { fetchCategories } from '../api/geo';
+import { fetchRecydywa } from '../api/recydywa';
+import { validIdToken } from '../api/udApi';
+import { log } from '../lib/log';
+import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plural, reportBody, shortAddress, statusColor, witnessText } from '../lib/reports';
+import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import type { Category, RecydywaInfo } from '../types';
+import { ud } from '../theme';
+
+function StatusDot({ status, label, police }: { status: string; label: string; police?: boolean }) {
+  const t = statusColor(status);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }}>
+      <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: t.stroke, backgroundColor: t.fill, marginRight: 6 }} />
+      <Text numberOfLines={1} style={{ fontFamily: ud.fontBodyBold, color: ud.text, fontSize: 13, flexShrink: 1 }}>{label.toUpperCase()}{police ? ' 👮' : ''}</Text>
+    </View>
+  );
+}
+
+function PlateBadge({ plate }: { plate?: string }) {
+  if (!plate) return null;
+  return (
+    <View style={{ borderWidth: 1, borderColor: ud.text, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1, backgroundColor: ud.surface }}>
+      <Text style={{ fontFamily: ud.fontBodyBold, color: ud.text, fontSize: 13, letterSpacing: 0.5 }}>{plate.replace(/\s+/g, '')}</Text>
+    </View>
+  );
+}
+
+function Photos({ app }: { app: UdApp }) {
+  const urls = [app.contextImage, app.carImage, app.thirdImage].map((i) => imageUrl(i, app)).filter(Boolean) as string[];
+  if (!urls.length) return null;
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 10 }}>
+      {urls.map((u) => (
+        <Image key={u} source={{ uri: u }} style={{ width: 220, height: 160, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream }} resizeMode="cover" />
+      ))}
+    </ScrollView>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, fontSize: 12, letterSpacing: 0.5 }}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+
+type CardProps = {
+  app: UdApp;
+  statuses: Record<string, StatusDef>;
+  categories: Map<number, Category>;
+  onStatus: (id: string, status: string) => Promise<void>;
+  onEdit: (id: string) => void;
+};
+
+function ReportCard({ app, statuses, categories, onStatus, onEdit }: CardProps) {
+  const [open, setOpen] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
+  const police = app.recipient?.isPolice ?? !!app.stopAgresji; // recipient liczy backend (recipientData w API.php)
+  const statusName = statuses[app.status]?.name ?? app.status;
+  const cat = categories.get(Number(app.category));
+  const plate = app.carInfo?.plateId;
+  const recCnt = recydywa?.appsCnt ?? 0;
+
+  // Recydywa (1 wywołanie na kartę) dopiero po rozwinięciu – lista może mieć setki pozycji.
+  useEffect(() => {
+    if (!open || !plate || app.status === 'archived' || recydywa) return;
+    validIdToken().then((t) => fetchRecydywa(plate, t)).then(setRecydywa).catch(() => {});
+  }, [open, plate, app.status, recydywa]);
+
+  const allowed = (statuses[app.status]?.allowed ?? []).filter((k) => statuses[k] && (statuses[k] as any).action);
+
+  const pick = async (k: string) => {
+    setMenu(false);
+    setBusy(true);
+    try { await onStatus(app.id, k); } finally { setBusy(false); }
+  };
+
+  return (
+    <View style={{ paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: ud.hairline }}>
+      <Pressable onPress={() => setOpen((o) => !o)} style={{ paddingVertical: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <StatusDot status={app.status} label={statusName} police={police} />
+          <Text style={{ color: ud.muted, fontSize: 13 }}>{fmtShortDate(app.date)}</Text>
+          <PlateBadge plate={plate} />
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+          <Text numberOfLines={1} style={{ flex: 1, fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 17 }}>
+            {shortAddress(app.address?.address) || 'Brak adresu'}
+          </Text>
+          <Text style={{ color: ud.muted, fontSize: 16 }}>{open ? '⌃' : '⌄'}</Text>
+        </View>
+        {cat ? <Text numberOfLines={open ? 0 : 1} style={{ color: ud.muted, fontSize: 13, marginTop: 2 }}>{cat.title}</Text> : null}
+      </Pressable>
+
+      <Photos app={app} />
+
+      {open ? (
+        <View style={{ paddingBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <StatusDot status={app.status} label={statusName} police={police} />
+            {allowed.length ? (
+              <Pressable onPress={() => setMenu((m) => !m)} disabled={busy} style={{ borderWidth: 1, borderColor: ud.text, borderRadius: ud.radiusPill, paddingHorizontal: 12, paddingVertical: 4 }}>
+                <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: ud.text }}>{busy ? '…' : 'ZMIEŃ ⌄'}</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          {menu ? (
+            <View style={{ marginTop: 8, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusSm }}>
+              {allowed.map((k) => (
+                <Pressable key={k} onPress={() => pick(k)} style={{ padding: 10, borderBottomWidth: 1, borderBottomColor: ud.hairline }}>
+                  <Text style={{ color: ud.text }}>{(statuses[k] as any).action}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+
+          {statuses[app.status]?.editable ? (
+            <Pressable onPress={() => onEdit(app.id)} style={{ alignSelf: 'flex-start', marginTop: 10, borderWidth: 1, borderColor: ud.text, borderRadius: ud.radiusPill, paddingHorizontal: 12, paddingVertical: 4 }}>
+              <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: ud.text }}>EDYTUJ</Text>
+            </Pressable>
+          ) : null}
+          {app.number ? <Text style={{ marginTop: 10, color: ud.text }}>Zgłoszenie <Text style={{ fontFamily: ud.fontBodyBold }}>{app.number}</Text></Text> : null}
+          <Text style={{ marginTop: 8, fontFamily: ud.fontBodyBold, color: ud.text }}>🕒 {fmtLongDate(app.date)}</Text>
+          <Text style={{ marginTop: 6, color: ud.text }}>📍 {app.address?.address}</Text>
+
+          {recCnt > 1 ? (
+            <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ backgroundColor: ud.accent, borderRadius: ud.radiusPill, paddingHorizontal: 10, paddingVertical: 3 }}>
+                <Text style={{ fontFamily: ud.fontBodyBold, color: ud.onAccent, fontSize: 12 }}>
+                  ❗ {plural(recCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}
+                </Text>
+              </View>
+              <Text style={{ color: ud.muted, fontSize: 12 }}>
+                {plural(recydywa!.usersCnt, ['osób zgłosiło', 'osoba zgłosiła', 'osoby zgłosiły'])}
+              </Text>
+            </View>
+          ) : null}
+
+          <Row label="TREŚĆ ZGŁOSZENIA">
+            <Text style={{ color: ud.text, marginTop: 2 }}>{reportBody(cat?.formal, app.userComment) || '—'}</Text>
+          </Row>
+          <Row label="INFORMACJE DODATKOWE">
+            <Text style={{ color: ud.text, marginTop: 2 }}>{witnessText(app.statements?.witness)}</Text>
+            {app.sent?.date ? (
+              <Text style={{ color: ud.text, marginTop: 4 }}>Wysłano do {police ? '👮 ' : ''}{app.recipient?.shortName ? `${app.recipient.shortName} ` : ''}{fmtSent(app.sent.date)}.</Text>
+            ) : null}
+            {app.externalId ? <Text style={{ color: ud.text, marginTop: 4 }}>Numer sprawy: {app.externalId}</Text> : null}
+          </Row>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+export function ReportsScreen({ navigation, route }: any) {
+  const go = (r: string) => navigation.navigate(r);
+  const [apps, setApps] = useState<UdApp[]>([]);
+  const [statuses, setStatuses] = useState<Record<string, StatusDef>>({});
+  const [cats, setCats] = useState<Category[]>([]);
+  const [filter, setFilter] = useState<string>(route?.params?.filter ?? 'all'); // 'all' = brak aktywnego chipa
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  // Wejście z pulpitu (karta Mandaty/Pouczenia) ustawia filtr, nawet gdy ekran już istnieje na stosie.
+  useEffect(() => { if (route?.params?.filter) setFilter(route.params.filter); }, [route?.params?.filter]);
+  const [search, setSearch] = useState('');
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [more, setMore] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const reqId = useRef(0); // ignoruje spóźnione odpowiedzi po zmianie filtra/frazy
+
+  const chips = useMemo(() => filterChips(statuses, counts), [statuses, counts]);
+  const categories = useMemo(() => new Map(cats.map((c) => [c.id, c])), [cats]);
+
+  useEffect(() => {
+    fetchStatuses().then(setStatuses);
+    fetchStatusCounts().then(setCounts).catch((e) => log.warn('zgloszenia', String(e?.message ?? e)));
+    fetchCategories().then(setCats);
+  }, []);
+
+  // Debounce wyszukiwarki – backend robi LIKE po całym JSON-ie zgłoszenia.
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(search), 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const load = useCallback(async (reset: boolean) => {
+    const id = ++reqId.current;
+    setErr(null);
+    try {
+      const offset = reset ? 0 : apps.length;
+      const page = await fetchApps({ status: filter, search: query, offset });
+      if (id !== reqId.current) return;
+      setApps((prev) => (reset ? page : [...prev, ...page]));
+      setMore(page.length === PAGE_SIZE);
+    } catch (e: any) {
+      if (id !== reqId.current) return;
+      const m = e?.message ?? String(e);
+      setErr(m);
+      log.error('zgloszenia', m);
+    } finally {
+      if (id === reqId.current) { setLoading(false); setRefreshing(false); }
+    }
+  }, [filter, query, apps.length]);
+
+  useEffect(() => {
+    setLoading(true);
+    load(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, query]);
+
+  const onStatus = async (id: string, status: string) => {
+    try {
+      await changeStatus(id, status);
+      const from = apps.find((a) => a.id === id)?.status;
+      setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
+      // Liczniki chipów przesuwamy lokalnie (jak updateCounters() na webie), bez ponownego pobierania.
+      setCounts((c) => ({ ...c, ...(from ? { [from]: Math.max(0, Number(c[from] ?? 0) - 1) } : {}), [status]: Number(c[status] ?? 0) + 1 }));
+    } catch (e: any) {
+      setErr(e?.message ?? String(e));
+    }
+  };
+
+  return (
+    <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
+      <UdHeader />
+      <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Adres, numer rej. lub zgłoszenia, komentarz"
+          placeholderTextColor={ud.muted}
+          autoCorrect={false}
+          style={{ backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusButton, paddingHorizontal: 14, paddingVertical: 10, color: ud.text }}
+        />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18, paddingVertical: 12 }}>
+          {chips.map((c) => {
+            const on = c.key === filter;
+            const col = statusColor(c.key);
+            return (
+              // Jak na webie: ponowne dotknięcie aktywnego filtra zdejmuje go (wszystkie zgłoszenia).
+              <Pressable key={c.key} onPress={() => setFilter(on ? 'all' : c.key)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 13, color: on ? ud.primary : '#666', textDecorationLine: on ? 'underline' : 'none' }}>{c.label.toUpperCase()}</Text>
+                <View style={{ backgroundColor: col.fill, borderColor: col.stroke, borderWidth: 2, borderRadius: 20, paddingHorizontal: 7, minWidth: 22, alignItems: 'center' }}>
+                  <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: col.text }}>{c.count}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
+      {err ? <Text style={{ color: 'red', paddingHorizontal: 16, paddingBottom: 6 }}>{err}</Text> : null}
+      {loading && !apps.length ? (
+        <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} />
+      ) : (
+        <FlatList
+          data={apps}
+          keyExtractor={(a) => a.id}
+          renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onStatus={onStatus} onEdit={(id) => navigation.navigate('NewReport', { editId: id })} />}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={ud.primary} />}
+          onEndReachedThreshold={0.5}
+          onEndReached={() => { if (more && !loading && !refreshing) load(false); }}
+          ListEmptyComponent={
+            <View style={{ alignItems: 'center', marginTop: 40, gap: 12 }}>
+              <Text style={{ color: ud.muted }}>{query || filter !== 'all' ? 'Brak zgłoszeń dla tych kryteriów.' : 'Nie masz jeszcze ani jednego zgłoszenia.'}</Text>
+              {!query && filter === 'all' ? <UdButton title="Dodaj zgłoszenia" onPress={() => go('NewReport')} /> : null}
+            </View>
+          }
+          removeClippedSubviews
+          initialNumToRender={6}
+        />
+      )}
+      <UdTabs current="Reports" navigate={go} />
+    </View>
+  );
+}

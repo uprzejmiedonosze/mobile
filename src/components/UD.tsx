@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Image, Pressable, Text, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
+import { TAB_ICONS } from '../assets/tabIcons';
 import { UD_LOGO_ASPECT, UD_LOGO_SVG } from '../assets/udLogoSvg';
 import { ud } from '../theme';
 import type { BBox } from '../types';
@@ -175,11 +176,13 @@ export function UdPhoto({
   );
 }
 
+// Cztery zakładki jak na webie (_app-tabbar.html.twig): Start, Nowe, Zgłoszenia, Konto.
+// `screens` = ekrany, na których zakładka świeci się jako aktywna (cały proces dodawania = „Nowe”).
 const TABS = [
-  { key: 'Start', route: 'Picker', icon: '▲' },
-  { key: 'Nowe', route: 'Analyze', icon: '🚗' },
-  { key: 'Zgłoszenia', route: 'Proposals', icon: '🗂' },
-  { key: 'Konto', route: 'Account', icon: '👤' },
+  { key: 'Start', route: 'Dashboard', icon: TAB_ICONS.start, screens: ['Dashboard'] },
+  { key: 'Nowe', route: 'NewReport', icon: TAB_ICONS.nowe, screens: ['NewReport', 'ReportDone'] },
+  { key: 'Zgłoszenia', route: 'Reports', icon: TAB_ICONS.zgloszenia, screens: ['Reports'] },
+  { key: 'Konto', route: 'Account', icon: TAB_ICONS.konto, screens: ['Account'] },
 ];
 
 // Dolny pasek jak na webie; aktywna zakładka na zielono.
@@ -187,13 +190,14 @@ const TABS = [
 export function UdTabs({ current, navigate }: { current: string; navigate: (r: string) => void }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={{ flexDirection: 'row', backgroundColor: ud.surface, borderTopWidth: 1, borderTopColor: ud.hairline, paddingTop: 8, paddingBottom: Math.max(insets.bottom, 8) }}>
+    <View style={{ flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.95)', borderTopWidth: 1, borderTopColor: ud.hairline, paddingTop: 10, paddingBottom: Math.max(insets.bottom, 0) + 10, paddingHorizontal: 6 }}>
       {TABS.map((t) => {
-        const active = t.route === current;
+        const active = t.screens.includes(current);
+        const color = active ? ud.primary : ud.tabInactive;
         return (
-          <Pressable key={t.key} onPress={() => navigate(t.route)} style={{ flex: 1, alignItems: 'center', paddingVertical: 4 }}>
-            <Text style={{ fontSize: 18, color: active ? ud.primary : ud.muted }}>{t.icon}</Text>
-            <Text style={{ fontSize: 12, color: active ? ud.primary : ud.muted, fontFamily: active ? ud.fontBodyBold : ud.fontBody }}>{t.key}</Text>
+          <Pressable key={t.key} onPress={() => navigate(t.route)} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+            <SvgXml xml={t.icon.replace('COLOR', color)} width={22} height={22} />
+            <Text style={{ fontSize: 10.5, color, fontFamily: ud.fontBodyBold }}>{t.key}</Text>
           </Pressable>
         );
       })}

@@ -55,9 +55,26 @@ export type GeoAddress = {
   voivodeship?: string;
   county?: string;
   municipality?: string;
+  postcode?: string;
+  smName?: string | null;
+  saName?: string | null;
 };
 
-export type Category = { id: number; title: string; formal?: string; fine?: number };
+export type Category = {
+  id: number;
+  title: string;
+  formal?: string;
+  fine?: number;
+  // pola z categories.json używane przez formularz zgłoszenia (jak nowe-zgloszenie.html.twig)
+  short?: string;
+  mandate?: number;
+  points?: number;
+  groups?: number[]; // 0 = „Najczęstsze wykroczenia”
+  order?: number;
+  stopAgresjiOnly?: boolean; // wymusza Policję
+  contextImageHint?: string;
+  carImageHint?: string;
+};
 
 // Odpowiedź GET /api/rest/recydywa/{plateId} (patrz src/api/recydywa.ts).
 export type RecydywaEntry = {

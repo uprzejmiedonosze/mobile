@@ -4,10 +4,24 @@
 ## What this is
 
 UD Pro — an Expo/React Native mobile client for uprzejmiedonosze.net (Polish parking-violation
-reporting service). This repo covers only the **draft-proposal stage**: pick photos → group into
-candidate reports → run vision analysis (LLM) → pair context+closeup shots → build a proposal
-list with address/category/plate → export JSON. It deliberately stops short of submitting to the
-backend (no `POST /api/rest/app/*`, no `create_report_draft`).
+reporting service). Screens: Dashboard (`/app`), report creation (`/app/new`), list (`/app/list`) and
+account (`/app/account`), bottom tabs Start / Nowe / Zgłoszenia / Konto (same icons as the web tab bar).
+Everything goes through the JWT REST API (`/api/rest/*`, Firebase Bearer) — never the cookie-based
+`/api/app/*` the web uses; both share their implementation in the backend's `src/inc/API.php`.
+
+**Report creation (`NewReportScreen`, 1:1 with the web form).** One scrolling form; the client stays thin,
+the domain logic lives in the backend:
+`POST /app/new` (lazy, on first photo) → `POST /app/{id}/image` ×3 (multipart; server runs ALPR and reads
+date/GPS from the car photo) → form (reverse geocode `/geo/{lat},{lng}/n`, typed address `/geo/search`,
+recydywa `/recydywa/{plate}`, vehicle `/vehicle/{plate}`) → `POST /app/{id}` (server-side validation, 422 + `field`)
+→ `POST /app/{id}/finish {send:true}` (confirm + send; same side effects as web `/app/done`) → `ReportDoneScreen`.
+The draft id is persisted (`useNewReport`, like web `$_SESSION['newAppId']`); "EDYTUJ" on the list opens the same
+screen with `editId`. API contract: `../uprzejmiedonosze/API.md`.
+
+> The earlier batch pipeline (multi-photo picker → grouping → vision → pairing → proposals → JSON export, described
+> in the sections below) is **kept in the repo for reuse** (`src/lib/{grouping,vision,compose,pairing,trace}.ts`,
+> `src/api/vision.ts`, `useSession`, the Picker/Grouping/Analyze/Pairing/Proposals screens) but is **not
+> reachable from navigation** — do not delete it.
 
 ## Commands
 

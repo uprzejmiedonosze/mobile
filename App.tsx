@@ -6,11 +6,10 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, BricolageGrotesque_700Bold } from '@expo-google-fonts/bricolage-grotesque';
 import { PublicSans_400Regular, PublicSans_700Bold } from '@expo-google-fonts/public-sans';
-import { PickerScreen } from './src/screens/PickerScreen';
-import { GroupingScreen } from './src/screens/GroupingScreen';
-import { AnalyzeScreen } from './src/screens/AnalyzeScreen';
-import { PairingScreen } from './src/screens/PairingScreen';
-import { ProposalsScreen } from './src/screens/ProposalsScreen';
+import { DashboardScreen } from './src/screens/DashboardScreen';
+import { NewReportScreen } from './src/screens/NewReportScreen';
+import { ReportDoneScreen } from './src/screens/ReportDoneScreen';
+import { ReportsScreen } from './src/screens/ReportsScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 
@@ -71,12 +70,11 @@ export default function App() {
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         </Stack.Navigator>
       ) : (
-        <Stack.Navigator initialRouteName="Picker" screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Picker" component={PickerScreen} />
-          <Stack.Screen name="Grouping" component={GroupingScreen} />
-          <Stack.Screen name="Analyze" component={AnalyzeScreen} />
-          <Stack.Screen name="Pairs" component={PairingScreen} />
-          <Stack.Screen name="Proposals" component={ProposalsScreen} />
+        <Stack.Navigator initialRouteName="Dashboard" screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="Dashboard" component={DashboardScreen} />
+          <Stack.Screen name="NewReport" component={NewReportScreen} />
+          <Stack.Screen name="ReportDone" component={ReportDoneScreen} />
+          <Stack.Screen name="Reports" component={ReportsScreen} />
           <Stack.Screen name="Account" component={AccountScreen} />
         </Stack.Navigator>
       )}

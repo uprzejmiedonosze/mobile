@@ -52,3 +52,23 @@ export async function authFetch(path: string, init?: RequestInit): Promise<Respo
   }
   return res;
 }
+
+// Błąd odpowiedzi API UD: backend zwraca {error, status, field?} (JsonErrorRenderer; `field` przy 422 –
+// nazwa pola formularza, którego dotyczy walidacja serwerowa).
+export class ApiError extends Error {
+  constructor(message: string, public status: number, public field?: string) {
+    super(message);
+  }
+}
+
+// res.json() albo ApiError z komunikatem serwera (zamiast ogólnego „HTTP 422”).
+export async function apiJson<T>(res: Response, fallback: string): Promise<T> {
+  if (res.ok) return (await res.json()) as T;
+  let body: any = null;
+  try {
+    body = await res.json();
+  } catch {
+    /* nie-JSON (np. HTML z proxy) */
+  }
+  throw new ApiError(body?.error ? String(body.error) : `${fallback} (HTTP ${res.status}).`, res.status, body?.field);
+}
