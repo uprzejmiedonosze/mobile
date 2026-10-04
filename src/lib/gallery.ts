@@ -1,10 +1,11 @@
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 // UWAGA: `expo-media-library` (bez /legacy) eksportuje dla getAssetInfoAsync/requestPermissionsAsync
 // same przestarzałe shimy, które w runtime RZUCAJĄ (patrz build/legacyWarnings.d.ts) – trzeba
 // importować z podścieżki /legacy, żeby dostać działającą implementację.
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { log } from './log';
+import { requestPhotos } from '../store/usePhotoPicker';
 import type { ExifMeta, PhotoItem } from '../types';
 
 export const MAX_PHOTOS = 20;
@@ -46,8 +47,11 @@ export async function pickPhotosFromGallery(existing: number): Promise<Omit<Phot
 
 // Wybór do `limit` zdjęć z galerii (EXIF + GPS z MediaLibrary) – tryb batch daje MAX_PHOTOS,
 // formularz zgłoszenia 3 (kontekst, auto, dodatkowe).
-export async function pickPhotos(left: number): Promise<PhotoItem[]> {
+export async function pickPhotos(left: number, min = 1): Promise<PhotoItem[]> {
   if (left <= 0) return [];
+  // Android: własne okno wyboru (PhotoPickerHost) – systemowy ImagePicker odrzucał wywołania w buildzie
+  // release ("unregistered ActivityResultLauncher"); iOS zostaje przy systemowym pickerze.
+  if (Platform.OS === 'android') return requestPhotos(left, min);
   // Dialog uprawnień pokazujemy tylko gdy zgody jeszcze nie ma – każde przejście Activity przed otwarciem
   // pickera to okazja do wyścigu z rejestracją kontraktów expo-modules-core (patrz launchLibrary()).
   let perm = await ImagePicker.getMediaLibraryPermissionsAsync();

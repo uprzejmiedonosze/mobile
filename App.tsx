@@ -13,6 +13,7 @@ import { ReportsScreen } from './src/screens/ReportsScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 
+import { PhotoPickerHost } from './src/components/PhotoPickerHost';
 import { ToastHost } from './src/components/ToastHost';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { UdLogo } from './src/components/UD';
@@ -81,6 +82,7 @@ export default function App() {
         </Stack.Navigator>
       )}
     </NavigationContainer>
+    <PhotoPickerHost />
     <ToastHost />
     </ErrorBoundary>
     </SafeAreaProvider>

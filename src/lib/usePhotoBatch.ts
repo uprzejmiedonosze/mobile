@@ -96,7 +96,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
 
   const pick = useCallback(async () => {
     try {
-      const picked = (await pickPhotos(MAX_BATCH)) as LocalPhoto[];
+      const picked = (await pickPhotos(MAX_BATCH, MIN_PHOTOS)) as LocalPhoto[];
       if (!picked.length) return;
       if (picked.length < MIN_PHOTOS) { toast.error('Wybierz od razu 2 lub 3 zdjęcia (kontekst, auto z tablicą, opcjonalnie dodatkowe).'); return; }
 
