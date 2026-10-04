@@ -97,3 +97,20 @@ export function exifToIso(s: string | null): string | null {
 export const isExtensionDisabled = (extId: number, category: number): boolean => extId === category;
 export const dropMatchingExtension = (extensions: number[], category: number): number[] =>
   extensions.filter((e) => !isExtensionDisabled(e, category));
+
+// Punkt regulaminu z GET /api/rest/config/terms: `{ li: "tekst" }` albo `{ li: [{text}, {link: {url, text}}, {text}] }`
+// (to samo, co renderuje regulamin.html na webie). Zwraca segmenty do wyrenderowania w jednym <Text>;
+// segmenty z `url` są linkami (url względny wobec serwisu). Spacje między częściami, ale nie przed interpunkcją.
+export type TermSegment = { text: string; url?: string };
+export function termSegments(li: unknown): TermSegment[] {
+  if (typeof li === 'string') return [{ text: li }];
+  if (!Array.isArray(li)) return [];
+  const out: TermSegment[] = [];
+  for (const part of li as any[]) {
+    const seg: TermSegment | null = part?.link ? { text: String(part.link.text ?? ''), url: part.link.url } : part?.text != null ? { text: String(part.text) } : null;
+    if (!seg || !seg.text) continue;
+    if (out.length && !/^[.,;:!?)]/.test(seg.text)) out.push({ text: ' ' });
+    out.push(seg);
+  }
+  return out;
+}

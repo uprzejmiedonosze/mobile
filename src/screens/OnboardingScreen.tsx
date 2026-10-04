@@ -1,16 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { Linking, ScrollView, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../store/useAuth';
 import { confirmTerms, ensureUserRow, fetchTerms, updateUserProfile, type TermsDoc } from '../api/user';
+import { udConfig } from '../config';
 import { log } from '../lib/log';
+import { termSegments } from '../lib/reports';
 import { ud } from '../theme';
 import { UdButton, UdCard, UdHeader } from '../components/UD';
-
-function renderLiText(li: unknown): string {
-  if (typeof li === 'string') return li;
-  if (Array.isArray(li)) return li.map((part: any) => part?.text ?? part?.link?.text ?? '').join(' ');
-  return '';
-}
 
 // Rejestracja + regulamin po REST (bez web UI), patrz CLAUDE.md sekcja Auth.
 // App.tsx pokazuje ten ekran, gdy zalogowany, ale isRegistered/isTermsConfirmed = false
@@ -100,9 +96,11 @@ export function OnboardingScreen() {
             {!terms ? (
               <Text style={{ color: ud.muted, marginTop: 6 }}>Wczytuję…</Text>
             ) : (
-              terms.terms.map((li, i) => (
+              terms.terms.map((item, i) => (
                 <Text key={i} style={{ color: ud.muted, marginTop: 6 }}>
-                  • {renderLiText(li)}
+                  • {termSegments(item.li).map((seg, k) => seg.url ? (
+                    <Text key={k} style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => Linking.openURL(`${udConfig.base}${seg.url}`).catch(() => {})}>{seg.text}</Text>
+                  ) : seg.text)}
                 </Text>
               ))
             )}

@@ -1,5 +1,5 @@
 import { assignSlot, defaultSlots, suggestSlots } from '../src/lib/suggest';
-import { dropMatchingExtension, exifToIso, isExtensionDisabled } from '../src/lib/reports';
+import { dropMatchingExtension, exifToIso, isExtensionDisabled, termSegments } from '../src/lib/reports';
 
 jest.mock('expo-file-system/legacy', () => ({
   documentDirectory: '/tmp/',
@@ -104,5 +104,21 @@ describe('rozszerzenia „Czy pojazd dodatkowo”', () => {
     expect(isExtensionDisabled(11, 25)).toBe(false);
     expect(dropMatchingExtension([11, 25], 25)).toEqual([11]);
     expect(dropMatchingExtension([11, 25], 0)).toEqual([11, 25]);
+  });
+});
+
+describe('termSegments (regulamin)', () => {
+  it('zwykły tekst', () => {
+    expect(termSegments('Punkt pierwszy.')).toEqual([{ text: 'Punkt pierwszy.' }]);
+  });
+  it('części z linkiem: spacje między słowami, bez spacji przed kropką', () => {
+    const li = [{ text: 'znajduje się w' }, { link: { url: '/polityka-prywatnosci.html', text: 'polityce prywatności' } }, { text: '.' }];
+    const segs = termSegments(li);
+    expect(segs.map((s) => s.text).join('')).toBe('znajduje się w polityce prywatności.');
+    expect(segs.find((s) => s.url)).toEqual({ text: 'polityce prywatności', url: '/polityka-prywatnosci.html' });
+  });
+  it('nieznany kształt = pusto', () => {
+    expect(termSegments(undefined)).toEqual([]);
+    expect(termSegments({ li: 'x' })).toEqual([]);
   });
 });

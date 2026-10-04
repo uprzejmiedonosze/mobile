@@ -5,7 +5,9 @@ import { udConfig } from '../config';
 import { logFetch } from '../lib/log';
 import { apiJson, authFetch } from './udApi';
 
-export type TermsDoc = { terms: unknown[]; updated: string };
+// Punkt regulaminu: tekst albo części z linkiem (patrz termSegments w lib/reports.ts)
+export type TermsItem = { li: string | Array<{ text?: string; link?: { url: string; text: string } }> };
+export type TermsDoc = { terms: TermsItem[]; updated: string };
 
 // PATCH /api/rest/user/ tworzy wiersz usera jeśli nie istnieje (UserMiddleware createIfNonExists:
 // true), no-op gdy już istnieje – bezpieczne wołać zawsze przed rejestracją.
