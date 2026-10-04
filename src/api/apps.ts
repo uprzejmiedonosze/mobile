@@ -78,7 +78,8 @@ export async function fetchStatuses(): Promise<Record<string, StatusDef>> {
 // Liczniki zgłoszeń per status – `stats` z GET /api/rest/user/ (AddStatsMiddleware, \user\stats()),
 // czyli licznik z całej bazy, a nie z aktualnie wczytanej strony listy.
 export async function fetchStatusCounts(): Promise<Record<string, number>> {
-  const res = await authFetch('/api/rest/user/');
+  // fresh=1: liczniki zawsze z bazy – serwer cache'uje stats do 24 h (przeżyłyby np. usunięcie konta i ponowne logowanie)
+  const res = await authFetch('/api/rest/user/?fresh=1');
   if (!res.ok) throw new Error(`Nie udało się pobrać liczników (HTTP ${res.status}).`);
   return ((await res.json()) as any)?.stats ?? {};
 }

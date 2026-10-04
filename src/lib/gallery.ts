@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 // UWAGA: `expo-media-library` (bez /legacy) eksportuje dla getAssetInfoAsync/requestPermissionsAsync
 // same przestarzałe shimy, które w runtime RZUCAJĄ (patrz build/legacyWarnings.d.ts) – trzeba
@@ -19,6 +20,26 @@ function normalizeGeo4(v: number): number {
   return Number(v.toFixed(4)); // jak Geolocation.php::normalizeGeo()
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Android (build release): ExponentImagePicker.launchImageLibraryAsync potrafi odrzucić wywołanie z
+// „Attempting to launch an unregistered ActivityResultLauncher…” – kontrakty Activity są rejestrowane przez
+// expo-modules-core dopiero w onHostResume (po odtworzeniu Activity, np. po oknie uprawnień). Czekamy,
+// aż aplikacja będzie aktywna, i przy tym konkretnym błędzie ponawiamy z rosnącym opóźnieniem.
+async function launchLibrary(opts: ImagePicker.ImagePickerOptions): Promise<ImagePicker.ImagePickerResult> {
+  for (let attempt = 0; ; attempt++) {
+    for (let i = 0; i < 10 && AppState.currentState !== 'active'; i++) await sleep(150);
+    try {
+      return await ImagePicker.launchImageLibraryAsync(opts);
+    } catch (e: any) {
+      const unregistered = /unregistered ActivityResultLauncher/i.test(String(e?.message ?? e));
+      if (!unregistered || attempt >= 3) throw e;
+      log.warn('galeria', `kontrakt Activity jeszcze niezarejestrowany – ponawiam (${attempt + 1}/3)`);
+      await sleep(400 * (attempt + 1));
+    }
+  }
+}
+
 export async function pickPhotosFromGallery(existing: number): Promise<Omit<PhotoItem, 'exif'>[]> {
   return pickPhotos(MAX_PHOTOS - existing);
 }
@@ -27,13 +48,16 @@ export async function pickPhotosFromGallery(existing: number): Promise<Omit<Phot
 // formularz zgłoszenia 3 (kontekst, auto, dodatkowe).
 export async function pickPhotos(left: number): Promise<PhotoItem[]> {
   if (left <= 0) return [];
-  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  // Dialog uprawnień pokazujemy tylko gdy zgody jeszcze nie ma – każde przejście Activity przed otwarciem
+  // pickera to okazja do wyścigu z rejestracją kontraktów expo-modules-core (patrz launchLibrary()).
+  let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+  if (!perm.granted) perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) {
     log.error('galeria', 'brak zgody na galerię');
     throw new Error('Brak zgody na galerię');
   }
 
-  const res = await ImagePicker.launchImageLibraryAsync({
+  const res = await launchLibrary({
     mediaTypes: ['images'],
     allowsMultipleSelection: true,
     selectionLimit: left,
