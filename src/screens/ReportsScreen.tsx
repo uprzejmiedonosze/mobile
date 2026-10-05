@@ -193,6 +193,9 @@ export function ReportsScreen({ navigation, route }: any) {
   const reqId = useRef(0); // ignoruje spóźnione odpowiedzi po zmianie filtra/frazy
 
   const chips = useMemo(() => filterChips(statuses, counts), [statuses, counts]);
+  // Użytkownik bez ani jednego zgłoszenia (aktywnych ani w archiwum) nie ma czego szukać ani filtrować – bez paska
+  // wyszukiwania i chipów, sam komunikat „Nie masz jeszcze…”. Dopóki liczniki się nie wczytały, pasek zostaje.
+  const noReports = Object.keys(counts).length > 0 && Number(counts.active ?? 0) + Number(counts.archived ?? 0) === 0;
   const categories = useMemo(() => new Map(cats.map((c) => [c.id, c])), [cats]);
 
   // Liczniki chipów zawsze z serwera (pełna baza, nie wczytana strona) – wołane przy wejściu na ekran,
@@ -280,6 +283,7 @@ export function ReportsScreen({ navigation, route }: any) {
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       <UdHeader />
+      {noReports ? null : (
       <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
         <TextInput
           value={search}
@@ -305,6 +309,7 @@ export function ReportsScreen({ navigation, route }: any) {
           })}
         </ScrollView>
       </View>
+      )}
       {err ? <Text style={{ color: 'red', paddingHorizontal: 16, paddingBottom: 6 }}>{err}</Text> : null}
       {loading && !apps.length ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} />
