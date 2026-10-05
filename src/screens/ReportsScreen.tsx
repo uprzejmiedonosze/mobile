@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
-import { changeStatus, fetchApps, fetchStatusCounts, fetchStatuses, imageUrl, PAGE_SIZE, type StatusDef, type UdApp } from '../api/apps';
+import { ActivityIndicator, Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { changeStatus, fetchApps, fetchStatusCounts, fetchStatuses, imageUrl, PAGE_SIZE, setReportFields, type StatusDef, type UdApp } from '../api/apps';
 import { fetchCategories } from '../api/geo';
 import { fetchRecydywa } from '../api/recydywa';
 import { validIdToken } from '../api/udApi';
@@ -52,17 +52,51 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
+// Pole zapisywane po wyjściu z niego, tylko gdy się zmieniło (jak .app-field-editable na webie, my-apps.js).
+function EditableField({ label, value, multiline, placeholder, onSave, onFocus }: { label: string; value: string; multiline?: boolean; placeholder?: string; onSave: (v: string) => Promise<void>; onFocus?: () => void }) {
+  const [text, setText] = useState(value);
+  const [saved, setSaved] = useState(value); // ostatnia zapisana wartość (web: data-initial-value)
+  const [state, setState] = useState<'idle' | 'saving' | 'error'>('idle');
+  useEffect(() => { setText(value); setSaved(value); }, [value]);
+
+  const commit = async () => {
+    if (text === saved) return;
+    setState('saving');
+    try { await onSave(text); setSaved(text); setState('idle'); } catch { setState('error'); }
+  };
+
+  return (
+    <Row label={label}>
+      <TextInput
+        value={text}
+        onChangeText={(t) => { setText(t); if (state === 'error') setState('idle'); }}
+        onEndEditing={commit}
+        onFocus={onFocus}
+        editable={state !== 'saving'}
+        multiline={multiline}
+        placeholder={placeholder}
+        placeholderTextColor={ud.muted}
+        autoCorrect={false}
+        style={{ marginTop: 4, backgroundColor: ud.surfaceLow, borderWidth: 1, borderColor: state === 'error' ? ud.plateVerified : ud.hairline, borderRadius: ud.radiusSm, padding: 8, color: ud.text, minHeight: multiline ? 64 : undefined, textAlignVertical: multiline ? 'top' : 'center', opacity: state === 'saving' ? 0.6 : 1 }}
+      />
+      {state === 'error' ? <Text style={{ color: ud.plateVerified, fontSize: 12, marginTop: 2 }}>Nie udało się zapisać – spróbuj ponownie.</Text> : null}
+    </Row>
+  );
+}
+
 type CardProps = {
   app: UdApp;
   statuses: Record<string, StatusDef>;
   categories: Map<number, Category>;
   onStatus: (id: string, status: string) => Promise<void>;
   onEdit: (id: string) => void;
+  onFields: (id: string, fields: { externalId?: string; privateComment?: string }) => Promise<void>;
+  onFieldFocus: (id: string) => void;
   open: boolean;
   onToggle: (id: string) => void;
 };
 
-function ReportCard({ app, statuses, categories, onStatus, onEdit, open, onToggle }: CardProps) {
+function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onFieldFocus, open, onToggle }: CardProps) {
   const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState(false);
   const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
@@ -85,6 +119,9 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, open, onToggl
   // Zwinięte zgłoszenie: dotknięcie czegokolwiek (także zdjęcia) rozwija; rozwinięte: zdjęcie się powiększa.
   const toggle = () => onToggle(app.id);
   const accent = statusColor(app.status).stroke;
+
+  // jak Application::wasSent() w backendzie: wysłane i już poza szkicem/potwierdzeniem – dopiero wtedy ma sens numer sprawy
+  const wasSent = !!app.sent && !['draft', 'ready', 'confirmed'].includes(app.status);
 
   const allowed = (statuses[app.status]?.allowed ?? []).filter((k) => statuses[k] && (statuses[k] as any).action);
 
@@ -165,8 +202,11 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, open, onToggl
             {app.sent?.date ? (
               <Text style={{ color: ud.text, marginTop: 4 }}>Wysłano do {police ? '👮 ' : ''}{app.recipient?.shortName ? `${app.recipient.shortName} ` : ''}{fmtSent(app.sent.date)}.</Text>
             ) : null}
-            {app.externalId ? <Text style={{ color: ud.text, marginTop: 4 }}>Numer sprawy: {app.externalId}</Text> : null}
           </Row>
+          {wasSent ? (
+            <EditableField label="NUMER SPRAWY SM/POLICJI" value={app.externalId ?? ''} placeholder="RSOW 0000/24 / WP 000/24" onSave={(v) => onFields(app.id, { externalId: v })} onFocus={() => onFieldFocus(app.id)} />
+          ) : null}
+          <EditableField label="UWAGI (WIDOCZNE TYLKO DLA CIEBIE)" value={app.privateComment ?? ''} multiline onSave={(v) => onFields(app.id, { privateComment: v })} onFocus={() => onFieldFocus(app.id)} />
         </View>
       ) : null}
     </Pressable>
@@ -280,8 +320,36 @@ export function ReportsScreen({ navigation, route }: any) {
     }
   };
 
+  // Klawiatura: lista kurczy się nad nią (KeyboardAvoidingView), a edytowane pole przewijamy w widok – karta ze zdjęciami
+  // jest wysoka, a pola są na jej dole; bez tego klawiatura zasłaniała wpisywany tekst.
+  const listRef = useRef<FlatList<UdApp>>(null);
+  const [kbd, setKbd] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKbd(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKbd(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+  const onFieldFocus = (id: string) => {
+    const index = apps.findIndex((a) => a.id === id);
+    if (index < 0) return;
+    // po zmianie rozmiaru listy przez klawiaturę: dół karty (z polami) na dół widocznego obszaru
+    setTimeout(() => listRef.current?.scrollToIndex({ index, viewPosition: 1, animated: true }), 300);
+  };
+
+  const onFields = async (id: string, fields: { externalId?: string; privateComment?: string }) => {
+    const r = await setReportFields(id, fields); // błąd wraca do pola (EditableField pokazuje komunikat)
+    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, ...fields } : a)));
+    // wysłane + numer sprawy → jak na webie: zaproponuj status „potwierdzone”
+    if (r.suggestStatusChange && fields.externalId !== undefined) {
+      Alert.alert('Numer sprawy', 'Zgłoszenie ma numer sprawy. Zmienić jego status na „potwierdzone”?', [
+        { text: 'Nie', style: 'cancel' },
+        { text: 'Tak', onPress: () => void onStatus(id, 'confirmed-sm') },
+      ]);
+    }
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       <UdHeader />
       {noReports ? null : (
       <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
@@ -315,9 +383,12 @@ export function ReportsScreen({ navigation, route }: any) {
         <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} />
       ) : (
         <FlatList
+          ref={listRef}
+          onScrollToIndexFailed={() => {}}
           data={apps}
           keyExtractor={(a) => a.id}
-          renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onStatus={onStatus} onEdit={(id) => navigation.navigate('NewReport', { editId: id })} open={openId === item.id} onToggle={(id) => setOpenId((cur) => (cur === id ? null : id))} />}
+          keyboardShouldPersistTaps="handled"
+          renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onStatus={onStatus} onFields={onFields} onFieldFocus={onFieldFocus} onEdit={(id) => navigation.navigate('NewReport', { editId: id })} open={openId === item.id} onToggle={(id) => setOpenId((cur) => (cur === id ? null : id))} />}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={ud.primary} />}
           onEndReachedThreshold={0.5}
@@ -332,7 +403,7 @@ export function ReportsScreen({ navigation, route }: any) {
           initialNumToRender={6}
         />
       )}
-      <UdTabs current="Reports" navigate={go} />
-    </View>
+      {kbd ? null : <UdTabs current="Reports" navigate={go} />}
+    </KeyboardAvoidingView>
   );
 }

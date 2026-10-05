@@ -90,6 +90,19 @@ export async function changeStatus(appId: string, status: string): Promise<void>
   if (!res.ok) throw new Error(`Nie udało się zmienić statusu (HTTP ${res.status}).`);
 }
 
+// PATCH /api/rest/app/{id}/fields – numer sprawy SM/Policji (`externalId`) i prywatne uwagi (`privateComment`); działa też po
+// wysłaniu zgłoszenia. `suggestStatusChange` = wysłane + ma numer sprawy → zaproponuj status „potwierdzone” (jak na webie).
+export async function setReportFields(appId: string, fields: { externalId?: string; privateComment?: string }): Promise<{ suggestStatusChange: boolean }> {
+  const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/fields`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(fields),
+  });
+  if (!res.ok) throw new Error(`Nie udało się zapisać (HTTP ${res.status}).`);
+  const j = (await res.json()) as { suggestStatusChange?: boolean };
+  return { suggestStatusChange: !!j.suggestStatusChange };
+}
+
 // `full` = oryginał (url, ≤1600 px) zamiast miniatury – do powiększania zdjęcia.
 export function imageUrl(img: AppImage | undefined, app: UdApp, full = false): string | null {
   const p = (full && img?.url) || img?.thumb;
