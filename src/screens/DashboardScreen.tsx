@@ -162,7 +162,7 @@ export function DashboardScreen({ navigation }: any) {
         <Pressable onPress={() => setBadge(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           {badge ? (
             <Pressable style={{ backgroundColor: ud.surface, borderRadius: ud.radiusCard, padding: 22, alignItems: 'center', width: '100%', maxWidth: 360 }}>
-              {badge.img ? <Image source={{ uri: `${udConfig.base}/${badge.img}` }} style={{ width: 96, height: 96, opacity: badge.earned ? 1 : 0.35 }} resizeMode="contain" /> : null}
+              {badge.img ? <Image source={{ uri: `${udConfig.base}/${badge.img}` }} style={{ width: 96, height: 96 }} resizeMode="contain" /> : null}
               <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 16, color: ud.text, marginTop: 10, textAlign: 'center' }}>{badge.name}</Text>
               <Text style={{ color: ud.muted, marginTop: 8, textAlign: 'center', lineHeight: 20 }}>{stripHtml(badge.desc)}</Text>
               <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: badge.earned ? ud.text : ud.muted, marginTop: 10 }}>{badge.earned ? 'ZDOBYTA' : 'JESZCZE NIEZDOBYTA'}</Text>
