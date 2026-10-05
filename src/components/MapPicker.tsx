@@ -22,7 +22,7 @@ export type PickedPlace = { lat: number; lng: number; geo: GeoAddress | null };
 // pośrodku, adres liczony po zatrzymaniu mapy. Token jest publiczny (jest w paczce JS strony) i ograniczony
 // do domeny serwisu, dlatego HTML ładujemy z baseUrl = adres serwisu (Referer/Origin jak na www).
 const MAPBOX_VERSION = '3.18.1';
-const MAPBOX_TOKEN = 'pk.eyJ1IjoidXByemVqbWllZG9ub3N6ZXQiLCJhIjoiY2xxc2VkbWU3NGthZzJrcnExOWxocGx3bSJ9.r1y7A6C--2S2psvKDJcpZw';
+export const MAPBOX_TOKEN = 'pk.eyJ1IjoidXByemVqbWllZG9ub3N6ZXQiLCJhIjoiY2xxc2VkbWU3NGthZzJrcnExOWxocGx3bSJ9.r1y7A6C--2S2psvKDJcpZw';
 const POLAND = { lat: 52.069321, lng: 19.480311 };
 
 function html(center: { lat: number; lng: number }, zoom: number): string {
