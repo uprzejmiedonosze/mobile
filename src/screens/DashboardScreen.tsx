@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { fetchDashboard, fmtInt, num, stripHtml, type Dashboard } from '../api/dashboard';
+import { ActivityIndicator, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { fetchDashboard, fmtInt, num, stripHtml, type DashBadge, type Dashboard } from '../api/dashboard';
 import { udConfig } from '../config';
 import { log } from '../lib/log';
 import { plural } from '../lib/reports';
@@ -68,6 +68,8 @@ export function DashboardScreen({ navigation }: any) {
     }
   }, []);
 
+  const [badge, setBadge] = useState<DashBadge | null>(null);
+
   useEffect(() => { load(); }, [load]);
 
   const s = d?.stats ?? {};
@@ -128,12 +130,12 @@ export function DashboardScreen({ navigation }: any) {
                   {d.badges.map((b) => {
                     const on = b.earned;
                     return (
-                      <View key={b.id} style={{ width: 90, alignItems: 'center' }}>
+                      <Pressable key={b.id} onPress={() => setBadge(b)} accessibilityRole="button" accessibilityLabel={`${b.name}: opis odznaki`} style={{ width: 90, alignItems: 'center' }}>
                         <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: ud.surface, alignItems: 'center', justifyContent: 'center', opacity: on ? 1 : 0.3 }}>
                           {b.img ? <Image source={{ uri: `${udConfig.base}/${b.img}` }} style={{ width: 48, height: 48 }} resizeMode="contain" /> : null}
                         </View>
                         <Text style={{ fontSize: 11, textAlign: 'center', marginTop: 4, color: on ? ud.text : ud.muted }}>{b.name}</Text>
-                      </View>
+                      </Pressable>
                     );
                   })}
                 </View>
@@ -158,6 +160,18 @@ export function DashboardScreen({ navigation }: any) {
         ) : null}
       </ScrollView>
       <UdTabs current="Dashboard" navigate={(r) => go(r)} />
+      <Modal visible={!!badge} transparent animationType="fade" onRequestClose={() => setBadge(null)}>
+        <Pressable onPress={() => setBadge(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          {badge ? (
+            <Pressable style={{ backgroundColor: ud.surface, borderRadius: ud.radiusCard, padding: 22, alignItems: 'center', width: '100%', maxWidth: 360 }}>
+              {badge.img ? <Image source={{ uri: `${udConfig.base}/${badge.img}` }} style={{ width: 96, height: 96, opacity: badge.earned ? 1 : 0.35 }} resizeMode="contain" /> : null}
+              <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 16, color: ud.text, marginTop: 10, textAlign: 'center' }}>{badge.name}</Text>
+              <Text style={{ color: ud.muted, marginTop: 8, textAlign: 'center', lineHeight: 20 }}>{stripHtml(badge.desc)}</Text>
+              <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: badge.earned ? ud.text : ud.muted, marginTop: 10 }}>{badge.earned ? 'ZDOBYTA' : 'JESZCZE NIEZDOBYTA'}</Text>
+            </Pressable>
+          ) : null}
+        </Pressable>
+      </Modal>
     </View>
   );
 }
