@@ -50,9 +50,10 @@ function html(center: { lat: number; lng: number }, zoom: number): string {
 </script></body></html>`;
 }
 
-export function MapPicker({ visible, initial, onConfirm, onClose }: {
+export function MapPicker({ visible, initial, fallback, onConfirm, onClose }: {
   visible: boolean;
   initial: { lat: number; lng: number } | null;
+  fallback?: { lat: number; lng: number } | null; // tylko punkt startowy mapy (ostatnie zgłoszenie / adres zamieszkania), bez wybranego miejsca
   onConfirm: (p: PickedPlace) => void;
   onClose: () => void;
 }) {
@@ -62,16 +63,16 @@ export function MapPicker({ visible, initial, onConfirm, onClose }: {
   const [geo, setGeo] = useState<GeoAddress | null>(null);
   const [loadingAddr, setLoadingAddr] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const start = useRef(initial ?? POLAND);
-  const startZoom = useRef(initial ? 16 : 6);
+  const start = useRef(initial ?? fallback ?? POLAND);
+  const startZoom = useRef(initial || fallback ? 16 : 6);
   const [session, setSession] = useState(0); // nowa sesja = świeży WebView z aktualnym punktem startowym
 
   // Okno jest zamontowane cały czas (visible=false), więc punkt startowy trzeba ustawić przy KAŻDYM otwarciu –
   // inaczej mapa zawsze startowała tam, gdzie była ostatnio (u pierwszego otwarcia: środek Polski).
   useEffect(() => {
     if (!visible) return;
-    start.current = initial ?? POLAND;
-    startZoom.current = initial ? 16 : 6;
+    start.current = initial ?? fallback ?? POLAND;
+    startZoom.current = initial || fallback ? 16 : 6;
     setCenter(initial);
     setGeo(null);
     setError(null);

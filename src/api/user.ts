@@ -23,7 +23,13 @@ export type UserProfile = {
   msisdn: string;
   edelivery: string;
   shareRecydywa: boolean;
+  lastLocation: { lat: number; lng: number } | null; // ostatnie zgłoszenie albo geokodowany adres zamieszkania (backend), null = brak
   bylam: string; // „byłem”/„byłam”/„byłam/em” – fraza odmieniona przez płeć (sexStrings z backendu, jak config.sex na webie)
+};
+
+const parseLatLng = (s: unknown): { lat: number; lng: number } | null => {
+  const [lat, lng] = typeof s === 'string' ? s.split(',').map(Number) : [];
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
 };
 
 // GET /api/rest/user/ → { data: { name, email, address, msisdn, edelivery, shareRecydywa }, stats, ... }.
@@ -39,6 +45,7 @@ export async function fetchProfile(): Promise<UserProfile> {
     msisdn: d.msisdn ?? '',
     edelivery: d.edelivery ?? '',
     shareRecydywa: d.shareRecydywa ?? false,
+    lastLocation: parseLatLng(j?.lastLocation),
     bylam: j?.sexStrings?.bylam ?? 'byłam/em',
   };
 }

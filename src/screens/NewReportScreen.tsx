@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { type UdApp, imageUrl } from '../api/apps';
 import { fetchConfig } from '../api/dashboard';
 import { fetchCategories, reverseGeocode } from '../api/geo';
@@ -116,6 +117,7 @@ export function NewReportScreen({ navigation, route }: any) {
   const [showAllCats, setShowAllCats] = useState(false);
   const [editDate, setEditDate] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
+  const [mapStart, setMapStart] = useState<{ lat: number; lng: number } | null>(null);
   const [plateTouched, setPlateTouched] = useState(false); // web chowa wycinek tablicy po ręcznej zmianie numeru
   const [dateText, setDateText] = useState('');
   const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
@@ -140,7 +142,11 @@ export function NewReportScreen({ navigation, route }: any) {
   }, []);
 
   useEffect(() => { hydrate(); }, [hydrate]);
-  useEffect(() => { fetchProfile().then((p) => setBylam(p.bylam)).catch(() => {}); }, []);
+  // Punkt startowy mapy jak na www: ostatnie zgłoszenie → adres zamieszkania → (brak) środek Polski. Odświeżane przy
+  // każdym wejściu na ekran, bo wysłanie zgłoszenia przesuwa „ostatnią lokalizację” po stronie backendu.
+  useFocusEffect(useCallback(() => {
+    fetchProfile().then((p) => { setBylam(p.bylam); setMapStart(p.lastLocation); }).catch(() => {});
+  }, []));
   useEffect(() => {
     fetchCategories().then(setCats);
     fetchConfig<Groups>('category-groups').then(setGroups);
@@ -165,8 +171,12 @@ export function NewReportScreen({ navigation, route }: any) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, editId]);
 
+  // Backend nadpisuje pliki o stałej nazwie (`{id},carImage,p.jpg` – wycinek tablicy, miniatury ról), więc po każdej
+  // odpowiedzi po uploadzie zmieniamy parametr w URL, inaczej <Image> pokazuje starą wersję z cache.
+  const [rev, setRev] = useState(0);
   const applyApp = useCallback((a: UdApp) => {
     setApp(a);
+    setRev((n) => n + 1);
     setForm((f) => {
       const n = formFromApp(a, f);
       return { ...n, plateId: edited.current.plate ? f.plateId : n.plateId, address: edited.current.address ? f.address : n.address,
@@ -253,7 +263,7 @@ export function NewReportScreen({ navigation, route }: any) {
   const serverTiles: Tile[] = (['context', 'car', 'third'] as Slot[]).flatMap((slot) => {
     const uri = app ? imageUrl(app[SERVER[slot]], app) : null;
     const full = app ? imageUrl(app[SERVER[slot]], app, true) : null;
-    return uri ? [{ id: slot, uri, full: full ?? uri }] : [];
+    return uri ? [{ id: slot, uri: `${uri}&r=${rev}`, full: `${full ?? uri}&r=${rev}` }] : [];
   });
   const local = batch.photos.length > 0;
   const tiles: Tile[] = local ? batch.photos.map((p) => ({ id: p.id, uri: p.uri })) : serverTiles;
@@ -270,7 +280,7 @@ export function NewReportScreen({ navigation, route }: any) {
   };
 
   useEffect(() => { setPlateTouched(false); }, [app?.carInfo?.plateImage]);
-  const plateImg = app?.carInfo?.plateImage && !plateTouched ? imageUrl({ thumb: app.carInfo.plateImage }, app) : null;
+  const plateImg = app?.carInfo?.plateImage && !plateTouched ? `${imageUrl({ thumb: app.carInfo.plateImage }, app)}&r=${rev}` : null;
 
   const selectedCat = cats.find((c) => c.id === form.category);
   const forcePolice = !!selectedCat?.stopAgresjiOnly;
@@ -401,7 +411,7 @@ export function NewReportScreen({ navigation, route }: any) {
         </View>
         <Text style={{ color: ud.muted, fontSize: 12, marginTop: 6 }}>Na następnym ekranie sprawdzisz zgłoszenie przed wysłaniem.</Text>
       </ScrollView>
-      <MapPicker visible={mapOpen} initial={form.lat != null && form.lng != null ? { lat: form.lat, lng: form.lng } : null} onConfirm={onMapConfirm} onClose={() => setMapOpen(false)} />
+      <MapPicker visible={mapOpen} initial={form.lat != null && form.lng != null ? { lat: form.lat, lng: form.lng } : null} fallback={mapStart} onConfirm={onMapConfirm} onClose={() => setMapOpen(false)} />
       <UdTabs current="NewReport" navigate={go} />
     </View>
   );
