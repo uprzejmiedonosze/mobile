@@ -11,7 +11,7 @@ import {
 import { ApiError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { log } from '../lib/log';
-import { appendAutoLine, commentWarning, dropMatchingExtension, fmtLongDate, isExtensionDisabled, plural } from '../lib/reports';
+import { appendAutoLine, commentWarning, dropMatchingExtension, exifToIso, fmtLongDate, isExtensionDisabled, plural } from '../lib/reports';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
 import { MapPreview } from '../components/MapPreview';
 import { PhotosSection, type Tile } from '../components/PhotosSection';
@@ -22,7 +22,7 @@ import { udConfig } from '../config';
 import { useNewReport } from '../store/useNewReport';
 import { toast } from '../store/useToast';
 import { ud } from '../theme';
-import type { Category, GeoAddress, RecydywaInfo } from '../types';
+import type { Category, GeoAddress, PhotoItem, RecydywaInfo } from '../types';
 
 type Extension = { title: string; price?: string; disabled?: boolean };
 type Groups = Record<string, { name: string }>;
@@ -301,7 +301,21 @@ export function NewReportScreen({ navigation, route }: any) {
     }; });
   }, []);
 
-  const batch = usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError: fail });
+  // Metadane zdjęcia auta z lokalnego EXIF – natychmiast, w trakcie analizy i uploadu (serwer potwierdzi te same wartości,
+  // a gdy zdjęcie ich nie ma, wyczyści je w applyApp). Nowe zdjęcie auta wygrywa z wcześniejszą ręczną zmianą adresu.
+  const applyCarExif = useCallback((p: PhotoItem) => {
+    const { lat, lng, datetimeOriginal } = p.exif;
+    const iso = exifToIso(datetimeOriginal);
+    const gps = lat != null && lng != null;
+    if (gps) { edited.current.address = false; resolvedText.current = ''; }
+    setForm((f) => ({
+      ...f,
+      ...(gps ? { lat, lng, geo: null } : {}),
+      ...(iso ? { datetime: iso, dtFromPicture: true } : {}),
+    }));
+    if (iso) setEditDate(false);
+  }, []);
+  const batch = usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError: fail, onCarExif: applyCarExif });
   const uploading = batch.busy;
 
   // Bez lokalnych zdjęć (edycja / wznowiony szkic) pokazujemy te z serwera, role bez zmian.

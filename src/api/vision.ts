@@ -7,8 +7,8 @@ import type { VisionPhoto } from '../lib/vision';
 // po stronie serwera w jednym żądaniu na kandydata – klucz OpenAI nigdy nie trafia do appki.
 export type VisionItem = {
   photo_index: number; // globalny indeks w kandydacie
-  photoId: string;
-  b64: string; // miniatura ~1600-2000px (uploadConfig w config.ts)
+  photoId: string; // id zdjęcia z etapu „wip” (POST /api/rest/photos) – backend czyta plik ze swojego dysku
+  b64?: string; // starszy wariant: zdjęcie w base64 w body (limity VISION_MAX_PHOTO_BYTES) – już nieużywany przez formularz
 };
 
 export class VisionQuotaError extends Error {}
@@ -20,7 +20,7 @@ export async function analyzeCandidate(reportId: string, items: VisionItem[], si
     signal,
     body: JSON.stringify({
       reportId,
-      photos: items.map((i) => ({ photoId: i.photoId, photo_index: i.photo_index, image: `data:image/jpeg;base64,${i.b64}` })),
+      photos: items.map((i) => ({ photoId: i.photoId, photo_index: i.photo_index, ...(i.b64 ? { image: `data:image/jpeg;base64,${i.b64}` } : {}) })),
     }),
   });
 

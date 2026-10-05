@@ -1,9 +1,11 @@
-// 2–3 zdjęcia w jednym polu → podgląd od razu, potem analiza (ALPR + LLM po stronie backendu) podpowiada,
-// które to kontekst / auto / dodatkowe, i dopiero wtedy zdjęcia idą do szkicu we właściwych slotach.
-// Użytkownik może zmienić przydział – wysyłka (`syncUploads`) sama wyrównuje serwer do slotów.
+// 2–3 zdjęcia w jednym polu → podgląd od razu; zdjęcia lecą na serwer RAZ (etap „wip”, api/photos.ts), tam są analizowane
+// po photoId (ALPR + LLM) i podpowiadają, które to kontekst / auto / dodatkowe; dopiero potem trafiają do szkicu we właściwych
+// slotach (`assignReportPhoto` – serwer sam bierze plik ze swojego dysku, ALPR nie jest wołany drugi raz).
+// Użytkownik może zmienić przydział – `syncUploads` wyrównuje serwer do slotów, a zamiana ról nie wysyła zdjęć ponownie.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UdApp } from '../api/apps';
-import { createDraft, deleteReportImage, uploadReportImage, type PictureType } from '../api/reports';
+import { assignReportPhoto, deleteReportImage, type PictureType } from '../api/reports';
+import { deleteStagedPhoto, stagePhoto } from '../api/photos';
 import { analyzeCandidate, VisionQuotaError } from '../api/vision';
 import { pickPhotos } from './gallery';
 import { log } from './log';
@@ -19,18 +21,19 @@ export const MAX_BATCH = 3;
 const TYPE: Record<Slot, PictureType> = { context: 'contextImage', car: 'carImage', third: 'thirdImage' };
 const SLOTS: Slot[] = ['context', 'car', 'third'];
 
-export type LocalPhoto = PhotoItem & { small?: Scaled };
+export type LocalPhoto = PhotoItem & { small?: Scaled; serverId?: string }; // serverId = photoId z etapu „wip” na backendzie
 export type Phase = 'idle' | 'preparing' | 'analyzing' | 'ready';
 
 type Deps = {
   app: UdApp | null;
-  ensureDraft: () => Promise<UdApp>; // tworzy szkic przy pierwszym zdjęciu (jak web)
+  ensureDraft: () => Promise<UdApp>; // tworzy szkic przy pierwszym przydziale zdjęcia do slotu (nie przy wyborze zdjęć)
   applyApp: (a: UdApp, carMeta?: { gps: boolean; date: boolean }) => void; // odpowiedź serwera po uploadzie (tablica, data, GPS z ALPR); carMeta = co wyczytano ze zdjęcia auta
   onSuggestion: (s: Suggestion) => void; // kategoria / tablica z analizy
   onError: (e: unknown) => void;
+  onCarExif?: (photo: PhotoItem) => void; // metadane (GPS, data) zdjęcia auta wyczytane lokalnie – od razu, bez czekania na analizę i upload
 };
 
-export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError }: Deps) {
+export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError, onCarExif }: Deps) {
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const [slots, setSlots] = useState<Slots>(EMPTY_SLOTS);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -69,11 +72,10 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
               continue;
             }
             const p = photosRef.current.find((x) => x.id === want);
-            if (!p?.small) { again.current = true; continue; } // miniatura jeszcze się robi
-            // data/GPS ze zdjęcia auta – serwer ustawi je i rozpozna tablicę (ALPR)
-            const meta = slot === 'car' ? { dateTime: exifToIso(p.exif.datetimeOriginal), lat: p.exif.lat, lng: p.exif.lng } : {};
-            const carMeta = slot === 'car' ? { gps: p.exif.lat != null && p.exif.lng != null, date: !!(meta as { dateTime?: string | null }).dateTime } : undefined;
-            applyApp(await uploadReportImage(draft.id, TYPE[slot], p.small.uri, meta, true), carMeta);
+            if (!p?.serverId) { again.current = true; continue; } // zdjęcie jeszcze się wysyła (etap „wip”)
+            // data/GPS ze zdjęcia auta serwer ma przy zdjęciu (wysłaliśmy je razem z plikiem) – ustawi je i użyje wyniku ALPR z analizy
+            const carMeta = slot === 'car' ? { gps: p.exif.lat != null && p.exif.lng != null, date: !!exifToIso(p.exif.datetimeOriginal) } : undefined;
+            applyApp(await assignReportPhoto(draft.id, TYPE[slot], p.serverId), carMeta);
             uploaded.current[slot] = want;
             setFailed((f) => f.filter((s) => s !== slot));
           } catch (e) {
@@ -102,34 +104,41 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
   }, [slots, phase, syncUploads]);
 
   const pick = useCallback(async () => {
+    let my = -1;
     try {
       const picked = (await pickPhotos(MAX_BATCH, MIN_PHOTOS)) as LocalPhoto[];
       if (!picked.length) return;
       if (picked.length < MIN_PHOTOS) { toast.error('Wybierz od razu 2 lub 3 zdjęcia (kontekst, auto z tablicą, opcjonalnie dodatkowe).'); return; }
 
-      const my = ++batch.current;
+      my = ++batch.current;
       const ids = picked.map((p) => p.id);
       setNote(null);
       // 1) podgląd natychmiast, na razie w kolejności wyboru
       setPhotos(picked);
       setSlots(defaultSlots(ids));
       setPhase('preparing');
+      // Jak na webie (images.js): data i GPS ze zdjęcia auta od razu w formularzu. Rola auta nie jest jeszcze znana,
+      // więc zgadujemy: zdjęcie z GPS (domyślnie drugie), a po analizie poprawiamy wg przydziału.
+      const guess = picked.find((p) => p.id === defaultSlots(ids).car && p.exif.lat != null) ?? picked.find((p) => p.exif.lat != null) ?? picked[1] ?? picked[0];
+      if (guess) onCarExif?.(guess);
 
-      // 2) miniatury (base64 do analizy + plik do wysyłki), równolegle ze szkicem
-      const [small] = await Promise.all([
-        Promise.all(picked.map((p) => downscale(p.uri, { base64: true }))),
-        ensureDraft(),
-      ]);
-      if (my !== batch.current) return;
-      const withSmall = picked.map((p, i) => ({ ...p, small: small[i] }));
-      setPhotos(withSmall);
+      // 2) każde zdjęcie: jedno przeskalowanie → jedna wysyłka na serwer (etap „wip”), równolegle; szkic powstanie dopiero
+      // przy przydziale do slotu. Data/GPS z EXIF lecą razem z plikiem (po przeskalowaniu EXIF znika).
+      const staged: LocalPhoto[] = await Promise.all(picked.map(async (p): Promise<LocalPhoto> => {
+        const small = await downscale(p.uri);
+        const s = await stagePhoto(small.uri, { dateTime: exifToIso(p.exif.datetimeOriginal), lat: p.exif.lat, lng: p.exif.lng });
+        return { ...p, small, serverId: s.photoId };
+      })); // błąd wysyłki = wyjątek niżej; zdjęcia, które już dotarły, wygasną po 24 h
+      if (my !== batch.current) { staged.forEach((p) => p.serverId && void deleteStagedPhoto(p.serverId)); return; }
+      setPhotos(staged);
 
       // 3) analiza: ALPR + LLM → podpowiedź ról
       setPhase('analyzing');
       let next = defaultSlots(ids);
       try {
-        const analyzed = await analyzeCandidate('form', withSmall.map((p, i) => ({ photo_index: i, photoId: p.id, b64: p.small!.b64! })));
-        analyzed.forEach((p, i) => { if (!p.photoId) p.photoId = ids[p.photo_index ?? i]; });
+        // backend czyta zdjęcia po photoId z dysku (bez base64); w odpowiedzi wracamy do lokalnych id, na których stoi `suggestSlots`
+        const analyzed = await analyzeCandidate('form', staged.map((p, i) => ({ photo_index: i, photoId: p.serverId! })));
+        analyzed.forEach((p, i) => { p.photoId = ids[p.photo_index ?? i]; });
         for (const p of analyzed) log.info('trace', `form ${describePhoto(p)}`);
         const s = suggestSlots(ids, analyzed);
         if (my !== batch.current) return;
@@ -142,16 +151,21 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
       }
       if (my !== batch.current) return;
       setSlots(next);
+      const car = picked.find((p) => p.id === next.car);
+      if (car) onCarExif?.(car); // rola auta ustalona – jeśli to inne zdjęcie niż zgadywane, popraw datę/GPS
       setPhase('ready'); // → efekt wyżej wysyła zdjęcia do szkicu
     } catch (e) {
+      if (my === batch.current) { setPhotos([]); setSlots(EMPTY_SLOTS); }
       setPhase('idle');
       onError(e);
     }
-  }, [ensureDraft, onSuggestion, onError]);
+  }, [onSuggestion, onError, onCarExif]);
 
   const assign = useCallback((id: string, to: Slot | null) => setSlots((s) => assignSlot(s, id, to)), []);
 
   const remove = useCallback((id: string) => {
+    const serverId = photosRef.current.find((p) => p.id === id)?.serverId;
+    if (serverId) void deleteStagedPhoto(serverId); // nieprzydzielone i tak wygasłoby po 24 h – sprzątamy od razu
     setSlots((s) => assignSlot(s, id, null));
     setPhotos((l) => l.filter((p) => p.id !== id));
   }, []);

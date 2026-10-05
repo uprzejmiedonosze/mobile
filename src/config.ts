@@ -5,6 +5,8 @@ function num(v: string | undefined, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+// SYNC z backendem (../uprzejmiedonosze): 1600 px / 0.85 muszą pasować do MAX_IMAGE_DIM / JPEG_QUALITY w src/inc/API.php
+// i src/js/new-app/images.js (web) – patrz komentarz w lib/resize.ts.
 // Rozmiar zdjęć wysyłanych do backendu UD (/api/rest/vision/candidate). To NIE jest konfiguracja
 // LLM – klucz, model i limity tokenów żyją tylko po stronie serwera (src/inc/config.php,
 // OPENAI_VISION_*), appka ich nie zna i nigdy nie widzi.
@@ -12,7 +14,7 @@ export const uploadConfig = {
   photoMaxWidth: num(process.env.EXPO_PUBLIC_PHOTO_MAX_WIDTH, 1600),
   photoCompress: (() => {
     const n = Number(process.env.EXPO_PUBLIC_PHOTO_COMPRESS);
-    return Number.isFinite(n) && n > 0 && n <= 1 ? n : 0.72;
+    return Number.isFinite(n) && n > 0 && n <= 1 ? n : 0.85;
   })(),
 } as const;
 

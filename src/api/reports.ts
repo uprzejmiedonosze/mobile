@@ -96,6 +96,13 @@ export async function uploadReportImage(
   return apiJson(res, 'Nie udało się wysłać zdjęcia');
 }
 
+// Przydział zdjęcia z etapu „wip” (api/photos.ts) do slotu szkicu – serwer bierze bajty ze swojego dysku, skaluje je i
+// przycina wycinek tablicy; ALPR nie jest wołany ponownie (wynik leży przy zdjęciu).
+export async function assignReportPhoto(appId: string, type: PictureType, photoId: string): Promise<UdApp> {
+  const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/image`, json({ pictureType: type, photoId }));
+  return apiJson(res, 'Nie udało się przypisać zdjęcia');
+}
+
 export async function deleteReportImage(appId: string, type: PictureType): Promise<UdApp> {
   const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/image/${type}`, { method: 'DELETE' });
   return apiJson(res, 'Nie udało się usunąć zdjęcia');
