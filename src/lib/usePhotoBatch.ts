@@ -25,7 +25,7 @@ export type Phase = 'idle' | 'preparing' | 'analyzing' | 'ready';
 type Deps = {
   app: UdApp | null;
   ensureDraft: () => Promise<UdApp>; // tworzy szkic przy pierwszym zdjęciu (jak web)
-  applyApp: (a: UdApp) => void; // odpowiedź serwera po uploadzie (tablica, data, GPS z ALPR)
+  applyApp: (a: UdApp, carMeta?: { gps: boolean; date: boolean }) => void; // odpowiedź serwera po uploadzie (tablica, data, GPS z ALPR); carMeta = co wyczytano ze zdjęcia auta
   onSuggestion: (s: Suggestion) => void; // kategoria / tablica z analizy
   onError: (e: unknown) => void;
 };
@@ -71,7 +71,8 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
             if (!p?.small) { again.current = true; continue; } // miniatura jeszcze się robi
             // data/GPS ze zdjęcia auta – serwer ustawi je i rozpozna tablicę (ALPR)
             const meta = slot === 'car' ? { dateTime: exifToIso(p.exif.datetimeOriginal), lat: p.exif.lat, lng: p.exif.lng } : {};
-            applyApp(await uploadReportImage(draft.id, TYPE[slot], p.small.uri, meta, true));
+            const carMeta = slot === 'car' ? { gps: p.exif.lat != null && p.exif.lng != null, date: !!(meta as { dateTime?: string | null }).dateTime } : undefined;
+            applyApp(await uploadReportImage(draft.id, TYPE[slot], p.small.uri, meta, true), carMeta);
             uploaded.current[slot] = want;
           } finally {
             setUploading((u) => u.filter((s) => s !== slot));

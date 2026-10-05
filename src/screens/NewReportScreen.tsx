@@ -127,6 +127,8 @@ export function NewReportScreen({ navigation, route }: any) {
   const autoLine = useRef<string | null>(null); // ostatnia automatyczna linia „Pojazd marki …” w komentarzu
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [geoBusy, setGeoBusy] = useState(0); // trwające geokodowanie (jak na webie: wysyłka zablokowana do czasu adresu)
+  const resolvedText = useRef(''); // tekst adresu, dla którego współrzędne/miasto są aktualne
   const [err, setErr] = useState<{ field?: string; text: string } | null>(null);
   const edited = useRef({ plate: false, address: false }); // ręczne poprawki nie są nadpisywane danymi ze zdjęcia
 
@@ -138,7 +140,7 @@ export function NewReportScreen({ navigation, route }: any) {
     log.error('nowe', m);
     const field = e instanceof ApiError ? e.field : undefined;
     if (field) setErr({ field, text: m });
-    else toast.error(m);
+    toast.error(m); // formularz jest długi – błąd pola mógłby zostać poza ekranem
   }, []);
 
   useEffect(() => { hydrate(); }, [hydrate]);
@@ -162,6 +164,7 @@ export function NewReportScreen({ navigation, route }: any) {
       .then((a) => {
         if (!['draft', 'ready', 'confirmed'].includes(a.status)) throw new Error('nieedytowalne'); // jak isEditable() na webie
         edited.current = { plate: true, address: true };
+        resolvedText.current = a.address?.address ?? '';
         setApp(a);
         setForm(formFromApp(a));
         if (!editId) setDraftId(a.id);
@@ -174,13 +177,24 @@ export function NewReportScreen({ navigation, route }: any) {
   // Backend nadpisuje pliki o stałej nazwie (`{id},carImage,p.jpg` – wycinek tablicy, miniatury ról), więc po każdej
   // odpowiedzi po uploadzie zmieniamy parametr w URL, inaczej <Image> pokazuje starą wersję z cache.
   const [rev, setRev] = useState(0);
-  const applyApp = useCallback((a: UdApp) => {
+  // `carMeta` = upload zdjęcia auta: co z niego faktycznie wyczytaliśmy (GPS, data). Jak na webie, nowe zdjęcie auta
+  // zastępuje numer z ALPR (także po ręcznej poprawce – to może być inne auto), a brak GPS/daty NIE zostawia
+  // lokalizacji i daty poprzedniego zdjęcia (serwer aktualizuje je tylko, gdy przyszły) – patrz noGeoDataInImage()/setDateTime().
+  const applyApp = useCallback((a: UdApp, carMeta?: { gps: boolean; date: boolean }) => {
     setApp(a);
     setRev((n) => n + 1);
+    if (carMeta) {
+      edited.current.plate = false;
+      if (!carMeta.gps) { edited.current.address = false; resolvedText.current = ''; geoFor.current = null; }
+      setEditDate(false);
+    }
     setForm((f) => {
       const n = formFromApp(a, f);
-      return { ...n, plateId: edited.current.plate ? f.plateId : n.plateId, address: edited.current.address ? f.address : n.address,
+      let out: Form = { ...n, plateId: edited.current.plate ? f.plateId : n.plateId, address: edited.current.address ? f.address : n.address,
         category: f.category, extensions: f.extensions, comment: f.comment, witness: f.witness, unit: f.unit };
+      if (carMeta && !carMeta.gps) out = { ...out, lat: null, lng: null, geo: null, address: '' };
+      if (carMeta) out = carMeta.date ? { ...out, dtFromPicture: true } : { ...out, dtFromPicture: false, datetime: nowIso() };
+      return out;
     });
   }, []);
 
@@ -193,9 +207,14 @@ export function NewReportScreen({ navigation, route }: any) {
     const key = `${lat},${lng}`;
     if (geoFor.current === key) return;
     geoFor.current = key;
+    setGeoBusy((n) => n + 1);
     validIdToken().then((t) => reverseGeocode(lat, lng, t)).then((g) => {
-      if (g) setForm((f) => ({ ...f, geo: g, address: edited.current.address ? f.address : g.display }));
-    }).catch(() => {});
+      if (g) setForm((f) => {
+        const address = edited.current.address ? f.address : g.display;
+        if (!edited.current.address) resolvedText.current = address;
+        return { ...f, geo: g, address };
+      });
+    }).catch(() => {}).finally(() => setGeoBusy((n) => n - 1));
   }, [lat, lng]);
 
   // Recydywa + opis pojazdu po wpisaniu tablicy (debounce). Linię „Pojazd marki …” i ostrzeżenie o masie
@@ -219,13 +238,40 @@ export function NewReportScreen({ navigation, route }: any) {
   // Ręcznie wpisany adres → współrzędne + miasto/województwo (bez nich backend nie ustali SM/Policji).
   const lookupAddress = async () => {
     const q = form.address.trim();
-    if (!edited.current.address || !q) return;
+    if (!edited.current.address || !q || q === resolvedText.current) return;
+    setGeoBusy((n) => n + 1);
     try {
       const r = await searchAddress(q);
       if (!r) { setAddrNote('Nie znaleziono adresu – użyj formatu „Ulica 10, Miasto”.'); return; }
       setAddrNote(null);
+      resolvedText.current = q;
+      geoFor.current = `${r.lat},${r.lng}`; // współrzędne z wyszukiwania mają już dane adresowe – bez ponownego reverse geocode
       setForm((f) => ({ ...f, lat: r.lat, lng: r.lng, geo: r.geo }));
     } catch (e) { setAddrNote(null); log.warn('nowe', String((e as any)?.message ?? e)); }
+    finally { setGeoBusy((n) => n - 1); }
+  };
+
+  // Przed zapisem: współrzędne + miejscowość muszą być znane (web: checkAddress; serwer też to egzekwuje). Dokańczamy
+  // geokodowanie, które mogło jeszcze trwać albo się nie udać (np. tekst wpisany tuż przed „Dalej”).
+  const resolvePlace = async (): Promise<{ lat: number; lng: number; geo: GeoAddress } | null> => {
+    const q = form.address.trim();
+    try {
+      if (edited.current.address && q.length > 3 && q !== resolvedText.current) {
+        const r = await searchAddress(q);
+        if (r?.geo.city) { resolvedText.current = q; geoFor.current = `${r.lat},${r.lng}`; setForm((f) => ({ ...f, lat: r.lat, lng: r.lng, geo: r.geo })); return r; }
+      }
+      if (form.lat != null && form.lng != null) {
+        if (form.geo?.city) return { lat: form.lat, lng: form.lng, geo: form.geo };
+        const g = await reverseGeocode(form.lat, form.lng, await validIdToken());
+        if (g?.city) { setForm((f) => ({ ...f, geo: g })); return { lat: form.lat, lng: form.lng, geo: g }; }
+        return null;
+      }
+      if (q.length > 3) {
+        const r = await searchAddress(q);
+        if (r?.geo.city) { setForm((f) => ({ ...f, lat: r.lat, lng: r.lng, geo: r.geo })); return r; }
+      }
+    } catch (e) { log.warn('nowe', `resolvePlace: ${String((e as any)?.message ?? e)}`); }
+    return null;
   };
 
   // Szkic powstaje przy pierwszym zdjęciu (jak na webie); promise chroni przed podwójnym utworzeniem,
@@ -274,6 +320,7 @@ export function NewReportScreen({ navigation, route }: any) {
 
   const onMapConfirm = (r: PickedPlace) => {
     edited.current.address = true; // wybór z mapy ma pierwszeństwo przed GPS zdjęcia
+    resolvedText.current = r.geo?.display || form.address.trim();
     setAddrNote(null);
     setForm((f) => ({ ...f, lat: r.lat, lng: r.lng, geo: r.geo, address: r.geo?.display || f.address }));
     setMapOpen(false);
@@ -296,12 +343,16 @@ export function NewReportScreen({ navigation, route }: any) {
   const submit = async () => {
     setErr(null);
     if (!app?.contextImage?.thumb || !app?.carImage?.thumb) { setErr({ field: 'images', text: 'Dodaj zdjęcie kontekstu i zdjęcie auta.' }); toast.error('Dodaj zdjęcie kontekstu i zdjęcie auta.'); return; }
+    if (form.address.trim().length <= 10) { fail(new ApiError('Podaj adres lub wskaż go na mapie', 422, 'address')); return; }
     setSubmitting(true);
     try {
+      const place = await resolvePlace();
+      if (!place) { fail(new ApiError('Nie udało się ustalić miejsca zgłoszenia – wskaż je na mapie albo wpisz adres w formacie „Ulica 10, Miasto”', 422, 'address')); return; }
+      const { geo, lat, lng } = place;
       const body: ReportForm = {
-        plateId: form.plateId.trim(), address: form.address.trim(), addressGPS: form.geo?.display,
-        city: form.geo?.city, voivodeship: form.geo?.voivodeship, district: form.geo?.district, county: form.geo?.county,
-        municipality: form.geo?.municipality, postcode: form.geo?.postcode, lat: form.lat, lng: form.lng,
+        plateId: form.plateId.trim(), address: form.address.trim(), addressGPS: geo.display,
+        city: geo.city, voivodeship: geo.voivodeship, district: geo.district, county: geo.county,
+        municipality: geo.municipality, postcode: geo.postcode, lat, lng,
         datetime: form.datetime || nowIso(), dtFromPicture: form.dtFromPicture, category: form.category,
         extensions: form.extensions, comment: form.comment.trim(), witness: form.witness, stopAgresji: unit,
       };
@@ -407,7 +458,7 @@ export function NewReportScreen({ navigation, route }: any) {
         </View>
 
         <View style={{ marginTop: 20 }}>
-          <UdButton title={submitting ? 'Zapisuję…' : 'Dalej'} onPress={submit} disabled={submitting || uploading} />
+          <UdButton title={submitting ? 'Zapisuję…' : 'Dalej'} onPress={submit} disabled={submitting || uploading || geoBusy > 0} />
         </View>
         <Text style={{ color: ud.muted, fontSize: 12, marginTop: 6 }}>Na następnym ekranie sprawdzisz zgłoszenie przed wysłaniem.</Text>
       </ScrollView>
