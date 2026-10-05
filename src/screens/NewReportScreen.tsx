@@ -5,7 +5,7 @@ import { fetchConfig } from '../api/dashboard';
 import { fetchCategories, reverseGeocode } from '../api/geo';
 import { fetchRecydywa } from '../api/recydywa';
 import {
-  createDraft, fetchReport, fetchVehicleDescription, finishReport, saveReport, searchAddress, type ReportForm,
+  createDraft, fetchReport, fetchVehicleDescription, saveReport, searchAddress, type ReportForm,
 } from '../api/reports';
 import { ApiError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
@@ -106,7 +106,7 @@ function Radio({ on, onPress, children, disabled, hint }: { on: boolean; onPress
 export function NewReportScreen({ navigation, route }: any) {
   const go = (r: string) => navigation.navigate(r);
   const editId: string | undefined = route?.params?.editId;
-  const { draftId, hydrated, hydrate, setDraftId, setDone } = useNewReport();
+  const { draftId, hydrated, hydrate, setDraftId } = useNewReport();
 
   const [app, setApp] = useState<UdApp | null>(null);
   const [form, setForm] = useState<Form>(EMPTY);
@@ -296,10 +296,7 @@ export function NewReportScreen({ navigation, route }: any) {
         extensions: form.extensions, comment: form.comment.trim(), witness: form.witness, stopAgresji: unit,
       };
       await saveReport(app.id, body);
-      const result = await finishReport(app.id, true); // „Potwierdź” + wyślij jednym przyciskiem
-      setDraftId(null);
-      setDone(result);
-      navigation.replace('ReportDone'); // replace: „Dodaj kolejne” musi zacząć z czystego formularza
+      navigation.navigate('ReportConfirm', { appId: app.id }); // ekran „Sprawdź przed wysłaniem” (jak potwierdz.html na www)
     } catch (e) { fail(e); } finally { setSubmitting(false); }
   };
 
@@ -400,9 +397,9 @@ export function NewReportScreen({ navigation, route }: any) {
         </View>
 
         <View style={{ marginTop: 20 }}>
-          <UdButton title={submitting ? 'Wysyłam…' : 'Potwierdź i wyślij'} onPress={submit} disabled={submitting || uploading} />
+          <UdButton title={submitting ? 'Zapisuję…' : 'Dalej'} onPress={submit} disabled={submitting || uploading} />
         </View>
-        <Text style={{ color: ud.muted, fontSize: 12, marginTop: 6 }}>Zgłoszenie zostanie potwierdzone i wysłane do wskazanego adresata (jeśli ma automatyczny kanał wysyłki).</Text>
+        <Text style={{ color: ud.muted, fontSize: 12, marginTop: 6 }}>Na następnym ekranie sprawdzisz zgłoszenie przed wysłaniem.</Text>
       </ScrollView>
       <MapPicker visible={mapOpen} initial={form.lat != null && form.lng != null ? { lat: form.lat, lng: form.lng } : null} onConfirm={onMapConfirm} onClose={() => setMapOpen(false)} />
       <UdTabs current="NewReport" navigate={go} />

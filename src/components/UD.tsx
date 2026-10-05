@@ -17,13 +17,13 @@ export function UdLogo({ height = 24, color }: { height?: number; color?: string
 // Nagłówek (odwrócony względem webu): zielone tło, białe logo UD, ← wróć | żółty Dalej.
 // paddingTop zawiera inset statusbara (zegar/bateria/kamera) – ten obszar jest
 // zarezerwowany przez system i nie wolno tam kłaść nawigacji.
-export function UdHeader({ title, onBack, onNext, nextLabel = 'Dalej' }: { title?: string; onBack?: () => void; onNext?: () => void; nextLabel?: string }) {
+export function UdHeader({ title, onBack, onNext, nextLabel = 'Dalej', backLabel = 'wróć' }: { title?: string; onBack?: () => void; onNext?: () => void; nextLabel?: string; backLabel?: string }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: insets.top + 12, paddingBottom: 12, backgroundColor: ud.primary }}>
       {onBack ? (
         <Pressable onPress={onBack} hitSlop={12} style={{ minWidth: 70 }}>
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>← wróć</Text>
+          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>← {backLabel}</Text>
         </Pressable>
       ) : (
         <View style={{ minWidth: 70 }} />
@@ -182,7 +182,7 @@ export function UdPhoto({
 // `screens` = ekrany, na których zakładka świeci się jako aktywna (cały proces dodawania = „Nowe”).
 const TABS = [
   { key: 'Start', route: 'Dashboard', icon: TAB_ICONS.start, screens: ['Dashboard'] },
-  { key: 'Nowe', route: 'NewReport', icon: TAB_ICONS.nowe, screens: ['NewReport', 'ReportDone'] },
+  { key: 'Nowe', route: 'NewReport', icon: TAB_ICONS.nowe, screens: ['NewReport', 'ReportConfirm', 'ReportDone'] },
   { key: 'Zgłoszenia', route: 'Reports', icon: TAB_ICONS.zgloszenia, screens: ['Reports'] },
   { key: 'Konto', route: 'Account', icon: TAB_ICONS.konto, screens: ['Account'] },
 ];

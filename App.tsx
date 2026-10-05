@@ -8,6 +8,7 @@ import { useFonts, BricolageGrotesque_700Bold } from '@expo-google-fonts/bricola
 import { PublicSans_400Regular, PublicSans_700Bold } from '@expo-google-fonts/public-sans';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { NewReportScreen } from './src/screens/NewReportScreen';
+import { ReportConfirmScreen } from './src/screens/ReportConfirmScreen';
 import { ReportDoneScreen } from './src/screens/ReportDoneScreen';
 import { ReportsScreen } from './src/screens/ReportsScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
@@ -76,6 +77,7 @@ export default function App() {
         <Stack.Navigator initialRouteName="Dashboard" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Dashboard" component={DashboardScreen} />
           <Stack.Screen name="NewReport" component={NewReportScreen} />
+          <Stack.Screen name="ReportConfirm" component={ReportConfirmScreen} />
           <Stack.Screen name="ReportDone" component={ReportDoneScreen} />
           <Stack.Screen name="Reports" component={ReportsScreen} />
           <Stack.Screen name="Account" component={AccountScreen} />

@@ -24,7 +24,7 @@ export function ReportDoneScreen({ navigation }: any) {
   const status =
     sendMode === 'sent' ? { text: 'Zgłoszenie zostało wysłane.', color: ud.primary }
     : sendMode === 'failed' ? { text: `Zgłoszenie zapisane, ale wysyłka się nie udała: ${sendError ?? 'nieznany błąd'}. Spróbuj ponownie z listy zgłoszeń.`, color: ud.plateVerified }
-    : sendMode === 'manual' ? { text: `Zgłoszenie zapisane. ${app.recipient?.name ?? 'Ten adresat'} nie ma automatycznej wysyłki – dokończ wysyłkę na stronie.`, color: ud.warning }
+    : sendMode === 'manual' || (sendMode === 'not_requested' && app.recipient && !app.recipient.automated && !app.recipient.unknown) ? { text: `Zgłoszenie zapisane. ${app.recipient?.name ?? 'Ten adresat'} nie ma automatycznej wysyłki – dokończ wysyłkę na stronie.`, color: ud.warning }
     : { text: 'Zgłoszenie zostało zapisane.', color: ud.primary };
 
   return (

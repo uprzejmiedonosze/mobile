@@ -30,6 +30,18 @@ export type ReportForm = {
   stopAgresji: 'SA' | 'SM';
 };
 
+// Dane ekranu potwierdzenia (GET /api/rest/app/{id}/confirmation → confirmationData() w API.php): teksty odmienione
+// przez płeć i sformatowane tak jak na www (potwierdz.html.twig), więc klient tylko je wyświetla.
+export type Confirmation = {
+  body: string; // tekst formalny kategorii + rozszerzenia + komentarz
+  witness: string; // „Nie byłeś świadkiem parkowania.” / „Byłeś świadkiem parkowania.”
+  shortAddress: string;
+  plateId: string | null;
+  vehicleBox: { x: number; y: number; width: number; height: number } | null; // piksele zdjęcia auta
+  recipient: { name: string; shortName: string; automated: boolean; unknown: boolean };
+  sender: { name: string; email: string; address: string; msisdn: string; edelivery: string };
+};
+
 export type FinishResult = {
   app: UdApp;
   edited: boolean;
@@ -93,6 +105,10 @@ export async function deleteReportImage(appId: string, type: PictureType): Promi
 export async function saveReport(appId: string, f: ReportForm): Promise<UdApp> {
   const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}`, json({ ...f, dtFromPicture: f.dtFromPicture ? 1 : 0 }));
   return apiJson(res, 'Nie udało się zapisać zgłoszenia');
+}
+
+export async function fetchConfirmation(appId: string): Promise<Confirmation> {
+  return apiJson(await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/confirmation`), 'Nie udało się pobrać podsumowania');
 }
 
 // „Potwierdź” (+ opcjonalnie wyślij) jednym wywołaniem – efekty uboczne jak /app/done na webie.
