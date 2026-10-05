@@ -56,9 +56,13 @@ export type GeoAddress = {
   county?: string;
   municipality?: string;
   postcode?: string;
-  smName?: string | null;
-  saName?: string | null;
+  // Odbiorca dla tego adresu (jak #unitToggle na webie): SM (sm) i Policja (sa); smUnknown = w miejscowości nie ma SM
+  sm?: UnitInfo;
+  sa?: UnitInfo;
+  smUnknown?: boolean;
 };
+
+export type UnitInfo = { kind: string; name: string; hint: string };
 
 export type Category = {
   id: number;

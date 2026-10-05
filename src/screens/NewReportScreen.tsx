@@ -12,6 +12,7 @@ import { fetchProfile } from '../api/user';
 import { log } from '../lib/log';
 import { appendAutoLine, dropMatchingExtension, fmtLongDate, isExtensionDisabled, plural } from '../lib/reports';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
+import { MapPreview } from '../components/MapPreview';
 import { PhotosSection, type Tile } from '../components/PhotosSection';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import { usePhotoBatch } from '../lib/usePhotoBatch';
@@ -88,13 +89,16 @@ function Check({ on, onPress, children, disabled }: { on: boolean; onPress: () =
   );
 }
 
-function Radio({ on, onPress, children, disabled }: { on: boolean; onPress: () => void; children: React.ReactNode; disabled?: boolean }) {
+function Radio({ on, onPress, children, disabled, hint }: { on: boolean; onPress: () => void; children: React.ReactNode; disabled?: boolean; hint?: string }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, opacity: disabled ? 0.4 : 1 }}>
-      <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: ud.primary, alignItems: 'center', justifyContent: 'center' }}>
+    <Pressable onPress={onPress} disabled={disabled} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 6, opacity: disabled ? 0.5 : 1 }}>
+      <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: ud.primary, alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
         {on ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: ud.primary }} /> : null}
       </View>
-      <Text style={{ flex: 1, color: ud.text }}>{children}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: ud.text }}>{children}</Text>
+        {hint ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 2 }}>{hint}</Text> : null}
+      </View>
     </Pressable>
   );
 }
@@ -170,12 +174,17 @@ export function NewReportScreen({ navigation, route }: any) {
     });
   }, []);
 
-  // GPS zdjęcia auta → adres (reverse geocode, edytowalny) + podpowiedź SM/Policja.
+  // Współrzędne (GPS zdjęcia auta, mapa, wznowiony szkic) → dane adresowe i odbiorca (SM/Policja z hintami).
+  // Tekst adresu podmieniamy tylko, gdy użytkownik go sam nie poprawiał.
   const lat = form.lat, lng = form.lng;
+  const geoFor = useRef<string | null>(null); // współrzędne, dla których geo już pobraliśmy
   useEffect(() => {
-    if (lat == null || lng == null || edited.current.address) return;
+    if (lat == null || lng == null) return;
+    const key = `${lat},${lng}`;
+    if (geoFor.current === key) return;
+    geoFor.current = key;
     validIdToken().then((t) => reverseGeocode(lat, lng, t)).then((g) => {
-      if (g && !edited.current.address) setForm((f) => ({ ...f, address: g.display, geo: g }));
+      if (g) setForm((f) => ({ ...f, geo: g, address: edited.current.address ? f.address : g.display }));
     }).catch(() => {});
   }, [lat, lng]);
 
@@ -243,7 +252,8 @@ export function NewReportScreen({ navigation, route }: any) {
   const SERVER: Record<Slot, 'contextImage' | 'carImage' | 'thirdImage'> = { context: 'contextImage', car: 'carImage', third: 'thirdImage' };
   const serverTiles: Tile[] = (['context', 'car', 'third'] as Slot[]).flatMap((slot) => {
     const uri = app ? imageUrl(app[SERVER[slot]], app) : null;
-    return uri ? [{ id: slot, uri }] : [];
+    const full = app ? imageUrl(app[SERVER[slot]], app, true) : null;
+    return uri ? [{ id: slot, uri, full: full ?? uri }] : [];
   });
   const local = batch.photos.length > 0;
   const tiles: Tile[] = local ? batch.photos.map((p) => ({ id: p.id, uri: p.uri })) : serverTiles;
@@ -264,7 +274,10 @@ export function NewReportScreen({ navigation, route }: any) {
 
   const selectedCat = cats.find((c) => c.id === form.category);
   const forcePolice = !!selectedCat?.stopAgresjiOnly;
-  const unit = forcePolice ? 'SA' : form.unit;
+  // jak syncUnitToggleWithCategory() na webie: SM wyłączona, gdy kategoria jest tylko dla Policji albo w miejscowości nie ma SM
+  const smDisabled = forcePolice || !!form.geo?.smUnknown;
+  const unit = smDisabled ? 'SA' : form.unit;
+  const unitHint = (u?: { name: string; hint: string }) => (u ? [u.name, u.hint].filter(Boolean).join(': ') : undefined);
   const topCats = useMemo(() => cats.filter((c) => c.title && c.groups?.includes(0)).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)), [cats]);
   const catGroups = useMemo(() => Object.entries(groups).filter(([id]) => id !== '0').map(([id, g]) => ({
     name: g.name, items: cats.filter((c) => c.title && c.groups?.includes(Number(id))).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)),
@@ -306,6 +319,8 @@ export function NewReportScreen({ navigation, route }: any) {
           uploading={batch.uploading}
           note={batch.note}
           editable={local}
+          carBox={app?.carInfo?.vehicleBox ?? null}
+          carNatural={app?.carImage?.width && app?.carImage?.height ? { w: app.carImage.width, h: app.carImage.height } : null}
           onPick={batch.pick}
           onAssign={batch.assign}
           onRemove={batch.remove}
@@ -341,14 +356,12 @@ export function NewReportScreen({ navigation, route }: any) {
         <TextInput style={input} value={form.address} maxLength={70} placeholder="Ulica 10a, Miasto" onChangeText={(t) => { edited.current.address = true; setAddrNote(null); set('address', t); }} onEndEditing={lookupAddress} />
         {addrNote ? <Text style={{ color: ud.warning, marginTop: 4 }}>{addrNote}</Text> : null}
         {fieldErr('address')}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 8 }}>
-          <Pressable onPress={() => setMapOpen(true)}><Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>📍 Wskaż na mapie</Text></Pressable>
-        </View>
+        <MapPreview lat={form.lat} lng={form.lng} onPress={() => setMapOpen(true)} />
         {form.lat == null ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 4 }}>Brak lokalizacji ze zdjęcia – wskaż miejsce na mapie albo wpisz adres („Ulica 10, Miasto”).</Text> : null}
 
         <L>Zgłoszenie trafi do</L>
-        <Radio on={unit === 'SM'} disabled={forcePolice} onPress={() => set('unit', 'SM')}>Straż miejska{form.geo?.smName ? ` – ${form.geo.smName}` : ''}</Radio>
-        <Radio on={unit === 'SA'} onPress={() => set('unit', 'SA')}>Policja{form.geo?.saName ? ` – ${form.geo.saName}` : ''}</Radio>
+        <Radio on={unit === 'SM'} disabled={smDisabled} onPress={() => set('unit', 'SM')} hint={unitHint(form.geo?.sm)}>{form.geo?.sm?.kind ?? 'Straż miejska'}</Radio>
+        <Radio on={unit === 'SA'} onPress={() => set('unit', 'SA')} hint={unitHint(form.geo?.sa)}>Policja</Radio>
         {forcePolice ? <Text style={{ color: ud.muted, fontSize: 12 }}>Ta kategoria jest zawsze zgłaszana na Policję.</Text> : null}
 
         <H>Wybierz rodzaj wykroczenia</H>

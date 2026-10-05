@@ -12,6 +12,14 @@ import { log, logFetch } from '../lib/log';
 export const UD_BASE = udConfig.base;
 
 // Odpowiedź /geo/.../n i /geo/search → GeoAddress (jedno miejsce parsowania).
+// Rodzaj jednostki po nazwie (geolocation.js::unitKind na webie)
+function unitKind(u: any): string {
+  const joined = (u?.address ?? []).join(' ');
+  if (/Straż\w* Miejsk\w*/i.test(joined)) return 'Straż miejska';
+  if (/Straż\w* Gminn\w*/i.test(joined)) return 'Straż gminna';
+  return 'Policja';
+}
+
 export function toGeoAddress(j: any): GeoAddress {
   const a = j?.address ?? j;
   const road = a?.road ?? '';
@@ -27,9 +35,10 @@ export function toGeoAddress(j: any): GeoAddress {
     county: a?.county ?? '',
     municipality: a?.municipality ?? '',
     postcode: a?.postcode ?? '',
-    // podpowiedź odbiorcy jak `#unitToggle` na webie: nazwa SM (sm) i jednostki Policji (sa) dla tego adresu
-    smName: j?.sm?.address?.[0] ?? null,
-    saName: j?.sa?.address?.[0] ?? null,
+    // odbiorca jak w geolocation.js::renderSM: nazwa skrócona + podpowiedź (hint) z sm.json / stop-agresji.json
+    smUnknown: !!j && !j?.sm?.email,
+    sm: j?.sm ? { kind: j.sm.email ? unitKind(j.sm) : 'Straż miejska', name: j.sm.email ? j.sm.short ?? '' : '', hint: j.sm.email ? j.sm.hint ?? '' : `W miejscowości ${city} nie powołano SM` } : undefined,
+    sa: j?.sa ? { kind: 'Policja', name: j.sa.short ?? '', hint: j.sa.hint ?? '' } : undefined,
   };
 }
 

@@ -5,7 +5,7 @@ import { udConfig } from '../config';
 import { log, logFetch } from '../lib/log';
 import { authFetch } from './udApi';
 
-export type AppImage = { thumb?: string; url?: string };
+export type AppImage = { thumb?: string; url?: string; width?: number; height?: number };
 
 // Odbiorca zgłoszenia wyliczany przez backend (recipientData() w src/inc/API.php) – klient nie zna logiki SM/Policja.
 export type Recipient = {
@@ -35,7 +35,7 @@ export type UdApp = {
     address?: string; addressGPS?: string; city?: string; voivodeship?: string; district?: string;
     county?: string; municipality?: string; postcode?: string; lat?: number | null; lng?: number | null;
   };
-  carInfo?: { plateId?: string; brand?: string; model?: string; plateImage?: string }; // plateImage = wycinek tablicy z ALPR
+  carInfo?: { plateId?: string; brand?: string; model?: string; plateImage?: string; vehicleBox?: { x: number; y: number; width: number; height: number } }; // plateImage = wycinek tablicy, vehicleBox = ramka pojazdu z ALPR (piksele carImage)
   recipient?: Recipient | null;
   contextImage?: AppImage;
   carImage?: AppImage;

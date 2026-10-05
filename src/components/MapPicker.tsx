@@ -62,8 +62,22 @@ export function MapPicker({ visible, initial, onConfirm, onClose }: {
   const [geo, setGeo] = useState<GeoAddress | null>(null);
   const [loadingAddr, setLoadingAddr] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const start = useRef(initial ?? POLAND); // początek mapy ustalany raz przy otwarciu
+  const start = useRef(initial ?? POLAND);
   const startZoom = useRef(initial ? 16 : 6);
+  const [session, setSession] = useState(0); // nowa sesja = świeży WebView z aktualnym punktem startowym
+
+  // Okno jest zamontowane cały czas (visible=false), więc punkt startowy trzeba ustawić przy KAŻDYM otwarciu –
+  // inaczej mapa zawsze startowała tam, gdzie była ostatnio (u pierwszego otwarcia: środek Polski).
+  useEffect(() => {
+    if (!visible) return;
+    start.current = initial ?? POLAND;
+    startZoom.current = initial ? 16 : 6;
+    setCenter(initial);
+    setGeo(null);
+    setError(null);
+    setSession((n) => n + 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   // Adres dla środka mapy (po zatrzymaniu, z opóźnieniem – jak na www).
   useEffect(() => {
@@ -100,6 +114,7 @@ export function MapPicker({ visible, initial, onConfirm, onClose }: {
         <View style={{ flex: 1 }}>
           {WebView ? (
             <WebView
+              key={session}
               ref={web}
               originWhitelist={['*']}
               source={{ html: html(start.current, startZoom.current), baseUrl: udConfig.base }}
