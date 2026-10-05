@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { fetchDashboard, fmtInt, num, stripHtml, type DashBadge, type Dashboard } from '../api/dashboard';
 import { udConfig } from '../config';
 import { log } from '../lib/log';
+import { openUdPage } from '../lib/openPage';
 import { plural } from '../lib/reports';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import { ud } from '../theme';
@@ -38,11 +39,9 @@ function Stat({ value, label, onPress, highlight }: { value: string; label: stri
   );
 }
 
-const open = (url: string) => Linking.openURL(/^https?:/.test(url) ? url : `${udConfig.base}${url}`).catch(() => {});
-
-function SupportCard({ title, text, url, external }: { title: string; text: string; url: string; external?: boolean }) {
+function SupportCard({ title, text, url, external, onOpen }: { title: string; text: string; url: string; external?: boolean; onOpen: (url: string, title: string) => void }) {
   return (
-    <Pressable onPress={() => open(url)} style={{ paddingVertical: 8, marginBottom: 6 }}>
+    <Pressable onPress={() => onOpen(url, title)} style={{ paddingVertical: 8, marginBottom: 6 }}>
       <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 16 }}>{title} {external ? '↗' : '→'}</Text>
       <Text style={{ color: ud.muted, marginTop: 4 }}>{text}</Text>
     </Pressable>
@@ -96,7 +95,6 @@ export function DashboardScreen({ navigation }: any) {
             {d.rank ? (
               <Section>
                 <Eyebrow>Twoja ranga</Eyebrow>
-                <Text style={{ color: ud.muted, fontSize: 13 }}>Ranga {d.rank.index} z {d.rank.total}</Text>
                 <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 30, marginTop: 2 }}>{d.rank.desc}</Text>
                 {/* pasek z segmentem na każdą rangę – bez etykiet, więc nic się nie łamie na wąskim ekranie */}
                 <View style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
@@ -143,16 +141,16 @@ export function DashboardScreen({ navigation }: any) {
             ) : null}
 
             <Section>
-              <Eyebrow>Nie chcesz „donosić”?</Eyebrow>
+              <Text accessibilityRole="header" style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 22, marginBottom: 6 }}>Nie chcesz „donosić”?</Text>
               <Text style={{ color: ud.muted, marginBottom: 10 }}>Dowiedz się, co jeszcze możesz zrobić.</Text>
-              <SupportCard title="Napisz pismo do polityka" text="W trzy minuty przełóż swoją frustrację w realne działanie." url="/napisz-pismo-do-polityka.html" />
-              <SupportCard external title="Miejska Agenda Parkingowa" text="Poznaj zmiany w przepisach, po których Uprzejmie Donoszę nie będzie potrzebne." url="https://agendaparkingowa.pl/" />
+              <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} title="Napisz pismo do polityka" text="W trzy minuty przełóż swoją frustrację w realne działanie." url="/napisz-pismo-do-polityka.html" />
+              <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Miejska Agenda Parkingowa" text="Poznaj zmiany w przepisach, po których Uprzejmie Donoszę nie będzie potrzebne." url="https://agendaparkingowa.pl/" />
               {patron ? (
-                <SupportCard external title="Wniosek do RPO" text="Poprzyj mój wniosek do Rzecznika Praw Obywatelskich o równe prawa dla pieszych i kierowców." url="https://www.change.org/Rowne-Prawa-Dla-Pieszych-i-Kierowcow/" />
+                <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Wniosek do RPO" text="Poprzyj mój wniosek do Rzecznika Praw Obywatelskich o równe prawa dla pieszych i kierowców." url="https://www.change.org/Rowne-Prawa-Dla-Pieszych-i-Kierowcow/" />
               ) : (
                 <>
-                  <SupportCard title="Patronite" text="Utrzymanie serwerów kosztuje. Zostań Patronką lub Patronem i pomóż nam działać stabilnie." url="/patronite.html" />
-                  <SupportCard external title="Suppi" text="Nie chcesz subskrypcji? Postaw nam kawę jednorazową, niewielką wpłatą." url="https://suppi.pl/uprzejmiedonosze" />
+                  <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} title="Patronite" text="Utrzymanie serwerów kosztuje. Zostań Patronką lub Patronem i pomóż nam działać stabilnie." url="/patronite.html" />
+                  <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Suppi" text="Nie chcesz subskrypcji? Postaw nam kawę jednorazową, niewielką wpłatą." url="https://suppi.pl/uprzejmiedonosze" />
                 </>
               )}
             </Section>

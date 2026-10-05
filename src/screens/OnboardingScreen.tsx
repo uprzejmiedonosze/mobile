@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Linking, ScrollView, Text, TextInput, View } from 'react-native';
+import { ScrollView, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../store/useAuth';
 import { confirmTerms, ensureUserRow, fetchTerms, updateUserProfile, type TermsDoc } from '../api/user';
-import { udConfig } from '../config';
+import { useNavigation } from '@react-navigation/native';
 import { log } from '../lib/log';
+import { openUdPage } from '../lib/openPage';
 import { termSegments } from '../lib/reports';
 import { ud } from '../theme';
 import { UdButton, UdCard, UdHeader } from '../components/UD';
@@ -12,6 +13,7 @@ import { UdButton, UdCard, UdHeader } from '../components/UD';
 // App.tsx pokazuje ten ekran, gdy zalogowany, ale isRegistered/isTermsConfirmed = false
 // (typowe dla świeżego konta Google – email-link zawsze przechodził przez web wcześniej).
 export function OnboardingScreen() {
+  const navigation = useNavigation<any>();
   const a = useAuth();
   const [name, setName] = useState(a.name);
   const [address, setAddress] = useState('');
@@ -99,7 +101,7 @@ export function OnboardingScreen() {
               terms.terms.map((item, i) => (
                 <Text key={i} style={{ color: ud.muted, marginTop: 6 }}>
                   • {termSegments(item.li).map((seg, k) => seg.url ? (
-                    <Text key={k} style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => Linking.openURL(`${udConfig.base}${seg.url}`).catch(() => {})}>{seg.text}</Text>
+                    <Text key={k} style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => openUdPage(navigation, seg.url!, seg.text)}>{seg.text}</Text>
                   ) : seg.text)}
                 </Text>
               ))

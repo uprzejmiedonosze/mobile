@@ -1,5 +1,5 @@
-import { Linking, ScrollView, Text, View } from 'react-native';
-import { udConfig } from '../config';
+import { ScrollView, Text, View } from 'react-native';
+import { openUdPage } from '../lib/openPage';
 import { plural } from '../lib/reports';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import { useNewReport } from '../store/useNewReport';
@@ -42,7 +42,7 @@ export function ReportDoneScreen({ navigation }: any) {
         {!isPatron ? (
           <Text style={{ color: ud.text, marginTop: 16 }}>
             Utrzymanie serwisu kosztuje.{' '}
-            <Text style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => Linking.openURL(`${udConfig.base}/patronite.html`).catch(() => {})}>Zostań Patronką lub Patronem</Text>.
+            <Text style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => openUdPage(navigation, '/patronite.html', 'Wspieraj Uprzejmie Donoszę')}>Zostań Patronką lub Patronem</Text>.
           </Text>
         ) : null}
 

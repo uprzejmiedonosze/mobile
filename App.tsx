@@ -13,6 +13,7 @@ import { ReportDoneScreen } from './src/screens/ReportDoneScreen';
 import { ReportsScreen } from './src/screens/ReportsScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
+import { WebPageScreen } from './src/screens/WebPageScreen';
 
 import { PhotoPickerHost } from './src/components/PhotoPickerHost';
 import { ToastHost } from './src/components/ToastHost';
@@ -68,10 +69,12 @@ export default function App() {
       ) : !logged ? (
         <Stack.Navigator initialRouteName="Account" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Account" component={AccountScreen} />
+          <Stack.Screen name="WebPage" component={WebPageScreen} />
         </Stack.Navigator>
       ) : !registered ? (
         <Stack.Navigator initialRouteName="Onboarding" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          <Stack.Screen name="WebPage" component={WebPageScreen} />
         </Stack.Navigator>
       ) : (
         <Stack.Navigator initialRouteName="Dashboard" screenOptions={{ headerShown: false }}>
@@ -81,6 +84,7 @@ export default function App() {
           <Stack.Screen name="ReportDone" component={ReportDoneScreen} />
           <Stack.Screen name="Reports" component={ReportsScreen} />
           <Stack.Screen name="Account" component={AccountScreen} />
+          <Stack.Screen name="WebPage" component={WebPageScreen} />
         </Stack.Navigator>
       )}
     </NavigationContainer>
