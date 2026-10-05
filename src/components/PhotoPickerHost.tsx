@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Linking, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Modal, Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // /legacy – patrz komentarz w lib/gallery.ts (główny eksport expo-media-library rzuca w runtime)
 import * as MediaLibrary from 'expo-media-library/legacy';
@@ -8,7 +8,6 @@ import { log } from '../lib/log';
 import { usePhotoPicker } from '../store/usePhotoPicker';
 import { ud } from '../theme';
 import type { PhotoItem } from '../types';
-import { UdButton } from './UD';
 
 const PAGE = 60;
 const COLS = 3;
@@ -28,7 +27,6 @@ export function PhotoPickerHost() {
 
   const [assets, setAssets] = useState<MediaLibrary.Asset[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
-  const [denied, setDenied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const cursor = useRef<{ after?: string; more: boolean }>({ more: true });
@@ -52,13 +50,13 @@ export function PhotoPickerHost() {
   const open = !!request;
   useEffect(() => {
     if (!open) return;
-    setAssets([]); setSelected([]); setDenied(false); cursor.current = { more: true };
+    setAssets([]); setSelected([]); cursor.current = { more: true };
     (async () => {
       let perm = await MediaLibrary.getPermissionsAsync(false, ['photo']);
       if (!perm.granted) perm = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
-      if (!perm.granted) { setDenied(true); return; }
+      if (!perm.granted) { close('unavailable'); return; }
       loadMore();
-    })().catch((e) => { log.warn('galeria', String(e?.message ?? e)); setDenied(true); });
+    })().catch((e) => { log.warn('galeria', String(e?.message ?? e)); close('unavailable'); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -98,12 +96,6 @@ export function PhotoPickerHost() {
             <Text style={{ color: ud.accent, fontFamily: ud.fontBodyBold }}>{busy ? '…' : 'Gotowe'}</Text>
           </Pressable>
         </View>
-        {denied ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 }}>
-            <Text style={{ color: ud.text, textAlign: 'center' }}>Brak dostępu do zdjęć. Zezwól aplikacji na dostęp do zdjęć w ustawieniach.</Text>
-            <UdButton title="Otwórz ustawienia" onPress={() => Linking.openSettings().catch(() => {})} />
-          </View>
-        ) : (
           <FlatList
             data={assets}
             keyExtractor={(a) => a.id}
@@ -128,7 +120,6 @@ export function PhotoPickerHost() {
               );
             }}
           />
-        )}
       </View>
     </Modal>
   );

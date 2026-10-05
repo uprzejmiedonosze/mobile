@@ -2,11 +2,13 @@ import { create } from 'zustand';
 import type { PhotoItem } from '../types';
 
 // Własny wybór zdjęć (Android): okno PhotoPickerHost jest zamontowane raz w App.tsx; `requestPhotos`
-// otwiera je i zwraca obietnicę z wybranymi zdjęciami (pusta tablica = anulowano).
+// otwiera je i zwraca obietnicę z wybranymi zdjęciami (pusta tablica = anulowano). 'unavailable' = brak dostępu
+// do MediaLibrary (np. Expo Go, odmowa zgody) – wywołujący przechodzi wtedy na systemowy ImagePicker.
+export type PickerResult = PhotoItem[] | 'unavailable';
 type PickerState = {
-  request: { limit: number; min: number; resolve: (p: PhotoItem[]) => void } | null;
-  open: (limit: number, min: number) => Promise<PhotoItem[]>;
-  close: (photos: PhotoItem[]) => void;
+  request: { limit: number; min: number; resolve: (p: PickerResult) => void } | null;
+  open: (limit: number, min: number) => Promise<PickerResult>;
+  close: (photos: PickerResult) => void;
 };
 
 export const usePhotoPicker = create<PickerState>((set, get) => ({

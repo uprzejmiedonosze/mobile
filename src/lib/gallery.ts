@@ -51,7 +51,13 @@ export async function pickPhotos(left: number, min = 1): Promise<PhotoItem[]> {
   if (left <= 0) return [];
   // Android: własne okno wyboru (PhotoPickerHost) – systemowy ImagePicker odrzucał wywołania w buildzie
   // release ("unregistered ActivityResultLauncher"); iOS zostaje przy systemowym pickerze.
-  if (Platform.OS === 'android') return requestPhotos(left, min);
+  // Gdy MediaLibrary jest niedostępne (Expo Go nie dostaje pełnego dostępu do galerii, albo odmowa zgody) –
+  // wracamy do systemowego pickera poniżej.
+  if (Platform.OS === 'android') {
+    const picked = await requestPhotos(left, min);
+    if (picked !== 'unavailable') return picked;
+    log.warn('galeria', 'MediaLibrary niedostępne – systemowy ImagePicker');
+  }
   // Dialog uprawnień pokazujemy tylko gdy zgody jeszcze nie ma – każde przejście Activity przed otwarciem
   // pickera to okazja do wyścigu z rejestracją kontraktów expo-modules-core (patrz launchLibrary()).
   let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
