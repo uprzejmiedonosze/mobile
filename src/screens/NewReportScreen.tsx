@@ -11,7 +11,7 @@ import {
 import { ApiError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { log } from '../lib/log';
-import { appendAutoLine, dropMatchingExtension, fmtLongDate, isExtensionDisabled, plural } from '../lib/reports';
+import { appendAutoLine, commentWarning, dropMatchingExtension, fmtLongDate, isExtensionDisabled, plural } from '../lib/reports';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
 import { MapPreview } from '../components/MapPreview';
 import { PhotosSection, type Tile } from '../components/PhotosSection';
@@ -327,7 +327,7 @@ export function NewReportScreen({ navigation, route }: any) {
   };
 
   useEffect(() => { setPlateTouched(false); }, [app?.carInfo?.plateImage]);
-  const plateImg = app?.carInfo?.plateImage && !plateTouched ? `${imageUrl({ thumb: app.carInfo.plateImage }, app)}&r=${rev}` : null;
+  const plateImg = app?.carInfo?.plateImage && app?.carImage?.thumb && !plateTouched ? `${imageUrl({ thumb: app.carInfo.plateImage }, app)}&r=${rev}` : null;
 
   const selectedCat = cats.find((c) => c.id === form.category);
   const forcePolice = !!selectedCat?.stopAgresjiOnly;
@@ -383,6 +383,9 @@ export function NewReportScreen({ navigation, route }: any) {
           onAssign={batch.assign}
           onRemove={batch.remove}
         />
+        {batch.failed.length ? (
+          <Pressable onPress={batch.retry}><Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, marginTop: 8 }}>Nie wszystkie zdjęcia zostały wysłane – spróbuj ponownie</Text></Pressable>
+        ) : null}
         {fieldErr('images')}
 
         <L>Data i czas zgłoszenia</L>
@@ -437,7 +440,7 @@ export function NewReportScreen({ navigation, route }: any) {
         <CategoryRow c={{ id: 0, title: 'Pozostałe przypadki', short: 'Opisz sytuację w komentarzu.' }} on={form.category === 0} onPress={() => chooseCategory(0)} />
 
         <L>Komentarz{form.category === 0 ? ' (wymagany)' : ''}</L>
-        <TextInput style={[input, { minHeight: 80, textAlignVertical: 'top' }]} multiline value={form.comment} onChangeText={(t) => set('comment', t)} placeholder="Dodatkowy opis wykroczenia" />
+        <TextInput style={[input, { minHeight: 80, textAlignVertical: 'top' }]} multiline value={form.comment} onChangeText={(t) => set('comment', t)} onEndEditing={() => { const w = !form.witness && commentWarning(form.comment); if (w) toast.info(`${w} Sprawdź opcję „świadek momentu parkowania”.`); }} placeholder="Dodatkowy opis wykroczenia" />
         {fieldErr('comment')}
 
         {Object.keys(exts).length ? (

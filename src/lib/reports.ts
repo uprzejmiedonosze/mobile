@@ -114,3 +114,13 @@ export function termSegments(li: unknown): TermSegment[] {
   }
   return out;
 }
+
+// Miękka walidacja komentarza z webu (bindSoftCommentValidation): ostrzeżenie, gdy opis sugeruje, że trzeba zaznaczyć
+// „świadek momentu parkowania” (pisanie o kierowcy / „świadku” / „panu”). Brak ostrzeżenia = null.
+export function commentWarning(comment: string): string | null {
+  let msg: string | null = null;
+  if (/(?:^|[^A-Za-z0-9_])kier\w*/i.test(comment)) msg = 'Wspominasz kierowcę w komentarzu.';
+  if (/(?:^|[^A-Za-z0-9_])[sś]wiadk\w*/i.test(comment)) msg = 'Używasz słowa „świadek” w komentarzu.';
+  if (/(?:^|[^A-Za-z0-9_])pani?/i.test(comment)) msg = 'Używasz słowa „pan/i” w komentarzu.';
+  return msg;
+}

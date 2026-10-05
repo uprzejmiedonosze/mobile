@@ -36,6 +36,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
   const [phase, setPhase] = useState<Phase>('idle');
   const [uploading, setUploading] = useState<Slot[]>([]);
   const [note, setNote] = useState<string | null>(null);
+  const [failed, setFailed] = useState<Slot[]>([]); // sloty, których wysyłka się nie powiodła (retry = syncUploads)
 
   // refy = świeże wartości dla pętli wysyłki (działa poza cyklem renderowania)
   const photosRef = useRef(photos); photosRef.current = photos;
@@ -74,6 +75,11 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
             const carMeta = slot === 'car' ? { gps: p.exif.lat != null && p.exif.lng != null, date: !!(meta as { dateTime?: string | null }).dateTime } : undefined;
             applyApp(await uploadReportImage(draft.id, TYPE[slot], p.small.uri, meta, true), carMeta);
             uploaded.current[slot] = want;
+            setFailed((f) => f.filter((s) => s !== slot));
+          } catch (e) {
+            // błąd jednego slotu nie przerywa pozostałych (jak na webie: błąd przy konkretnym zdjęciu); ponowienie – retry()
+            setFailed((f) => (f.includes(slot) ? f : [...f, slot]));
+            onError(e);
           } finally {
             setUploading((u) => u.filter((s) => s !== slot));
           }
@@ -150,5 +156,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
     setPhotos((l) => l.filter((p) => p.id !== id));
   }, []);
 
-  return { photos, slots, phase, uploading, note, pick, assign, remove, busy: phase === 'preparing' || phase === 'analyzing' || uploading.length > 0 };
+  const retry = useCallback(() => { setFailed([]); void syncUploads(); }, [syncUploads]);
+
+  return { photos, slots, phase, uploading, note, failed, retry, pick, assign, remove, busy: phase === 'preparing' || phase === 'analyzing' || uploading.length > 0 };
 }
