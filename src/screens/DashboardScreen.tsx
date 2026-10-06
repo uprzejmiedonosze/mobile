@@ -15,8 +15,10 @@ const Eyebrow = ({ children }: { children: string }) => (
 );
 
 // Zużycie limitu unikalnych przetworzonych zdjęć (okno kroczące); patroni mają wyższe progi, 50 zł = bez limitu.
-function PhotoQuotaSection({ q }: { q: PhotoQuota }) {
+function PhotoQuotaSection({ q, onPatronite }: { q: PhotoQuota; onPatronite: () => void }) {
   const left = q.remaining;
+  // Zachęta do patronatu po przekroczeniu 50% limitu – tylko bez patronatu (patroni od 10 zł już mają wyższy próg).
+  const upsell = q.limit !== null && q.used > q.limit / 2 && (q.tier === 'free' || q.tier === 'patron-below-min');
   const resets = q.resetsAt ? new Date(q.resetsAt * 1000).toLocaleDateString('pl-PL') : null;
   return (
     <Section>
@@ -34,6 +36,13 @@ function PhotoQuotaSection({ q }: { q: PhotoQuota }) {
           ? 'Dziękujemy za wsparcie – Twoje zdjęcia nie są limitowane.'
           : `Zdjęcia w ostatnich ${q.windowDays} dniach. Powtórne wysłanie tego samego zdjęcia nie zużywa limitu.${left === 0 && resets ? ` Limit odnowi się ${resets}.` : ''}`}
       </Text>
+      {upsell ? (
+        <Pressable onPress={onPatronite} accessibilityRole="link" style={{ marginTop: 8 }}>
+          <Text style={{ color: ud.text, lineHeight: 21 }}>
+            Potrzebujesz więcej? <Text style={{ color: ud.primary, textDecorationLine: 'underline', fontFamily: ud.fontBodyBold }}>Zostań Patronem już od 10 zł</Text>
+          </Text>
+        </Pressable>
+      ) : null}
     </Section>
   );
 }
@@ -145,8 +154,6 @@ export function DashboardScreen({ navigation }: any) {
               </Section>
             ) : null}
 
-            {d.photoQuota ? <PhotoQuotaSection q={d.photoQuota} /> : null}
-
             <Section>
               <Eyebrow>Twoje statystyki</Eyebrow>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
@@ -176,6 +183,8 @@ export function DashboardScreen({ navigation }: any) {
                 </View>
               </Section>
             ) : null}
+
+            {d.photoQuota ? <PhotoQuotaSection q={d.photoQuota} onPatronite={() => openUdPage(navigation, '/patronite.html', 'Patronite')} /> : null}
 
             <Section>
               <Text accessibilityRole="header" style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 22, marginBottom: 6 }}>Nie chcesz „donosić”?</Text>

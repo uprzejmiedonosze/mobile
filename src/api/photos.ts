@@ -4,7 +4,7 @@
 import { File } from 'expo-file-system';
 import { log } from '../lib/log';
 import type { Detection } from '../lib/roles';
-import { apiJson, authFetch, UPLOAD_TIMEOUT_MS } from './udApi';
+import { apiJson, authFetch, UPLOAD_TIMEOUT_MS, type PhotoQuota } from './udApi';
 
 export type StagedPhoto = { photoId: string; width: number; height: number };
 
@@ -43,6 +43,11 @@ export async function analyzePhotoAlpr(photoId: string): Promise<Detection[]> {
   const res = await authFetch(`/api/rest/photos/${encodeURIComponent(photoId)}/alpr`, { method: 'POST' }, { timeoutMs: UPLOAD_TIMEOUT_MS });
   const j = await apiJson<{ detections?: Detection[] }>(res, 'Nie udało się odczytać tablicy ze zdjęcia');
   return j.detections ?? [];
+}
+
+// GET /api/rest/photos/quota – zużycie limitu unikalnych przetworzonych zdjęć (komunikaty na ekranie nowego zgłoszenia).
+export async function fetchPhotoQuota(): Promise<PhotoQuota> {
+  return apiJson(await authFetch('/api/rest/photos/quota'), 'Nie udało się pobrać limitu zdjęć');
 }
 
 // DELETE /api/rest/photos/{photoId} – best effort (nieprzydzielone zdjęcia i tak wygasają po 24 h).

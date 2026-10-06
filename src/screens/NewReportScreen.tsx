@@ -8,14 +8,17 @@ import { fetchRecydywa } from '../api/recydywa';
 import {
   createDraft, fetchReport, fetchVehicleDescription, saveReport, searchAddress, type ReportForm,
 } from '../api/reports';
-import { ApiError, validIdToken } from '../api/udApi';
+import { ApiError, isPhotoQuotaError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { log } from '../lib/log';
 import { appendAutoLine, commentWarning, dropMatchingExtension, exifToIso, fmtLongDate, isExtensionDisabled, plural } from '../lib/reports';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
 import { MapPreview } from '../components/MapPreview';
 import { CROP_TILE_ID, PhotosSection, type Tile } from '../components/PhotosSection';
+import { PhotoQuotaNotice } from '../components/PhotoQuotaNotice';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import { openUdPage } from '../lib/openPage';
+import { usePhotoQuota } from '../lib/usePhotoQuota';
 import { usePhotoBatch } from '../lib/usePhotoBatch';
 import { SLOT_ORDER } from '../lib/roles';
 import type { Slot, Suggestion } from '../lib/suggest';
@@ -136,13 +139,15 @@ export function NewReportScreen({ navigation, route }: any) {
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
   // Błąd pola (422 z `field`) – przy polu; wszystko inne (upload, sieć…) jako toast, bo formularz jest długi
   // i komunikat na jego dole nie jest widoczny.
+  const { quota, setQuota, refresh: refreshQuota } = usePhotoQuota();
   const fail = useCallback((e: any) => {
     const m = e?.message ?? String(e);
     log.error('nowe', m);
     const field = e instanceof ApiError ? e.field : undefined;
+    if (isPhotoQuotaError(e) && e.quota) setQuota(e.quota); // serwer odmówił – licznik z błędu, bez dodatkowego żądania
     if (field) setErr({ field, text: m });
     toast.error(m); // formularz jest długi – błąd pola mógłby zostać poza ekranem
-  }, []);
+  }, [setQuota]);
 
   useEffect(() => { hydrate(); }, [hydrate]);
   // Punkt startowy mapy jak na www: ostatnie zgłoszenie → adres zamieszkania → (brak) środek Polski. Odświeżane przy
@@ -150,6 +155,7 @@ export function NewReportScreen({ navigation, route }: any) {
   useFocusEffect(useCallback(() => {
     fetchProfile().then((p) => { setBylam(p.bylam); setMapStart(p.lastLocation); }).catch(() => {});
   }, []));
+  useFocusEffect(useCallback(() => { refreshQuota(); }, [refreshQuota])); // licznik limitu zdjęć przy każdym wejściu na ekran
   useEffect(() => {
     fetchCategories().then(setCats);
     fetchConfig<Groups>('category-groups').then(setGroups);
@@ -319,6 +325,7 @@ export function NewReportScreen({ navigation, route }: any) {
   }, []);
   const batch = usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError: fail, onCarExif: applyCarExif });
   const uploading = batch.busy;
+  useEffect(() => { if (batch.phase === 'ready') refreshQuota(); }, [batch.phase, refreshQuota]); // zdjęcia właśnie przetworzone → nowe zużycie
 
   // Bez lokalnych zdjęć (edycja / wznowiony szkic) pokazujemy te z serwera, role bez zmian.
   const SERVER: Record<Slot, 'contextImage' | 'carImage' | 'thirdImage'> = { context: 'contextImage', car: 'carImage', third: 'thirdImage' };
@@ -397,6 +404,7 @@ export function NewReportScreen({ navigation, route }: any) {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {editId ? <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>{`Edycja${app?.number ? ` ${app.number}` : ''}`}</Text> : null}
 
+        <PhotoQuotaNotice quota={quota} onPatronite={() => openUdPage(navigation, '/patronite.html', 'Patronite')} />
         <PhotosSection
           tiles={tiles}
           slots={tileSlots}
