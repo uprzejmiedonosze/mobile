@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { AppState, Text, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -14,6 +14,7 @@ import { ReportsScreen } from './src/screens/ReportsScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { WebPageScreen } from './src/screens/WebPageScreen';
+import { UpdateRequiredScreen } from './src/screens/UpdateRequiredScreen';
 
 import { PhotoPickerHost } from './src/components/PhotoPickerHost';
 import { ToastHost } from './src/components/ToastHost';
@@ -21,6 +22,8 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { UdLogo } from './src/components/UD';
 import { installGlobalLogHandlers, log } from './src/lib/log';
 import { useAuth } from './src/store/useAuth';
+import { useAppUpdate } from './src/store/useAppUpdate';
+import { toast } from './src/store/useToast';
 import { udConfig, udEnv } from './src/config';
 import { ud } from './src/theme';
 
@@ -38,6 +41,9 @@ export default function App() {
   const isRegistered = useAuth((s) => s.isRegistered);
   const isTermsConfirmed = useAuth((s) => s.isTermsConfirmed);
   const checkRegistration = useAuth((s) => s.checkRegistration);
+  const updateStatus = useAppUpdate((s) => s.status);
+  const checkUpdate = useAppUpdate((s) => s.check);
+  const softShown = useRef(false);
   const [ready, setReady] = useState(false);
   const [fontsLoaded] = useFonts({ BricolageGrotesque_700Bold, PublicSans_400Regular, PublicSans_700Bold });
 
@@ -45,8 +51,21 @@ export default function App() {
     installGlobalLogHandlers();
     log.info('app', `start (dev mode): logi z telefonu lecą też do terminala Metro; środowisko=${udEnv} (${udConfig.base})`);
     hydrate().finally(() => setReady(true));
+    // Bramka wersji: przy starcie i przy każdym powrocie do apki (throttling w store); błąd sieci nie blokuje.
+    checkUpdate(true);
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') checkUpdate();
+    });
+    return () => sub.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (updateStatus === 'soft' && !softShown.current) {
+      softShown.current = true;
+      toast.info('Dostępna jest nowa wersja aplikacji.');
+    }
+  }, [updateStatus]);
 
   const logged = status === 'logged' && !!idToken;
   const registered = registrationChecked && isRegistered && isTermsConfirmed;
@@ -60,8 +79,10 @@ export default function App() {
     <ErrorBoundary>
     <NavigationContainer>
       {/* zielony nagłówek (UdHeader) → jasne ikony; jasny ekran startowy → ciemne */}
-      <StatusBar style={!fontsLoaded || !ready || (logged && !registrationChecked) ? 'dark' : 'light'} />
-      {!fontsLoaded || !ready || (logged && !registrationChecked) ? (
+      <StatusBar style={updateStatus === 'required' || !fontsLoaded || !ready || (logged && !registrationChecked) ? 'dark' : 'light'} />
+      {updateStatus === 'required' && fontsLoaded ? (
+        <UpdateRequiredScreen />
+      ) : !fontsLoaded || !ready || (logged && !registrationChecked) ? (
         <View style={{ flex: 1, backgroundColor: ud.surfaceLow, alignItems: 'center', justifyContent: 'center' }}>
           <UdLogo height={32} />
           <Text style={{ color: ud.muted, marginTop: 8 }}>{ready ? 'sprawdzam konto…' : 'sprawdzam sesję…'}</Text>

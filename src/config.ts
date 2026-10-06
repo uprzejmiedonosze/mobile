@@ -69,3 +69,10 @@ export const firebaseConfig = {
 export const googleConfig = {
   webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || envBlock.googleWebClientId,
 } as const;
+
+// Sentry (crashe/błędy z buildów produkcyjnych). Pusty DSN = wyłączone (np. lokalny dev).
+// Osobny projekt Sentry niż backend; środowisko = udEnv, żeby staging nie mieszał się z prodem.
+export const sentryConfig = {
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
+  environment: udEnv,
+} as const;

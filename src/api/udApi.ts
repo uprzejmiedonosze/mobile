@@ -6,13 +6,16 @@ import { udConfig } from '../config';
 import { log, logFetch } from '../lib/log';
 import { refreshIdToken } from './firebaseAuth';
 import { useAuth } from '../store/useAuth';
+import { useAppUpdate } from '../store/useAppUpdate';
+import { clientHeaders } from '../lib/appVersion';
 
 export async function verifySession(idToken: string): Promise<{ email?: string; name?: string } | null> {
   try {
     const res = await logFetch('auth', `${udConfig.base}/api/verify-token`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${idToken}` },
+      headers: { Authorization: `Bearer ${idToken}`, ...clientHeaders() },
     });
+    if (res.status === 426) await handleUpgradeRequired(res);
     if (!res.ok) {
       log.warn('auth', `verify-token: HTTP ${res.status} (non-fatal)`);
       return null;
@@ -37,19 +40,60 @@ export async function validIdToken(): Promise<string> {
   return sess.idToken;
 }
 
-// fetch z Bearer + jeden retry po refreshu przy 401.
-export async function authFetch(path: string, init?: RequestInit): Promise<Response> {
+const DEFAULT_TIMEOUT_MS = 20_000;
+// Upload zdjęć i analiza wizyjna (ALPR + LLM po stronie serwera) trwają dłużej niż zwykłe wywołanie.
+export const UPLOAD_TIMEOUT_MS = 90_000;
+
+// 426 = serwer wymaga nowszej wersji aplikacji → ekran blokujący (useAppUpdate), niezależnie od wołającego.
+async function handleUpgradeRequired(res: Response): Promise<never> {
+  let body: any = null;
+  try { body = await res.clone().json(); } catch { /* nie-JSON */ }
+  useAppUpdate.getState().require({ storeUrl: body?.storeUrl, error: body?.error });
+  throw new ApiError(body?.error ? String(body.error) : 'Wymagana aktualizacja aplikacji.', 426);
+}
+
+// Jedno wywołanie z timeoutem (łączy się z init.signal wołającego) i czytelnymi błędami sieci.
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const ctrl = new AbortController();
+  const outer = init.signal;
+  const onOuterAbort = () => ctrl.abort();
+  if (outer) {
+    if (outer.aborted) ctrl.abort();
+    else outer.addEventListener('abort', onOuterAbort);
+  }
+  let timedOut = false;
+  const t = setTimeout(() => { timedOut = true; ctrl.abort(); }, timeoutMs);
+  try {
+    return await logFetch('api', url, { ...init, signal: ctrl.signal });
+  } catch (e: any) {
+    if (e?.name === 'AbortError') {
+      if (timedOut) throw new ApiError('Serwer nie odpowiada – spróbuj ponownie.', 0);
+      throw e; // anulowane przez wołającego
+    }
+    throw new ApiError('Brak połączenia z internetem.', 0);
+  } finally {
+    clearTimeout(t);
+    outer?.removeEventListener('abort', onOuterAbort);
+  }
+}
+
+// fetch z Bearer + nagłówek wersji klienta + timeout + jeden retry po refreshu przy 401.
+export async function authFetch(path: string, init?: RequestInit, opts?: { timeoutMs?: number }): Promise<Response> {
   const token = await validIdToken();
   const url = path.startsWith('http') ? path : `${udConfig.base}${path}`;
-  let res = await logFetch('api', url, { ...init, headers: { ...(init?.headers as any), Authorization: `Bearer ${token}` } });
+  const timeoutMs = opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const call = (bearer: string) =>
+    fetchWithTimeout(url, { ...init, headers: { ...(init?.headers as any), ...clientHeaders(), Authorization: `Bearer ${bearer}` } }, timeoutMs);
+  let res = await call(token);
   if (res.status === 401) {
     const s = useAuth.getState();
     if (!s.refreshToken) return res;
     log.info('auth', '401 – odświeżam i ponawiam raz');
     const sess = await refreshIdToken(s.refreshToken);
     useAuth.getState().applySession(sess);
-    res = await logFetch('api', url, { ...init, headers: { ...(init?.headers as any), Authorization: `Bearer ${sess.idToken}` } });
+    res = await call(sess.idToken);
   }
+  if (res.status === 426) await handleUpgradeRequired(res);
   return res;
 }
 

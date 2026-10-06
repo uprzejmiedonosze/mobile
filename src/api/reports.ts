@@ -4,7 +4,7 @@ import { File } from 'expo-file-system';
 import type { GeoAddress } from '../types';
 import { toGeoAddress } from './geo';
 import type { Recipient, UdApp } from './apps';
-import { apiJson, authFetch } from './udApi';
+import { apiJson, authFetch, UPLOAD_TIMEOUT_MS } from './udApi';
 
 export type PictureType = 'contextImage' | 'carImage' | 'thirdImage';
 
@@ -79,7 +79,7 @@ export async function assignReportPhoto(appId: string, type: PictureType, photoI
 export async function uploadPlateImage(appId: string, uri: string): Promise<UdApp> {
   const form = new FormData();
   form.append('image', new File(uri) as unknown as Blob); // expo/fetch (SDK 57) nie rozumie RN-owego {uri, name, type} w FormData – przyjmuje File
-  const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/plate-image`, { method: 'POST', body: form });
+  const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/plate-image`, { method: 'POST', body: form }, { timeoutMs: UPLOAD_TIMEOUT_MS });
   return apiJson(res, 'Nie udało się wysłać wycinka tablicy');
 }
 

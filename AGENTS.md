@@ -26,6 +26,13 @@ screen with `editId`. API contract: `../uprzejmiedonosze/API.md`.
 > `src/api/vision.ts`, `useSession`, the Picker/Grouping/Analyze/Pairing/Proposals screens) but is **not
 > reachable from navigation** — do not delete it.
 
+## Non-functional requirements
+
+`docs/NFR.md` — wymagania niefunkcjonalne i status. Najważniejsze: każde żądanie REST niesie `X-UD-Client`
+(`src/lib/appVersion.ts`), serwer może wymusić aktualizację kodem 426 (`useAppUpdate` + `UpdateRequiredScreen`,
+konfiguracja `../uprzejmiedonosze/src/api/config/app.json`), `authFetch` ma timeouty, w release nie logujemy
+treści odpowiedzi, crashe idą do Sentry (`EXPO_PUBLIC_SENTRY_DSN`).
+
 ## Commands
 
 ```bash

@@ -1,4 +1,4 @@
-import { authFetch } from './udApi';
+import { authFetch, UPLOAD_TIMEOUT_MS } from './udApi';
 import { log } from '../lib/log';
 import type { VisionPhoto } from '../lib/vision';
 
@@ -22,7 +22,7 @@ export async function analyzeCandidate(reportId: string, items: VisionItem[], si
       reportId,
       photos: items.map((i) => ({ photoId: i.photoId, photo_index: i.photo_index, ...(i.b64 ? { image: `data:image/jpeg;base64,${i.b64}` } : {}) })),
     }),
-  });
+  }, { timeoutMs: UPLOAD_TIMEOUT_MS });
 
   if (!res.ok) {
     const detail = await res.text().catch(() => '');

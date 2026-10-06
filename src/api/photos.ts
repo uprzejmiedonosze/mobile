@@ -4,7 +4,7 @@
 import { File } from 'expo-file-system';
 import { log } from '../lib/log';
 import type { Detection } from '../lib/roles';
-import { apiJson, authFetch } from './udApi';
+import { apiJson, authFetch, UPLOAD_TIMEOUT_MS } from './udApi';
 
 export type StagedPhoto = { photoId: string; width: number; height: number };
 
@@ -25,7 +25,7 @@ export async function stagePhoto(uri: string, meta: { dateTime?: string | null; 
         form.append('region', JSON.stringify(derived.region));
         if (derived.plate) form.append('plate', derived.plate);
       }
-      const res = await authFetch('/api/rest/photos/', { method: 'POST', body: form });
+      const res = await authFetch('/api/rest/photos/', { method: 'POST', body: form }, { timeoutMs: UPLOAD_TIMEOUT_MS });
       return await apiJson<StagedPhoto>(res, 'Nie udało się wysłać zdjęcia');
     } catch (e: any) {
       last = e;
@@ -40,7 +40,7 @@ export async function stagePhoto(uri: string, meta: { dateTime?: string | null; 
 // POST /api/rest/photos/{photoId}/alpr – WSZYSTKIE odczyty ALPR zdjęcia (tablica, pewność, pole pojazdu, `winner` = kandydat na
 // pojazd wg serwera). Liczone raz na zdjęcie; z nich `chooseRoles()` (lib/roles.ts) wybiera auto i kontekst. Bez LLM.
 export async function analyzePhotoAlpr(photoId: string): Promise<Detection[]> {
-  const res = await authFetch(`/api/rest/photos/${encodeURIComponent(photoId)}/alpr`, { method: 'POST' });
+  const res = await authFetch(`/api/rest/photos/${encodeURIComponent(photoId)}/alpr`, { method: 'POST' }, { timeoutMs: UPLOAD_TIMEOUT_MS });
   const j = await apiJson<{ detections?: Detection[] }>(res, 'Nie udało się odczytać tablicy ze zdjęcia');
   return j.detections ?? [];
 }
