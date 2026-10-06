@@ -5,16 +5,16 @@ Status: ✅ zrobione · 🟡 częściowo · ⬜ backlog. Każde wymaganie ma spo
 ## Kompatybilność i wersjonowanie
 | Wymaganie | Status | Weryfikacja |
 |---|---|---|
-| Klient wysyła `X-UD-Client: pro/<wersja> (<build>; <platforma>)` w każdym żądaniu REST (`src/lib/appVersion.ts`, `authFetch`) | ✅ | curl z nagłówkiem na staging |
-| Serwer odrzuca wersję < `minVersion` kodem **426** (`../uprzejmiedonosze/src/api/rest/index.php`, `src/api/config/app.json`) | ✅ | `X-UD-Client: pro/0.0.1 (1; android)` → 426; bez nagłówka → 200 |
-| Aplikacja pokazuje blokujący ekran „Zaktualizuj” (`UpdateRequiredScreen`), także niezalogowanym | ✅ | podbić `minVersion` na stagingu, uruchomić apkę |
-| Sprawdzenie wersji przy starcie i powrocie do apki; **fail-open** przy braku sieci (`useAppUpdate`) | ✅ | tryb samolotowy → apka startuje |
-| Miękka zachęta, gdy `latestVersion` > bieżąca | ✅ | toast przy starcie |
+| Klient wysyła `X-UD-Schema: <SCHEMA>` (wersja kontraktu API = `SCHEMA` w `src/lib/vision.ts` = `VISION_SCHEMA` backendu) oraz informacyjnie `X-UD-Client: pro/<wersja> (<build>; <platforma>)` w każdym żądaniu REST (`src/lib/appVersion.ts`, `authFetch`) | ✅ | curl z nagłówkami na staging |
+| Kompatybilność tylko „w dół”: serwer odrzuca (**426**) klienta o schemacie **niższym** niż `VISION_SCHEMA` backendu; nowsza appka ze starszym backendem działa (`../uprzejmiedonosze/src/api/rest/index.php`) | ✅ | `X-UD-Schema: 7` przy backendzie 8 → 426; schemat 8 → 200; bez nagłówka → 200 |
+| Aplikacja pokazuje blokujący ekran „Zaktualizuj” (`UpdateRequiredScreen`), także niezalogowanym | ✅ | `EXPO_PUBLIC_FAKE_SCHEMA=7` + `expo start -c` (backend ma schemat 8) |
+| Decyduje backend: appka nie porównuje wersji lokalnie, tylko reaguje na 426 (pierwsze żądanie po starcie to `verify-token`); **fail-open** przy braku sieci (`useAppUpdate`) | ✅ | tryb samolotowy → apka startuje |
+| Miękka zachęta, gdy `latestVersion` (wersja appki) > bieżąca | ✅ | toast przy starcie |
 
 **Środowiska buildów (`eas.json`):** `eas build -p android --profile staging|shadow|production` (shadow = prod Firebase + host
 `shadow.uprzejmiedonosze.net`). Profile ustawiają `EXPO_PUBLIC_*`; `.env` to tylko domyślne wartości lokalnego dev.
 
-**Polityka:** zmiana łamiąca API = nowy build w sklepach → wdrożenie backendu → dopiero podbicie `minVersion`.
+**Polityka:** zmiana łamiąca kontrakt API = podbicie `SCHEMA` w appce → nowy build w sklepach → dopiero wdrożenie backendu z podbitym `VISION_SCHEMA` (od tej chwili starsze appki są blokowane).
 Każdy build do sklepu podbija `expo.version` w `app.json` (build number rośnie sam, `autoIncrement`). Aktualizacje tylko przez sklep (bez OTA).
 
 ## Niezawodność sieci

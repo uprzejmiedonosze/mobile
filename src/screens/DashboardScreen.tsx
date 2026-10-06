@@ -6,6 +6,7 @@ import { log } from '../lib/log';
 import { openUdPage } from '../lib/openPage';
 import { plural } from '../lib/reports';
 import type { PhotoQuota } from '../api/udApi';
+import { ErrorScreen } from '../components/ErrorScreen';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import { ud } from '../theme';
 
@@ -76,7 +77,7 @@ function SupportCard({ title, text, url, external, onOpen }: { title: string; te
 export function DashboardScreen({ navigation }: any) {
   const go = (r: string, params?: object) => navigation.navigate(r, params);
   const [d, setD] = useState<Dashboard | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [err, setErr] = useState<unknown>(null); // błąd ładowania pulpitu (ApiError/Error) → ErrorScreen
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -84,9 +85,8 @@ export function DashboardScreen({ navigation }: any) {
     try {
       setD(await fetchDashboard());
     } catch (e: any) {
-      const m = e?.message ?? String(e);
-      setErr(m);
-      log.error('pulpit', m);
+      setErr(e);
+      log.error('pulpit', e?.message ?? String(e));
     } finally {
       setRefreshing(false);
     }
@@ -103,12 +103,22 @@ export function DashboardScreen({ navigation }: any) {
   // Karta liczy się jak link tylko gdy jest co otworzyć (jak {% if fined > 0 %} w app.html.twig).
   const list = (filter: string) => (): void => go('Reports', { filter });
 
+  // Pulpit to najważniejszy endpoint – gdy się nie wczyta (np. 500), pokazujemy pełny ekran błędu z linkiem do kontaktu.
+  if (err && !d) {
+    return (
+      <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
+        <UdHeader />
+        <ErrorScreen error={err} onRetry={load} onContact={() => openUdPage(navigation, '/kontakt.html', 'Kontakt')} />
+        <UdTabs current="Dashboard" navigate={(r) => go(r)} />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       <UdHeader />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={ud.primary} />}>
         {!d && !err ? <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} /> : null}
-        {err ? <Text style={{ color: 'red' }}>{err}</Text> : null}
         {d ? (
           <>
             <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 26 }}>Cześć{d.name ? ` ${d.name}` : ''},</Text>

@@ -28,9 +28,9 @@ screen with `editId`. API contract: `../uprzejmiedonosze/API.md`.
 
 ## Non-functional requirements
 
-`docs/NFR.md` — wymagania niefunkcjonalne i status. Najważniejsze: każde żądanie REST niesie `X-UD-Client`
-(`src/lib/appVersion.ts`), serwer może wymusić aktualizację kodem 426 (`useAppUpdate` + `UpdateRequiredScreen`,
-konfiguracja `../uprzejmiedonosze/src/api/config/app.json`), `authFetch` ma timeouty, w release nie logujemy
+`docs/NFR.md` — wymagania niefunkcjonalne i status. Najważniejsze: każde żądanie REST niesie `X-UD-Schema` (wersja kontraktu API = `SCHEMA`)
+i `X-UD-Client` (`src/lib/appVersion.ts`), serwer wymusza aktualizację kodem 426, gdy schemat appki < `VISION_SCHEMA` backendu (tylko „w dół”; `useAppUpdate` +
+`UpdateRequiredScreen`; decyduje backend, appka tylko reaguje na 426), `authFetch` ma timeouty, w release nie logujemy
 treści odpowiedzi, crashe idą do Sentry (`EXPO_PUBLIC_SENTRY_DSN`).
 
 ## Commands

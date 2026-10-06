@@ -4,13 +4,13 @@ import { log } from '../lib/log';
 import { appVersion, platform } from '../lib/appVersion';
 import { compareVersions } from '../lib/compareVersions';
 
-// Bramka wersji: 'required' = serwer wymaga nowszej aplikacji (ekran blokujący), 'soft' = jest nowsza, ale
-// stara jeszcze działa. Źródła: (1) publiczny /api/config/app.json przy starcie i powrocie do apki,
-// (2) odpowiedź 426 z dowolnego /api/rest/* (API zmieniło się w trakcie sesji).
-// Brak sieci / błąd pobierania NIE blokuje apki (fail-open).
+// Wymuszenie aktualizacji decyduje BACKEND: appka wysyła `X-UD-Schema` (wersja kontraktu API, lib/appVersion.ts), a serwer odpowiada
+// 426, gdy jest ona niższa niż jego (kompatybilność tylko „w dół”). 'required' ustawia więc wyłącznie `require()` po 426 z
+// dowolnego żądania (authFetch / verifySession – pierwsze żądanie po starcie). `check()` obsługuje tylko miękką zachętę ('soft'):
+// publiczny /api/config/app.json → `latestVersion` (wersja appki) > bieżąca. Brak sieci / błąd pobierania NIE blokuje apki (fail-open).
 type Status = 'ok' | 'soft' | 'required';
 
-type PlatformCfg = { minVersion?: string; latestVersion?: string; storeUrl?: string };
+type PlatformCfg = { latestVersion?: string; storeUrl?: string };
 
 type State = {
   status: Status;
@@ -31,7 +31,7 @@ export const useAppUpdate = create<State>((set, get) => ({
   lastCheck: 0,
 
   require: (info) =>
-    set((s) => ({ status: 'required', storeUrl: info?.storeUrl || s.storeUrl, message: s.message || DEFAULT_MESSAGE })),
+    set((s) => ({ status: 'required', storeUrl: info?.storeUrl || s.storeUrl, message: info?.error || s.message || DEFAULT_MESSAGE })),
 
   check: async (force = false) => {
     const s = get();
@@ -41,15 +41,14 @@ export const useAppUpdate = create<State>((set, get) => ({
     const t = setTimeout(() => ctrl.abort(), 5000);
     try {
       const res = await fetch(`${udConfig.base}/api/config/app.json`, { signal: ctrl.signal });
-      if (!res.ok) return;
+      if (!res.ok) { log.warn('update', `app.json: HTTP ${res.status} – bramka wersji pominięta`); return; }
       const j = (await res.json()) as Record<string, any>;
       const cfg: PlatformCfg = j?.[platform] ?? {};
       const message = typeof j?.message === 'string' && j.message ? j.message : DEFAULT_MESSAGE;
       const storeUrl = cfg.storeUrl ?? '';
-      if (cfg.minVersion && compareVersions(appVersion, cfg.minVersion) < 0) {
-        log.warn('update', `wymagana aktualizacja: ${appVersion} < ${cfg.minVersion}`);
-        set({ status: 'required', storeUrl, message });
-      } else if (cfg.latestVersion && compareVersions(appVersion, cfg.latestVersion) < 0) {
+      log.info('update', `wersja appki ${appVersion} (${platform}), latest ${cfg.latestVersion ?? '—'}`);
+      if (get().status === 'required') return; // blokada z 426 ma pierwszeństwo
+      if (cfg.latestVersion && compareVersions(appVersion, cfg.latestVersion) < 0) {
         set({ status: 'soft', storeUrl, message });
       } else {
         set({ status: 'ok', storeUrl, message });

@@ -7,6 +7,8 @@ import { validIdToken } from '../api/udApi';
 import { log } from '../lib/log';
 import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plural, reportBody, shortAddress, statusColor, witnessText } from '../lib/reports';
 import { ImageViewer } from '../components/ImageViewer';
+import { ErrorScreen } from '../components/ErrorScreen';
+import { openUdPage } from '../lib/openPage';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import type { Category, RecydywaInfo } from '../types';
 import { ud } from '../theme';
@@ -229,7 +231,7 @@ export function ReportsScreen({ navigation, route }: any) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [more, setMore] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
+  const [err, setErr] = useState<unknown>(null); // błąd ładowania listy (ApiError/Error)
   const reqId = useRef(0); // ignoruje spóźnione odpowiedzi po zmianie filtra/frazy
 
   const chips = useMemo(() => filterChips(statuses, counts), [statuses, counts]);
@@ -259,20 +261,19 @@ export function ReportsScreen({ navigation, route }: any) {
 
   const load = useCallback(async (reset: boolean) => {
     const id = ++reqId.current;
-    setErr(null);
     if (reset) refreshCounts();
     try {
       const offset = reset ? 0 : apps.length;
       // bez aktywnego chipa = „active” (jak domyślna lista na www: bez archiwum; archiwum po wybraniu chipa)
       const page = await fetchApps({ status: filter === 'all' ? 'active' : filter, search: query, offset });
       if (id !== reqId.current) return;
+      setErr(null); // błąd znika dopiero po udanym wczytaniu (odpytywanie co 5 s nie miga ekranem błędu)
       setApps((prev) => (reset ? page : [...prev, ...page]));
       setMore(page.length === PAGE_SIZE);
     } catch (e: any) {
       if (id !== reqId.current) return;
-      const m = e?.message ?? String(e);
-      setErr(m);
-      log.error('zgloszenia', m);
+      setErr(e);
+      log.error('zgloszenia', e?.message ?? String(e));
     } finally {
       if (id === reqId.current) { setLoading(false); setRefreshing(false); }
     }
@@ -348,6 +349,17 @@ export function ReportsScreen({ navigation, route }: any) {
     }
   };
 
+  // Lista się nie wczytała (np. 500) i nie ma czego pokazać → pełny ekran błędu z linkiem do kontaktu.
+  if (err && !apps.length && !loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
+        <UdHeader />
+        <ErrorScreen error={err} onRetry={() => load(true)} onContact={() => openUdPage(navigation, '/kontakt.html', 'Kontakt')} />
+        <UdTabs current="Reports" navigate={go} />
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       <UdHeader />
@@ -378,7 +390,6 @@ export function ReportsScreen({ navigation, route }: any) {
         </ScrollView>
       </View>
       )}
-      {err ? <Text style={{ color: 'red', paddingHorizontal: 16, paddingBottom: 6 }}>{err}</Text> : null}
       {loading && !apps.length ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} />
       ) : (

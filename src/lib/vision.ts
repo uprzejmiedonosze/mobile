@@ -5,7 +5,7 @@
 // VisionPhoto jako lustro kontraktu odpowiedzi POST /api/rest/vision/candidate.
 // Każda zmiana promptu/markerów w Vision.php MUSI podbić SCHEMA tu i VISION_SCHEMA tam.
 
-export const SCHEMA = 8; // = VISION_SCHEMA w backendzie; appka gejtuje na tym cache analizy
+export const SCHEMA = 8; // = VISION_SCHEMA w backendzie; wersja kontraktu API (X-UD-Schema, bramka 426 w dół) i klucz cache analizy
 
 export const ROLES = ['context', 'car', 'third', 'unusable'] as const;
 export type Role = (typeof ROLES)[number];
