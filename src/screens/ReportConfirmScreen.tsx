@@ -70,7 +70,7 @@ export function ReportConfirmScreen({ navigation, route }: any) {
   if (!app || !c) {
     return (
       <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-        <UdHeader onBack={() => navigation.goBack()} backLabel="popraw" />
+        <UdHeader onBack={() => navigation.goBack()} backIcon="edit" />
         <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} />
       </View>
     );
@@ -88,7 +88,7 @@ export function ReportConfirmScreen({ navigation, route }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader onBack={() => navigation.goBack()} backLabel="popraw" />
+      <UdHeader onBack={() => navigation.goBack()} backIcon="edit" />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
         <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 26 }}>{rcpt.automated ? 'Sprawdź przed wysłaniem' : 'Sprawdź zgłoszenie'}</Text>
         <Text style={{ color: ud.text, marginTop: 6, lineHeight: 21 }}>

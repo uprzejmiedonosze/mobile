@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
 import { TAB_ICONS } from '../assets/tabIcons';
 import { UD_LOGO_ASPECT, UD_LOGO_COLOR, UD_LOGO_SVG } from '../assets/udLogoSvg';
+import { useAuth } from '../store/useAuth';
 import { ud } from '../theme';
 import type { BBox } from '../types';
 
@@ -14,31 +15,40 @@ export function UdLogo({ height = 24, color }: { height?: number; color?: string
   return <SvgXml xml={xml} height={height} width={height * UD_LOGO_ASPECT} />;
 }
 
+// Ikony nagłówka (stroke Feather, białe): strzałka „wstecz” i ołówek „popraw”.
+const BACK_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>';
+const EDIT_ICON = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+
 // Nagłówek (odwrócony względem webu): zielone tło, białe logo UD, ← wróć | żółty Dalej.
 // paddingTop zawiera inset statusbara (zegar/bateria/kamera) – ten obszar jest
 // zarezerwowany przez system i nie wolno tam kłaść nawigacji.
-export function UdHeader({ title, onBack, onNext, nextLabel = 'Dalej', backLabel = 'wróć' }: { title?: string; onBack?: () => void; onNext?: () => void; nextLabel?: string; backLabel?: string }) {
+export function UdHeader({ title, onBack, onNext, nextLabel = 'Dalej', backIcon = 'arrow' }: { title?: string; onBack?: () => void; onNext?: () => void; nextLabel?: string; backIcon?: 'arrow' | 'edit' }) {
   const insets = useSafeAreaInsets();
+  const isPatron = useAuth((a) => a.isPatron);
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: insets.top + 12, paddingBottom: 12, backgroundColor: ud.primary }}>
       {onBack ? (
         <Pressable onPress={onBack} hitSlop={12} style={{ minWidth: 70 }}>
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>← {backLabel}</Text>
+          <SvgXml xml={backIcon === 'edit' ? EDIT_ICON : BACK_ICON} width={24} height={24} />
         </Pressable>
       ) : (
-        <View style={{ minWidth: 70 }} />
+        <View style={{ minWidth: onNext ? 70 : 0 }} />
       )}
       {title ? (
         <Text style={{ color: '#fff', fontFamily: ud.fontDisplay, fontSize: 26, letterSpacing: 1 }}>{title}</Text>
       ) : (
-        <View style={{ transform: [{ translateY: -3 }] }}><UdLogo height={24} color="#ffffff" /></View> /* optycznie wyżej o 3 px */
+        // Patron: logo + żółte „PRO” (logo bez zmian; puste boki bez minWidth, żeby całość się zmieściła); translateY -3 = optycznie wyżej
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, transform: [{ translateY: -3 }] }}>
+          <UdLogo height={24} color="#ffffff" />
+          {isPatron ? <Text style={{ color: ud.accent, fontFamily: ud.fontDisplay, fontSize: 17, lineHeight: 22, letterSpacing: 0.5, transform: [{ translateY: 2 }] }}>PRO</Text> : null}
+        </View>
       )}
       {onNext ? (
         <Pressable onPress={onNext} style={{ backgroundColor: ud.accent, borderRadius: ud.radiusPill, paddingHorizontal: 20, paddingVertical: 10 }}>
           <Text style={{ color: ud.onAccent, fontFamily: ud.fontDisplay, fontSize: 15 }}>{nextLabel}</Text>
         </Pressable>
       ) : (
-        <View style={{ minWidth: 70 }} />
+        <View style={{ minWidth: onBack ? 70 : 0 }} />
       )}
     </View>
   );

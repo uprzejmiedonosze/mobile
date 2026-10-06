@@ -50,6 +50,7 @@ type Auth = {
   registrationChecked: boolean;
   isRegistered: boolean;
   isTermsConfirmed: boolean;
+  isPatron: boolean; // odznaka 'patron' ze stats z GET /api/rest/user/ (logo „PRO” w nagłówku)
   setEmail: (e: string) => void;
   requestLink: () => Promise<void>;
   verifyCode: (code: string) => Promise<void>;
@@ -71,6 +72,7 @@ export const useAuth = create<Auth>((set, get) => ({
   registrationChecked: false,
   isRegistered: false,
   isTermsConfirmed: false,
+  isPatron: false,
   setEmail: (email) => set({ email }),
   requestLink: async () => {
     const { email } = get();
@@ -145,7 +147,7 @@ export const useAuth = create<Auth>((set, get) => ({
         return;
       }
       const j = (await res.json()) as any;
-      set({ registrationChecked: true, isRegistered: !!j.isRegistered, isTermsConfirmed: !!j.isTermsConfirmed });
+      set({ registrationChecked: true, isRegistered: !!j.isRegistered, isTermsConfirmed: !!j.isTermsConfirmed, isPatron: !!j.stats?.badges?.includes('patron') });
     } catch (e: any) {
       log.warn('auth', `checkRegistration: ${String(e?.message ?? e).slice(0, 150)}`);
       set({ registrationChecked: true, isRegistered: false, isTermsConfirmed: false });
@@ -178,7 +180,7 @@ export const useAuth = create<Auth>((set, get) => ({
         // non-fatal
       }
     }
-    set({ status: 'idle', idToken: '', refreshToken: '', expiresAt: 0, name: '', error: null, registrationChecked: false, isRegistered: false, isTermsConfirmed: false });
+    set({ status: 'idle', idToken: '', refreshToken: '', expiresAt: 0, name: '', error: null, registrationChecked: false, isRegistered: false, isTermsConfirmed: false, isPatron: false });
     log.info('auth', 'wylogowano');
   },
 }));
