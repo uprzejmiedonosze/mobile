@@ -13,6 +13,12 @@ export type VisionItem = {
 
 export class VisionQuotaError extends Error {}
 
+// 402 = limit przetworzonych zdjęć: serwer podaje gotowy komunikat ({error}).
+async function quotaMessage(_res: Response, detail: string): Promise<string> {
+  try { const m = JSON.parse(detail)?.error; if (m) return String(m); } catch { /* nie-JSON */ }
+  return 'Limit przetworzonych zdjęć wyczerpany.';
+}
+
 export async function analyzeCandidate(reportId: string, items: VisionItem[], signal?: AbortSignal): Promise<VisionPhoto[]> {
   const res = await authFetch('/api/rest/vision/candidate', {
     method: 'POST',
@@ -26,6 +32,7 @@ export async function analyzeCandidate(reportId: string, items: VisionItem[], si
 
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
+    if (res.status === 402) throw new VisionQuotaError(await quotaMessage(res, detail));
     if (res.status === 429) throw new VisionQuotaError('Limit analiz wizyjnych wyczerpany – spróbuj za chwilę.');
     throw new Error(`analiza wizyjna: HTTP ${res.status}: ${detail.slice(0, 300)}`);
   }

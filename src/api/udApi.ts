@@ -100,10 +100,17 @@ export async function authFetch(path: string, init?: RequestInit, opts?: { timeo
 // Błąd odpowiedzi API UD: backend zwraca {error, status, field?} (JsonErrorRenderer; `field` przy 422 –
 // nazwa pola formularza, którego dotyczy walidacja serwerowa).
 export class ApiError extends Error {
-  constructor(message: string, public status: number, public field?: string) {
+  constructor(message: string, public status: number, public field?: string, public quota?: PhotoQuota) {
     super(message);
   }
 }
+
+// Limit unikalnych przetworzonych zdjęć (backend: store/PhotoQuota.php) – w odpowiedzi pulpitu i w błędzie 402 (`quota`).
+// `limit`/`remaining` = null → bez limitu (patron 50 zł); okno kroczące `windowDays` dni, `resetsAt` = unix ts zwolnienia najstarszego miejsca.
+export type PhotoQuota = { used: number; limit: number | null; remaining: number | null; windowDays: number; resetsAt: number | null; tier: string };
+
+// 402 = limit zdjęć wyczerpany (komunikat serwera zawiera datę i link do Patronite).
+export const isPhotoQuotaError = (e: unknown): e is ApiError => e instanceof ApiError && e.status === 402;
 
 // res.json() albo ApiError z komunikatem serwera (zamiast ogólnego „HTTP 422”).
 export async function apiJson<T>(res: Response, fallback: string): Promise<T> {
@@ -114,5 +121,5 @@ export async function apiJson<T>(res: Response, fallback: string): Promise<T> {
   } catch {
     /* nie-JSON (np. HTML z proxy) */
   }
-  throw new ApiError(body?.error ? String(body.error) : `${fallback} (HTTP ${res.status}).`, res.status, body?.field);
+  throw new ApiError(body?.error ? String(body.error) : `${fallback} (HTTP ${res.status}).`, res.status, body?.field, body?.quota);
 }

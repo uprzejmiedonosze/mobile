@@ -7,6 +7,7 @@ import type { UdApp } from '../api/apps';
 import { assignReportPhoto, deleteReportImage, uploadPlateImage, type PictureType } from '../api/reports';
 import { bboxToRegion, cropRegion, prepareOriginal, type Original } from './crop';
 import { analyzePhotoAlpr, deleteStagedPhoto, stagePhoto } from '../api/photos';
+import { isPhotoQuotaError } from '../api/udApi';
 import { pickPhotos } from './gallery';
 import { log } from './log';
 import { downscale, type Scaled } from './resize';
@@ -231,6 +232,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
         try {
           detections = await analyzePhotoAlpr(s.photoId);
         } catch (e: any) {
+          if (isPhotoQuotaError(e)) throw e; // limit zdjęć – nie udajemy „nie udało się odczytać tablicy”, tylko pokazujemy komunikat
           alprFailed = true;
           log.warn('alpr', `zdjęcie ${p.id}: ${String(e?.message ?? e).slice(0, 160)}`);
         }

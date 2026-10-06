@@ -5,12 +5,37 @@ import { udConfig } from '../config';
 import { log } from '../lib/log';
 import { openUdPage } from '../lib/openPage';
 import { plural } from '../lib/reports';
+import type { PhotoQuota } from '../api/udApi';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import { ud } from '../theme';
 
 const Eyebrow = ({ children }: { children: string }) => (
   <Text style={{ fontFamily: ud.fontBodyBold, color: ud.muted, fontSize: 12, letterSpacing: 1, marginBottom: 10 }}>{children.toUpperCase()}</Text>
 );
+
+// Zużycie limitu unikalnych przetworzonych zdjęć (okno kroczące); patroni mają wyższe progi, 50 zł = bez limitu.
+function PhotoQuotaSection({ q }: { q: PhotoQuota }) {
+  const left = q.remaining;
+  const resets = q.resetsAt ? new Date(q.resetsAt * 1000).toLocaleDateString('pl-PL') : null;
+  return (
+    <Section>
+      <Eyebrow>Przetworzone zdjęcia</Eyebrow>
+      <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 30, marginTop: 2 }}>
+        {q.limit === null ? `${fmtInt(q.used)} · bez limitu` : `${fmtInt(q.used)} / ${fmtInt(q.limit)}`}
+      </Text>
+      {q.limit !== null ? (
+        <View style={{ height: 10, borderRadius: 5, backgroundColor: ud.primaryOutline, marginTop: 12, overflow: 'hidden' }}>
+          <View style={{ width: `${Math.min(100, (q.used / q.limit) * 100)}%`, height: 10, backgroundColor: left === 0 ? ud.warning : ud.primary }} />
+        </View>
+      ) : null}
+      <Text style={{ color: ud.text, marginTop: 12, lineHeight: 21 }}>
+        {q.limit === null
+          ? 'Dziękujemy za wsparcie – Twoje zdjęcia nie są limitowane.'
+          : `Zdjęcia w ostatnich ${q.windowDays} dniach. Powtórne wysłanie tego samego zdjęcia nie zużywa limitu.${left === 0 && resets ? ` Limit odnowi się ${resets}.` : ''}`}
+      </Text>
+    </Section>
+  );
+}
 
 const Section = ({ children }: React.PropsWithChildren) => <View style={{ marginTop: 22 }}>{children}</View>;
 
@@ -109,6 +134,8 @@ export function DashboardScreen({ navigation }: any) {
                 </Text>
               </Section>
             ) : null}
+
+            {d.photoQuota ? <PhotoQuotaSection q={d.photoQuota} /> : null}
 
             <Section>
               <Eyebrow>Twoje statystyki</Eyebrow>

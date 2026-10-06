@@ -2,7 +2,7 @@
 // tekst powitalny) – składa backend: GET /api/rest/user/dashboard (dashboardData() w src/inc/API.php).
 import { udConfig } from '../config';
 import { log, logFetch } from '../lib/log';
-import { apiJson, authFetch } from './udApi';
+import { apiJson, authFetch, type PhotoQuota } from './udApi';
 
 export type UserStats = {
   level?: number | string;
@@ -24,6 +24,7 @@ export type Dashboard = {
   levels: DashLevel[];
   rank: DashRank;
   badges: DashBadge[];
+  photoQuota?: PhotoQuota; // brak u starszego backendu
 };
 
 // Publiczny słownik z /api/rest/config/{name} (extensions, category-groups, …); {} przy błędzie.
