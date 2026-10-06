@@ -4,7 +4,10 @@ import { Platform } from 'react-native';
 import * as Application from 'expo-application';
 export { compareVersions } from './compareVersions';
 
-export const appVersion = Application.nativeApplicationVersion ?? '0.0.0';
+// EXPO_PUBLIC_FAKE_APP_VERSION=0.9.0 (+ `expo start -c`) udaje starą aplikację: bramka wersji (useAppUpdate) i nagłówek
+// X-UD-Client dostają tę wersję – do ręcznego sprawdzenia ekranu „Zaktualizuj”. Tylko w trybie deweloperskim.
+const fakeVersion = __DEV__ ? process.env.EXPO_PUBLIC_FAKE_APP_VERSION : undefined;
+export const appVersion = fakeVersion || (Application.nativeApplicationVersion ?? '0.0.0');
 export const appBuild = Application.nativeBuildVersion ?? '0';
 export const platform: 'ios' | 'android' = Platform.OS === 'ios' ? 'ios' : 'android';
 
