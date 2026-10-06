@@ -355,7 +355,6 @@ export function NewReportScreen({ navigation, route }: any) {
   };
 
   useEffect(() => { setPlateTouched(false); }, [app?.carInfo?.plateImage]);
-  const plateImg = batch.plateCropUri && !plateTouched ? batch.plateCropUri : app?.carInfo?.plateImage && app?.carImage?.thumb && !plateTouched ? `${imageUrl({ thumb: app.carInfo.plateImage }, app)}&r=${rev}` : null;
 
   const selectedCat = cats.find((c) => c.id === form.category);
   const forcePolice = !!selectedCat?.stopAgresjiOnly;
@@ -408,7 +407,7 @@ export function NewReportScreen({ navigation, route }: any) {
           crop={single}
           cropPreview={batch.cropPreview}
           pending={batch.reanalyzing}
-          plateUri={batch.plateCropUri ?? plateThumb}
+          plateUri={plateTouched ? null : (batch.plateCropUri ?? plateThumb)} /* jak na webie: wycinek znika po ręcznej zmianie numeru */
           carBox={app?.carInfo?.vehicleBox ?? null}
           carNatural={app?.carImage?.width && app?.carImage?.height ? { w: app.carImage.width, h: app.carImage.height } : null}
           onPick={batch.pick}
@@ -435,12 +434,6 @@ export function NewReportScreen({ navigation, route }: any) {
 
         <L>Numer rejestracyjny</L>
         <TextInput style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }]} value={form.plateId} autoCapitalize="characters" autoCorrect={false} placeholder="np. ZS 060NH" onChangeText={(t) => { edited.current.plate = true; setPlateTouched(true); set('plateId', t); }} />
-        {plateImg ? (
-          <View style={{ marginTop: 8 }}>
-            <Image source={{ uri: plateImg }} style={{ height: 56, width: 220, backgroundColor: ud.surfaceCream, borderRadius: 4 }} resizeMode="contain" />
-            <Text style={{ color: ud.muted, fontSize: 12, marginTop: 4 }}>Sprawdź automatycznie pobrany numer rejestracyjny</Text>
-          </View>
-        ) : null}
         {fieldErr('plateId')}
         {weightWarning ? <Text style={{ color: ud.warning, marginTop: 6 }}>{weightWarning}</Text> : null}
         {recydywa && recydywa.appsCnt > 0 ? (
@@ -455,8 +448,8 @@ export function NewReportScreen({ navigation, route }: any) {
         {form.lat == null ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 4 }}>Brak lokalizacji ze zdjęcia – wskaż miejsce na mapie albo wpisz adres („Ulica 10, Miasto”).</Text> : null}
 
         <L>Zgłoszenie trafi do</L>
+        <Radio on={unit === 'SA'} onPress={() => set('unit', 'SA')} hint={unitHint(form.geo?.sa)}>Policja (sugerowane)</Radio>
         <Radio on={unit === 'SM'} disabled={smDisabled} onPress={() => set('unit', 'SM')} hint={unitHint(form.geo?.sm)}>{form.geo?.sm?.kind ?? 'Straż miejska'}</Radio>
-        <Radio on={unit === 'SA'} onPress={() => set('unit', 'SA')} hint={unitHint(form.geo?.sa)}>Policja</Radio>
         {forcePolice ? <Text style={{ color: ud.muted, fontSize: 12 }}>Ta kategoria jest zawsze zgłaszana na Policję.</Text> : null}
 
         <H>Wybierz rodzaj wykroczenia</H>

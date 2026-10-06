@@ -47,8 +47,8 @@ const SLOTS: Slot[] = SLOT_ORDER; // auto → kontekst → dodatkowe
 // Przy jednym zdjęciu drugi kafelek to wycinek auta z serwera (to samo zdjęcie pełni rolę kontekstu i auta).
 export const CROP_TILE_ID = '__car_crop';
 
-// Pole na 2–3 kafelki (jedno zdjęcie też daje dwa: oryginał + wycinek auta – układ się nie przestawia). Opisujemy tylko „Auto”,
-// a pod nim miniatura tablicy rejestracyjnej. Role wynikają z analizy ALPR (lib/roles.ts) i nie są do ręcznej zmiany; jedyny wybór
+// Pole na 2–3 kafelki (jedno zdjęcie też daje dwa: oryginał + wycinek auta – układ się nie przestawia). Bez podpisów ról; zdjęcie auta
+// wyróżnia miniatura tablicy rejestracyjnej pod nim. Role wynikają z analizy ALPR (lib/roles.ts) i nie są do ręcznej zmiany; jedyny wybór
 // użytkownika to „którego pojazdu dotyczy zgłoszenie”, gdy wykryto kilka pewnych pojazdów.
 export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, cropPreview, pending, plateUri, vehicles, vehicleIdx, carBox, carNatural, onPick, onVehicle, onRemove }: {
   tiles: Tile[];
@@ -111,12 +111,9 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
                       </Pressable>
                     ) : null}
                   </View>
-                  {/* Tylko „Auto”, a pod nim miniatura tablicy – to wyróżnia zdjęcie auta spośród pozostałych. */}
-                  {isCar ? (
-                    <View style={{ marginTop: 6 }}>
-                      <Text style={{ textAlign: 'center', fontSize: 12, fontFamily: ud.fontBodyBold, color: ud.primary }}>Auto</Text>
-                      {plateUri ? <Image source={{ uri: plateUri }} style={{ marginTop: 4, height: 34, width: '100%', borderRadius: 4, backgroundColor: ud.surfaceCream }} resizeMode="contain" /> : null}
-                    </View>
+                  {/* Miniatura tablicy pod zdjęciem auta – bez podpisu; to ona wyróżnia zdjęcie auta spośród pozostałych. */}
+                  {isCar && plateUri ? (
+                    <Image source={{ uri: plateUri }} style={{ marginTop: 8, height: 64, width: '100%', borderRadius: 4, backgroundColor: ud.surfaceCream }} resizeMode="contain" />
                   ) : null}
                 </View>
               );
