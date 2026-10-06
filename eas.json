@@ -11,6 +11,7 @@
         "buildType": "apk"
       },
       "env": {
+        "APP_VARIANT": "development",
         "EXPO_PUBLIC_UD_ENV": "staging"
       }
     },
