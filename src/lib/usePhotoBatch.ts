@@ -1,25 +1,23 @@
-// 2–3 zdjęcia w jednym polu → podgląd od razu; zdjęcia lecą na serwer RAZ (etap „wip”, api/photos.ts), tam są analizowane
-// po photoId (ALPR + LLM) i podpowiadają, które to kontekst / auto / dodatkowe; dopiero potem trafiają do szkicu we właściwych
-// slotach (`assignReportPhoto` – serwer sam bierze plik ze swojego dysku, ALPR nie jest wołany drugi raz).
-// Użytkownik może zmienić przydział – `syncUploads` wyrównuje serwer do slotów, a zamiana ról nie wysyła zdjęć ponownie.
+// 1–3 zdjęcia w jednym polu → podgląd od razu; zdjęcia lecą na serwer RAZ (etap „wip”, api/photos.ts), dla każdego od razu liczony
+// jest sam ALPR (bez LLM, raz na zdjęcie), a `chooseRoles` (lib/roles.ts) wybiera auto i kontekst z odczytów. Dopiero potem zdjęcia
+// trafiają do szkicu we właściwych slotach (`assignReportPhoto` – serwer sam bierze plik ze swojego dysku). Jedno zdjęcie =
+// kontekst + wycinek auta z tego samego zdjęcia (`crop`). Zamiana ról nie wysyła zdjęć ponownie.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UdApp } from '../api/apps';
 import { assignReportPhoto, deleteReportImage, type PictureType } from '../api/reports';
-import { deleteStagedPhoto, stagePhoto } from '../api/photos';
-import { analyzeCandidate, VisionQuotaError } from '../api/vision';
+import { analyzePhotoAlpr, deleteStagedPhoto, stagePhoto } from '../api/photos';
 import { pickPhotos } from './gallery';
 import { log } from './log';
 import { downscale, type Scaled } from './resize';
 import { exifToIso } from './reports';
-import { assignSlot, defaultSlots, EMPTY_SLOTS, suggestSlots, type Slot, type Slots, type Suggestion } from './suggest';
-import { describePhoto } from './trace';
-import { toast } from '../store/useToast';
+import { chooseRoles, SLOT_ORDER, type Detection } from './roles';
+import { assignSlot, defaultSlots, EMPTY_SLOTS, type Slot, type Slots, type Suggestion } from './suggest';
 import type { PhotoItem } from '../types';
 
-export const MIN_PHOTOS = 2;
+export const MIN_PHOTOS = 1;
 export const MAX_BATCH = 3;
 const TYPE: Record<Slot, PictureType> = { context: 'contextImage', car: 'carImage', third: 'thirdImage' };
-const SLOTS: Slot[] = ['context', 'car', 'third'];
+const SLOTS: Slot[] = SLOT_ORDER; // auto → kontekst → dodatkowe
 
 export type LocalPhoto = PhotoItem & { small?: Scaled; serverId?: string }; // serverId = photoId z etapu „wip” na backendzie
 export type Phase = 'idle' | 'preparing' | 'analyzing' | 'ready';
@@ -39,6 +37,8 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
   const [phase, setPhase] = useState<Phase>('idle');
   const [uploading, setUploading] = useState<Slot[]>([]);
   const [note, setNote] = useState<string | null>(null);
+  const [crop, setCrop] = useState(false); // jedno zdjęcie: auto = wycinek pojazdu z tego samego zdjęcia co kontekst
+  const cropRef = useRef(crop); cropRef.current = crop;
   const [failed, setFailed] = useState<Slot[]>([]); // sloty, których wysyłka się nie powiodła (retry = syncUploads)
 
   // refy = świeże wartości dla pętli wysyłki (działa poza cyklem renderowania)
@@ -75,7 +75,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
             if (!p?.serverId) { again.current = true; continue; } // zdjęcie jeszcze się wysyła (etap „wip”)
             // data/GPS ze zdjęcia auta serwer ma przy zdjęciu (wysłaliśmy je razem z plikiem) – ustawi je i użyje wyniku ALPR z analizy
             const carMeta = slot === 'car' ? { gps: p.exif.lat != null && p.exif.lng != null, date: !!exifToIso(p.exif.datetimeOriginal) } : undefined;
-            applyApp(await assignReportPhoto(draft.id, TYPE[slot], p.serverId), carMeta);
+            applyApp(await assignReportPhoto(draft.id, TYPE[slot], p.serverId, slot === 'car' && cropRef.current ? { crop: 'vehicle' } : {}), carMeta);
             uploaded.current[slot] = want;
             setFailed((f) => f.filter((s) => s !== slot));
           } catch (e) {
@@ -108,69 +108,74 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
     try {
       const picked = (await pickPhotos(MAX_BATCH, MIN_PHOTOS)) as LocalPhoto[];
       if (!picked.length) return;
-      if (picked.length < MIN_PHOTOS) { toast.error('Wybierz od razu 2 lub 3 zdjęcia (kontekst, auto z tablicą, opcjonalnie dodatkowe).'); return; }
 
       my = ++batch.current;
       const ids = picked.map((p) => p.id);
       setNote(null);
+      setCrop(false);
       // 1) podgląd natychmiast, na razie w kolejności wyboru
       setPhotos(picked);
       setSlots(defaultSlots(ids));
       setPhase('preparing');
       // Jak na webie (images.js): data i GPS ze zdjęcia auta od razu w formularzu. Rola auta nie jest jeszcze znana,
-      // więc zgadujemy: zdjęcie z GPS (domyślnie drugie), a po analizie poprawiamy wg przydziału.
-      const guess = picked.find((p) => p.id === defaultSlots(ids).car && p.exif.lat != null) ?? picked.find((p) => p.exif.lat != null) ?? picked[1] ?? picked[0];
+      // więc zgadujemy zdjęcie z GPS, a po analizie poprawiamy wg przydziału.
+      const guess = picked.find((p) => p.exif.lat != null) ?? picked[0];
       if (guess) onCarExif?.(guess);
 
-      // 2) każde zdjęcie: jedno przeskalowanie → jedna wysyłka na serwer (etap „wip”), równolegle; szkic powstanie dopiero
-      // przy przydziale do slotu. Data/GPS z EXIF lecą razem z plikiem (po przeskalowaniu EXIF znika).
-      const staged: LocalPhoto[] = await Promise.all(picked.map(async (p): Promise<LocalPhoto> => {
+      // 2) każde zdjęcie osobno i równolegle: jedno przeskalowanie → wysyłka na serwer (etap „wip”) → ALPR od razu po wysyłce
+      // (opóźnienie = najwolniejsze zdjęcie, nie suma). Szkic powstanie dopiero przy przydziale do slotu; data/GPS z EXIF lecą
+      // razem z plikiem (po przeskalowaniu EXIF znika). Błąd ALPR jednego zdjęcia = zdjęcie bez detekcji, nie przerwanie całości.
+      let alprFailed = false;
+      const processed = await Promise.all(picked.map(async (p) => {
         const small = await downscale(p.uri);
         const s = await stagePhoto(small.uri, { dateTime: exifToIso(p.exif.datetimeOriginal), lat: p.exif.lat, lng: p.exif.lng });
-        return { ...p, small, serverId: s.photoId };
+        let detections: Detection[] = [];
+        try {
+          detections = await analyzePhotoAlpr(s.photoId);
+        } catch (e: any) {
+          alprFailed = true;
+          log.warn('alpr', `zdjęcie ${p.id}: ${String(e?.message ?? e).slice(0, 160)}`);
+        }
+        return { photo: { ...p, small, serverId: s.photoId } as LocalPhoto, detections };
       })); // błąd wysyłki = wyjątek niżej; zdjęcia, które już dotarły, wygasną po 24 h
+      const staged = processed.map((x) => x.photo);
       if (my !== batch.current) { staged.forEach((p) => p.serverId && void deleteStagedPhoto(p.serverId)); return; }
       setPhotos(staged);
 
-      // 3) analiza: ALPR + LLM → podpowiedź ról
+      // 3) wybór ról z samych odczytów ALPR (auto = największy pojazd, kontekst = to samo auto na innym zdjęciu)
       setPhase('analyzing');
-      let next = defaultSlots(ids);
-      try {
-        // backend czyta zdjęcia po photoId z dysku (bez base64); w odpowiedzi wracamy do lokalnych id, na których stoi `suggestSlots`
-        const analyzed = await analyzeCandidate('form', staged.map((p, i) => ({ photo_index: i, photoId: p.serverId! })));
-        analyzed.forEach((p, i) => { p.photoId = ids[p.photo_index ?? i]; });
-        for (const p of analyzed) log.info('trace', `form ${describePhoto(p)}`);
-        const s = suggestSlots(ids, analyzed);
-        if (my !== batch.current) return;
-        next = s.slots;
-        onSuggestion(s);
-        if (!s.confident) setNote('Nie jestem pewien, które zdjęcie jest które – sprawdź przydział poniżej.');
-      } catch (e: any) {
-        log.warn('wizja', `formularz: ${String(e?.message ?? e).slice(0, 200)}`);
-        setNote(e instanceof VisionQuotaError ? e.message : 'Nie udało się rozpoznać zdjęć – ustaw, które jest które.');
-      }
-      if (my !== batch.current) return;
-      setSlots(next);
-      const car = picked.find((p) => p.id === next.car);
+      const choice = chooseRoles(processed.map((x) => ({ id: x.photo.id, detections: x.detections })));
+      for (const x of processed) log.info('alpr', `${x.photo.id} ${x.detections.map((d) => `${d.text}${d.winner ? '*' : ''}@${d.vehicle_area}`).join(',') || '—'}`);
+      const note = alprFailed ? 'Nie udało się odczytać tablicy z części zdjęć – sprawdź przydział i numer rejestracyjny.' : choice.note;
+      onSuggestion({ slots: choice.slots, plate: choice.plate, categoryId: 0, markers: [], reasons: note ? [note] : [], confident: choice.vehicleFound });
+      setNote(note);
+      setCrop(choice.crop);
+      setSlots(choice.slots);
+      const car = picked.find((p) => p.id === choice.slots.car);
       if (car) onCarExif?.(car); // rola auta ustalona – jeśli to inne zdjęcie niż zgadywane, popraw datę/GPS
       setPhase('ready'); // → efekt wyżej wysyła zdjęcia do szkicu
     } catch (e) {
-      if (my === batch.current) { setPhotos([]); setSlots(EMPTY_SLOTS); }
+      if (my === batch.current) { setPhotos([]); setSlots(EMPTY_SLOTS); setCrop(false); }
       setPhase('idle');
       onError(e);
     }
   }, [onSuggestion, onError, onCarExif]);
 
-  const assign = useCallback((id: string, to: Slot | null) => setSlots((s) => assignSlot(s, id, to)), []);
+  const assign = useCallback((id: string, to: Slot | null) => {
+    if (photosRef.current.length < 2) return; // jedno zdjęcie pełni obie role (kontekst + wycinek auta) – nie ma czego zamieniać
+    setSlots((s) => assignSlot(s, id, to));
+  }, []);
 
   const remove = useCallback((id: string) => {
     const serverId = photosRef.current.find((p) => p.id === id)?.serverId;
     if (serverId) void deleteStagedPhoto(serverId); // nieprzydzielone i tak wygasłoby po 24 h – sprzątamy od razu
-    setSlots((s) => assignSlot(s, id, null));
+    // jedno zdjęcie może zajmować dwa sloty (kontekst + wycinek auta) – czyścimy wszystkie
+    setSlots((s) => ({ car: s.car === id ? null : s.car, context: s.context === id ? null : s.context, third: s.third === id ? null : s.third }));
+    setCrop(false);
     setPhotos((l) => l.filter((p) => p.id !== id));
   }, []);
 
   const retry = useCallback(() => { setFailed([]); void syncUploads(); }, [syncUploads]);
 
-  return { photos, slots, phase, uploading, note, failed, retry, pick, assign, remove, busy: phase === 'preparing' || phase === 'analyzing' || uploading.length > 0 };
+  return { photos, slots, phase, uploading, note, crop, failed, retry, pick, assign, remove, busy: phase === 'preparing' || phase === 'analyzing' || uploading.length > 0 };
 }

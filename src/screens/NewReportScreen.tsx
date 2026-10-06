@@ -14,9 +14,10 @@ import { log } from '../lib/log';
 import { appendAutoLine, commentWarning, dropMatchingExtension, exifToIso, fmtLongDate, isExtensionDisabled, plural } from '../lib/reports';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
 import { MapPreview } from '../components/MapPreview';
-import { PhotosSection, type Tile } from '../components/PhotosSection';
+import { CROP_TILE_ID, PhotosSection, type Tile } from '../components/PhotosSection';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import { usePhotoBatch } from '../lib/usePhotoBatch';
+import { SLOT_ORDER } from '../lib/roles';
 import type { Slot, Suggestion } from '../lib/suggest';
 import { udConfig } from '../config';
 import { useNewReport } from '../store/useNewReport';
@@ -320,13 +321,17 @@ export function NewReportScreen({ navigation, route }: any) {
 
   // Bez lokalnych zdjęć (edycja / wznowiony szkic) pokazujemy te z serwera, role bez zmian.
   const SERVER: Record<Slot, 'contextImage' | 'carImage' | 'thirdImage'> = { context: 'contextImage', car: 'carImage', third: 'thirdImage' };
-  const serverTiles: Tile[] = (['context', 'car', 'third'] as Slot[]).flatMap((slot) => {
+  const serverTiles: Tile[] = (SLOT_ORDER).flatMap((slot) => {
     const uri = app ? imageUrl(app[SERVER[slot]], app) : null;
     const full = app ? imageUrl(app[SERVER[slot]], app, true) : null;
     return uri ? [{ id: slot, uri: `${uri}&r=${rev}`, full: `${full ?? uri}&r=${rev}` }] : [];
   });
   const local = batch.photos.length > 0;
-  const tiles: Tile[] = local ? batch.photos.map((p) => ({ id: p.id, uri: p.uri })) : serverTiles;
+  // jedno zdjęcie = kontekst + wycinek auta: obok oryginału pokazujemy wycinek z serwera (gdy już powstał)
+  const cropUri = batch.crop && app?.carImage?.thumb ? `${imageUrl(app.carImage, app)}&r=${rev}` : null;
+  const tiles: Tile[] = local
+    ? [...batch.photos.map((p) => ({ id: p.id, uri: p.uri })), ...(cropUri ? [{ id: CROP_TILE_ID, uri: cropUri }] : [])]
+    : serverTiles;
   const tileSlots = local ? batch.slots : { context: serverTiles.some((t) => t.id === 'context') ? 'context' : null, car: serverTiles.some((t) => t.id === 'car') ? 'car' : null, third: serverTiles.some((t) => t.id === 'third') ? 'third' : null };
 
   // Jak na webie: wybór kategorii odznacza i blokuje rozszerzenie o tym samym id.
@@ -356,7 +361,7 @@ export function NewReportScreen({ navigation, route }: any) {
 
   const submit = async () => {
     setErr(null);
-    if (!app?.contextImage?.thumb || !app?.carImage?.thumb) { setErr({ field: 'images', text: 'Dodaj zdjęcie kontekstu i zdjęcie auta.' }); toast.error('Dodaj zdjęcie kontekstu i zdjęcie auta.'); return; }
+    if (!app?.contextImage?.thumb || !app?.carImage?.thumb) { setErr({ field: 'images', text: 'Dodaj zdjęcie auta z widocznym numerem rejestracyjnym i zdjęcie kontekstu.' }); toast.error('Dodaj zdjęcie auta z widocznym numerem rejestracyjnym i zdjęcie kontekstu.'); return; }
     if (form.address.trim().length <= 10) { fail(new ApiError('Podaj adres lub wskaż go na mapie', 422, 'address')); return; }
     setSubmitting(true);
     try {
@@ -391,6 +396,7 @@ export function NewReportScreen({ navigation, route }: any) {
           uploading={batch.uploading}
           note={batch.note}
           editable={local}
+          crop={local && batch.crop}
           carBox={app?.carInfo?.vehicleBox ?? null}
           carNatural={app?.carImage?.width && app?.carImage?.height ? { w: app.carImage.width, h: app.carImage.height } : null}
           onPick={batch.pick}

@@ -3,6 +3,7 @@
 // (POST /app/{id}/image z photoId) czytają plik z serwera, a ALPR liczy się raz na zdjęcie.
 import { File } from 'expo-file-system';
 import { log } from '../lib/log';
+import type { Detection } from '../lib/roles';
 import { apiJson, authFetch } from './udApi';
 
 export type StagedPhoto = { photoId: string; width: number; height: number };
@@ -27,6 +28,14 @@ export async function stagePhoto(uri: string, meta: { dateTime?: string | null; 
     }
   }
   throw last;
+}
+
+// POST /api/rest/photos/{photoId}/alpr – WSZYSTKIE odczyty ALPR zdjęcia (tablica, pewność, pole pojazdu, `winner` = kandydat na
+// pojazd wg serwera). Liczone raz na zdjęcie; z nich `chooseRoles()` (lib/roles.ts) wybiera auto i kontekst. Bez LLM.
+export async function analyzePhotoAlpr(photoId: string): Promise<Detection[]> {
+  const res = await authFetch(`/api/rest/photos/${encodeURIComponent(photoId)}/alpr`, { method: 'POST' });
+  const j = await apiJson<{ detections?: Detection[] }>(res, 'Nie udało się odczytać tablicy ze zdjęcia');
+  return j.detections ?? [];
 }
 
 // DELETE /api/rest/photos/{photoId} – best effort (nieprzydzielone zdjęcia i tak wygasają po 24 h).

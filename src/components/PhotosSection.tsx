@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { ImageViewer } from './ImageViewer';
 import type { Phase } from '../lib/usePhotoBatch';
+import { SLOT_ORDER } from '../lib/roles';
 import type { Slot, Slots } from '../lib/suggest';
 import { ud } from '../theme';
 
@@ -28,11 +29,13 @@ function TileImage({ uri, box, natural }: { uri: string; box?: VehicleBox | null
 }
 
 const LABEL: Record<Slot, string> = { context: 'Kontekst', car: 'Auto', third: 'Dodatkowe' };
-const SLOTS: Slot[] = ['context', 'car', 'third'];
+const SLOTS: Slot[] = SLOT_ORDER; // auto → kontekst → dodatkowe
+// Przy jednym zdjęciu drugi kafelek to wycinek auta z serwera (to samo zdjęcie pełni rolę kontekstu i auta).
+export const CROP_TILE_ID = '__car_crop';
 
-// Jedno pole na 2–3 zdjęcia: kafelki z podglądem (od razu), pod każdym wybór roli. Role podpowiada analiza
+// Jedno pole na 1–3 zdjęcia: kafelki z podglądem (od razu), pod każdym wybór roli. Role podpowiada analiza ALPR (lib/roles.ts)
 // (usePhotoBatch); dotknięcie innej roli zamienia zdjęcia miejscami.
-export function PhotosSection({ tiles, slots, phase, uploading, note, editable, carBox, carNatural, onPick, onAssign, onRemove }: {
+export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, carBox, carNatural, onPick, onAssign, onRemove }: {
   tiles: Tile[];
   slots: Slots;
   phase: Phase;
@@ -40,6 +43,7 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
   note: string | null;
   carBox?: VehicleBox | null;
   carNatural?: { w: number; h: number } | null;
+  crop?: boolean; // jedno zdjęcie = kontekst + wycinek auta: bez wyboru ról
   editable: boolean; // false = zdjęcia z serwera (edycja istniejącego zgłoszenia) – role bez zmian
   onPick: () => void;
   onAssign: (id: string, to: Slot | null) => void;
@@ -47,18 +51,19 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
 }) {
   const analyzing = phase === 'preparing' || phase === 'analyzing';
   const [viewer, setViewer] = useState<number | null>(null); // dotknięcie zdjęcia otwiera galerię (zoom, swipe)
-  const slotOf = (id: string) => SLOTS.find((s) => slots[s] === id) ?? null;
+  const slotOf = (id: string): Slot | null => (id === CROP_TILE_ID ? 'car' : crop ? 'context' : SLOTS.find((s) => slots[s] === id) ?? null);
   return (
     <View style={{ marginTop: 14 }}>
       {tiles.length === 0 ? (
         <Pressable onPress={onPick} style={{ marginTop: 8, height: 150, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>＋ Dodaj 2 lub 3 zdjęcia z galerii</Text>
+          <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>＋ Dodaj od 1 do 3 zdjęć z galerii</Text>
         </Pressable>
       ) : (
         <>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
             {tiles.map((t, idx) => {
               const slot = slotOf(t.id);
+              const isCropTile = t.id === CROP_TILE_ID;
               return (
                 <View key={t.id} style={{ flex: 1 }}>
                   <View style={{ aspectRatio: 3 / 4, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream, overflow: 'hidden' }}>
@@ -70,13 +75,13 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
                         <ActivityIndicator color={ud.primary} />
                       </View>
                     ) : null}
-                    {editable && !analyzing ? (
+                    {editable && !analyzing && !isCropTile ? (
                       <Pressable onPress={() => onRemove(t.id)} hitSlop={8} style={{ position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
                         <Text style={{ color: '#fff', fontSize: 14, lineHeight: 16 }}>✕</Text>
                       </Pressable>
                     ) : null}
                   </View>
-                  {editable ? (
+                  {editable && !crop ? (
                     <View style={{ marginTop: 6, gap: 4 }}>
                       {SLOTS.map((s) => {
                         const on = slot === s;
@@ -88,14 +93,14 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
                       })}
                     </View>
                   ) : (
-                    <Text style={{ textAlign: 'center', marginTop: 6, fontSize: 12, fontFamily: ud.fontBodyBold, color: ud.primary }}>{slot ? LABEL[slot] : ''}</Text>
+                    <Text style={{ textAlign: 'center', marginTop: 6, fontSize: 12, fontFamily: ud.fontBodyBold, color: ud.primary }}>{isCropTile ? 'Auto (wycinek)' : crop ? 'Kontekst' : slot ? LABEL[slot] : ''}</Text>
                   )}
                 </View>
               );
             })}
           </View>
           <Text style={{ color: analyzing ? ud.primary : ud.muted, marginTop: 8 }}>
-            {phase === 'preparing' ? 'Przygotowuję zdjęcia…' : phase === 'analyzing' ? 'Analizuję zdjęcia (tablica, rola każdego zdjęcia)…' : uploading.length ? 'Wysyłam zdjęcia…' : ''}
+            {phase === 'preparing' ? 'Wysyłam zdjęcia i odczytuję tablice rejestracyjne…' : phase === 'analyzing' ? 'Wybieram zdjęcie auta i kontekst…' : uploading.length ? 'Zapisuję zdjęcia…' : ''}
           </Text>
           {note ? <Text style={{ color: ud.warning, marginTop: 4 }}>{note}</Text> : null}
           <Pressable onPress={onPick} disabled={analyzing}><Text style={{ color: ud.muted, textDecorationLine: 'underline', marginTop: 8 }}>wybierz zdjęcia ponownie</Text></Pressable>

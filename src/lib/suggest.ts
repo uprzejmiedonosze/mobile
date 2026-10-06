@@ -1,3 +1,5 @@
+// UWAGA: formularz zgłoszenia używa teraz samego ALPR i lib/roles.ts (chooseRoles); `suggestSlots` (LLM + ALPR) zostaje jako
+// odłożony na bok wariant, a typy Slot/Slots i assignSlot() są nadal wspólne.
 // Podpowiedź ról zdjęć dla formularza zgłoszenia: 2–3 zdjęcia w jednym polu → które jest zdjęciem auta,
 // które kontekstem, a które dodatkowym. Używa tego samego, deterministycznego ogona co tryb batch
 // (compose.ts: split po tablicy, assignRoles z ALPR, kategoria z markerów) na odpowiedzi

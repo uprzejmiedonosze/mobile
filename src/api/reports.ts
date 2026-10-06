@@ -98,8 +98,10 @@ export async function uploadReportImage(
 
 // Przydział zdjęcia z etapu „wip” (api/photos.ts) do slotu szkicu – serwer bierze bajty ze swojego dysku, skaluje je i
 // przycina wycinek tablicy; ALPR nie jest wołany ponownie (wynik leży przy zdjęciu).
-export async function assignReportPhoto(appId: string, type: PictureType, photoId: string): Promise<UdApp> {
-  const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/image`, json({ pictureType: type, photoId }));
+// `crop: 'vehicle'` (tylko auto): zamiast całego zdjęcia zapisz wycinek pojazdu z ALPR + 20% marginesu – gdy jedno zdjęcie
+// jest jednocześnie kontekstem i autem.
+export async function assignReportPhoto(appId: string, type: PictureType, photoId: string, opts: { crop?: 'vehicle' } = {}): Promise<UdApp> {
+  const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/image`, json({ pictureType: type, photoId, ...(opts.crop ? { crop: opts.crop } : {}) }));
   return apiJson(res, 'Nie udało się przypisać zdjęcia');
 }
 
