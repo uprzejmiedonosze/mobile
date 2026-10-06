@@ -11,6 +11,9 @@ Status: ✅ zrobione · 🟡 częściowo · ⬜ backlog. Każde wymaganie ma spo
 | Sprawdzenie wersji przy starcie i powrocie do apki; **fail-open** przy braku sieci (`useAppUpdate`) | ✅ | tryb samolotowy → apka startuje |
 | Miękka zachęta, gdy `latestVersion` > bieżąca | ✅ | toast przy starcie |
 
+**Środowiska buildów (`eas.json`):** `eas build -p android --profile staging|shadow|production` (shadow = prod Firebase + host
+`shadow.uprzejmiedonosze.net`). Profile ustawiają `EXPO_PUBLIC_*`; `.env` to tylko domyślne wartości lokalnego dev.
+
 **Polityka:** zmiana łamiąca API = nowy build w sklepach → wdrożenie backendu → dopiero podbicie `minVersion`.
 Każdy build do sklepu podbija `expo.version` w `app.json` (build number rośnie sam, `autoIncrement`). Aktualizacje tylko przez sklep (bez OTA).
 
@@ -26,7 +29,7 @@ Każdy build do sklepu podbija `expo.version` w `app.json` (build number rośnie
 ## Obserwowalność
 | Wymaganie | Status | Weryfikacja |
 |---|---|---|
-| Crashe i błędy JS/natywne → Sentry (`index.ts`, DSN `EXPO_PUBLIC_SENTRY_DSN`), `environment` = staging/prod | 🟡 | wymaga projektu Sentry, DSN i `SENTRY_AUTH_TOKEN` w EAS; build `preview` + testowy crash |
+| Crashe i błędy JS/natywne → Sentry (`index.ts`, DSN `EXPO_PUBLIC_SENTRY_DSN`), `environment` = staging/prod | 🟡 | wymaga projektu Sentry, DSN i `SENTRY_AUTH_TOKEN` w EAS; build `staging` + testowy crash |
 | Brak PII w raportach (`sendDefaultPii: false`, breadcrumbs bez query) | ✅ | podgląd zdarzenia w Sentry |
 | Logi verbose tylko w `__DEV__` (`src/lib/log.ts`) | ✅ | build release: konsola pusta poza warn/error |
 

@@ -8,16 +8,35 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      }
-    },
-    "preview": {
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_UD_ENV": "staging"
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_UD_ENV": "prod",
+        "EXPO_PUBLIC_SENTRY_ENV": "prod"
+      }
+    },
+    "staging": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_UD_ENV": "staging",
+        "EXPO_PUBLIC_SENTRY_ENV": "staging"
+      }
+    },
+    "shadow": {
+      "extends": "staging",
+      "env": {
+        "EXPO_PUBLIC_UD_ENV": "prod",
+        "EXPO_PUBLIC_UD_BASE": "https://shadow.uprzejmiedonosze.net",
+        "EXPO_PUBLIC_SENTRY_ENV": "shadow"
+      }
     }
   },
   "submit": {

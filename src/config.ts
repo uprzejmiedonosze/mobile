@@ -74,5 +74,6 @@ export const googleConfig = {
 // Osobny projekt Sentry niż backend; środowisko = udEnv, żeby staging nie mieszał się z prodem.
 export const sentryConfig = {
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
-  environment: udEnv,
+  // EXPO_PUBLIC_SENTRY_ENV rozróżnia np. shadow (udEnv=prod, ale osobny host) od proda.
+  environment: process.env.EXPO_PUBLIC_SENTRY_ENV || udEnv,
 } as const;

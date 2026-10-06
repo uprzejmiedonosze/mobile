@@ -42,7 +42,10 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "test": "jest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:staging": "eas build --profile staging",
+    "build:shadow": "eas build --profile shadow",
+    "build:prod": "eas build --profile production"
   },
   "private": true
 }
