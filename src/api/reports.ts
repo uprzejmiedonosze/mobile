@@ -99,10 +99,19 @@ export async function uploadReportImage(
 // Przydział zdjęcia z etapu „wip” (api/photos.ts) do slotu szkicu – serwer bierze bajty ze swojego dysku, skaluje je i
 // przycina wycinek tablicy; ALPR nie jest wołany ponownie (wynik leży przy zdjęciu).
 // `crop: 'vehicle'` (tylko auto): zamiast całego zdjęcia zapisz wycinek pojazdu z ALPR + 20% marginesu – gdy jedno zdjęcie
-// jest jednocześnie kontekstem i autem.
-export async function assignReportPhoto(appId: string, type: PictureType, photoId: string, opts: { crop?: 'vehicle' } = {}): Promise<UdApp> {
-  const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/image`, json({ pictureType: type, photoId, ...(opts.crop ? { crop: opts.crop } : {}) }));
+// jest jednocześnie kontekstem i autem. `plate` (tylko auto): tablica pojazdu wskazanego przez użytkownika, gdy na zdjęciach są dwa auta.
+export async function assignReportPhoto(appId: string, type: PictureType, photoId: string, opts: { crop?: 'vehicle'; plate?: string } = {}): Promise<UdApp> {
+  const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/image`, json({ pictureType: type, photoId, ...(opts.crop ? { crop: opts.crop } : {}), ...(opts.plate ? { plate: opts.plate } : {}) }));
   return apiJson(res, 'Nie udało się przypisać zdjęcia');
+}
+
+// Wycinek tablicy z oryginału zdjęcia (pełna rozdzielczość) zamiast serwerowego z kopii 1600 px – podmienia `carInfo.plateImage`
+// (formularz, strona zgłoszenia, PDF). Serwerowy wycinek zostaje rezerwą, gdy to wywołanie się nie uda.
+export async function uploadPlateImage(appId: string, uri: string): Promise<UdApp> {
+  const form = new FormData();
+  form.append('image', new File(uri) as unknown as Blob); // jak w uploadReportImage: expo/fetch przyjmuje File
+  const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/plate-image`, { method: 'POST', body: form });
+  return apiJson(res, 'Nie udało się wysłać wycinka tablicy');
 }
 
 export async function deleteReportImage(appId: string, type: PictureType): Promise<UdApp> {

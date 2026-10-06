@@ -175,15 +175,16 @@ export function NewReportScreen({ navigation, route }: any) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, editId]);
 
-  // Backend nadpisuje pliki o stałej nazwie (`{id},carImage,p.jpg` – wycinek tablicy, miniatury ról), więc po każdej
-  // odpowiedzi po uploadzie zmieniamy parametr w URL, inaczej <Image> pokazuje starą wersję z cache.
-  const [rev, setRev] = useState(0);
+  // Backend nadpisuje pliki o stałej nazwie (`{id},ca,p.jpg` – wycinek tablicy, miniatury ról), a nginx daje im `expires max`, więc po
+  // każdej odpowiedzi po uploadzie zmieniamy parametr w URL. Musi być UNIKALNY między sesjami (znacznik czasu, nie licznik od 0):
+  // przy wznowionym szkicu licznik dawał ten sam URL co w poprzednim uruchomieniu i dysk (cache obrazów) pokazywał starą tablicę.
+  const [rev, setRev] = useState(() => Date.now());
   // `carMeta` = upload zdjęcia auta: co z niego faktycznie wyczytaliśmy (GPS, data). Jak na webie, nowe zdjęcie auta
   // zastępuje numer z ALPR (także po ręcznej poprawce – to może być inne auto), a brak GPS/daty NIE zostawia
   // lokalizacji i daty poprzedniego zdjęcia (serwer aktualizuje je tylko, gdy przyszły) – patrz noGeoDataInImage()/setDateTime().
   const applyApp = useCallback((a: UdApp, carMeta?: { gps: boolean; date: boolean }) => {
     setApp(a);
-    setRev((n) => n + 1);
+    setRev(Date.now());
     if (carMeta) {
       edited.current.plate = false;
       if (!carMeta.gps) { edited.current.address = false; resolvedText.current = ''; geoFor.current = null; }
@@ -327,11 +328,19 @@ export function NewReportScreen({ navigation, route }: any) {
     return uri ? [{ id: slot, uri: `${uri}&r=${rev}`, full: `${full ?? uri}&r=${rev}` }] : [];
   });
   const local = batch.photos.length > 0;
-  // jedno zdjęcie = kontekst + wycinek auta: obok oryginału pokazujemy wycinek z serwera (gdy już powstał)
-  const cropUri = batch.crop && app?.carImage?.thumb ? `${imageUrl(app.carImage, app)}&r=${rev}` : null;
+  // Jedno zdjęcie też daje DWA kafelki (oryginał + wycinek auta), żeby układ nie skakał: drugi kafelek jest od początku, a wycinek
+  // wypełnia się lokalnie zaraz po odczycie tablicy (batch.cropPreview). Do powiększenia: wycinek z serwera, a gdy go brak – oryginał.
+  const single = local && batch.photos.length === 1;
+  const cropUri = single && app?.carImage?.thumb ? `${imageUrl(app.carImage, app)}&r=${rev}` : null;
+  // kolejność kafelków: auto → kontekst → reszta (jedno zdjęcie: wycinek auta, potem oryginał)
+  const roleRank = (id: string) => { const i = SLOT_ORDER.findIndex((s) => batch.slots[s] === id); return i < 0 ? SLOT_ORDER.length : i; };
   const tiles: Tile[] = local
-    ? [...batch.photos.map((p) => ({ id: p.id, uri: p.uri })), ...(cropUri ? [{ id: CROP_TILE_ID, uri: cropUri }] : [])]
+    ? single
+      ? [{ id: CROP_TILE_ID, uri: cropUri ?? batch.photos[0].uri }, { id: batch.photos[0].id, uri: batch.photos[0].uri }]
+      : [...batch.photos].sort((a, b) => roleRank(a.id) - roleRank(b.id)).map((p) => ({ id: p.id, uri: p.uri }))
     : serverTiles;
+  // miniatura tablicy (wycinek z ALPR z serwera) – pod zdjęciem auta
+  const plateThumb = app?.carInfo?.plateImage && app?.carImage?.thumb ? `${imageUrl({ thumb: app.carInfo.plateImage }, app)}&r=${rev}` : null;
   const tileSlots = local ? batch.slots : { context: serverTiles.some((t) => t.id === 'context') ? 'context' : null, car: serverTiles.some((t) => t.id === 'car') ? 'car' : null, third: serverTiles.some((t) => t.id === 'third') ? 'third' : null };
 
   // Jak na webie: wybór kategorii odznacza i blokuje rozszerzenie o tym samym id.
@@ -346,7 +355,7 @@ export function NewReportScreen({ navigation, route }: any) {
   };
 
   useEffect(() => { setPlateTouched(false); }, [app?.carInfo?.plateImage]);
-  const plateImg = app?.carInfo?.plateImage && app?.carImage?.thumb && !plateTouched ? `${imageUrl({ thumb: app.carInfo.plateImage }, app)}&r=${rev}` : null;
+  const plateImg = batch.plateCropUri && !plateTouched ? batch.plateCropUri : app?.carInfo?.plateImage && app?.carImage?.thumb && !plateTouched ? `${imageUrl({ thumb: app.carInfo.plateImage }, app)}&r=${rev}` : null;
 
   const selectedCat = cats.find((c) => c.id === form.category);
   const forcePolice = !!selectedCat?.stopAgresjiOnly;
@@ -396,11 +405,16 @@ export function NewReportScreen({ navigation, route }: any) {
           uploading={batch.uploading}
           note={batch.note}
           editable={local}
-          crop={local && batch.crop}
+          crop={single}
+          cropPreview={batch.cropPreview}
+          pending={batch.reanalyzing}
+          plateUri={batch.plateCropUri ?? plateThumb}
           carBox={app?.carInfo?.vehicleBox ?? null}
           carNatural={app?.carImage?.width && app?.carImage?.height ? { w: app.carImage.width, h: app.carImage.height } : null}
           onPick={batch.pick}
-          onAssign={batch.assign}
+          vehicles={batch.vehicles}
+          vehicleIdx={batch.vehicleIdx}
+          onVehicle={batch.chooseVehicle}
           onRemove={batch.remove}
         />
         {batch.failed.length ? (

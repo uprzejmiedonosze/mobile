@@ -9,7 +9,9 @@ import { apiJson, authFetch } from './udApi';
 export type StagedPhoto = { photoId: string; width: number; height: number };
 
 // POST /api/rest/photos/ – `meta` to data i GPS z EXIF (po przeskalowaniu zdjęcia EXIF znika, więc wysyłamy je osobno).
-export async function stagePhoto(uri: string, meta: { dateTime?: string | null; lat?: number | null; lng?: number | null } = {}): Promise<StagedPhoto> {
+// `derived` = wycinek z oryginału zdjęcia już wysłanego i przeanalizowanego: serwer przelicza jego odczyt ALPR na współrzędne wycinka
+// (bez nowego wywołania ALPR) i dziedziczy datę/GPS.
+export async function stagePhoto(uri: string, meta: { dateTime?: string | null; lat?: number | null; lng?: number | null } = {}, derived?: { from: string; region: number[]; plate?: string | null }): Promise<StagedPhoto> {
   let last: unknown;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
@@ -18,6 +20,11 @@ export async function stagePhoto(uri: string, meta: { dateTime?: string | null; 
       form.append('image', new File(uri) as unknown as Blob);
       if (meta.dateTime) form.append('dateTime', meta.dateTime);
       if (meta.lat != null && meta.lng != null) { form.append('lat', String(meta.lat)); form.append('lng', String(meta.lng)); }
+      if (derived) {
+        form.append('derivedFrom', derived.from);
+        form.append('region', JSON.stringify(derived.region));
+        if (derived.plate) form.append('plate', derived.plate);
+      }
       const res = await authFetch('/api/rest/photos/', { method: 'POST', body: form });
       return await apiJson<StagedPhoto>(res, 'Nie udało się wysłać zdjęcia');
     } catch (e: any) {

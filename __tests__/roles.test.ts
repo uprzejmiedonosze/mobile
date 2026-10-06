@@ -1,4 +1,4 @@
-import { chooseRoles, NO_PLATE_NOTE, type Detection, type PhotoDetections } from '../src/lib/roles';
+import { chooseRoles, listVehicles, NO_PLATE_NOTE, type Detection, type PhotoDetections } from '../src/lib/roles';
 
 // compose.ts (skąd bierzemy plateMatches) importuje expo-file-system – jak w suggest.test.ts
 jest.mock('expo-file-system/legacy', () => ({
@@ -114,4 +114,36 @@ describe('chooseRoles – trzy zdjęcia', () => {
 
 it('brak zdjęć', () => {
   expect(chooseRoles([]).slots).toEqual({ car: null, context: null, third: null });
+});
+
+describe('wybór pojazdu przez użytkownika', () => {
+  it('listVehicles: dwa pewne, widoczne pojazdy (jeden pojazd = jedna pozycja mimo kilku zdjęć i błędu odczytu)', () => {
+    const v = listVehicles([
+      photo('a', det('ZS12345', 0.4, { winner: true, score: 0.95 }), det('GD99999', 0.1, { score: 0.9 })),
+      photo('b', det('ZS12346', 0.1, { winner: true, score: 0.85 })), // to samo auto, błąd jednego znaku
+    ]);
+    expect(v.map((x) => x.plate)).toEqual(['ZS12345', 'GD99999']);
+  });
+
+  it('listVehicles: pomija niepewne i ledwo widoczne auta (nie pokazujemy zbędnego wyboru)', () => {
+    const v = listVehicles([photo('a', det('ZS12345', 0.4, { winner: true }), det('GD99999', 0.1, { score: 0.5 }), det('PO55555', 0.01, { score: 0.99 }))]);
+    expect(v.map((x) => x.plate)).toEqual(['ZS12345']);
+  });
+
+  it('jedno zdjęcie: wskazane auto jest wycinkiem (crop) i dostarcza tablicę', () => {
+    const p = photo('a', det('ZS12345', 0.4, { winner: true }), det('GD99999', 0.15));
+    const r = chooseRoles([p], { plate: 'GD99999' });
+    expect(r.slots).toEqual({ car: 'a', context: 'a', third: null });
+    expect(r.crop).toBe(true);
+    expect(r.plate).toBe('GD99999');
+  });
+
+  it('dwa zdjęcia: auto = zdjęcie, na którym WSKAZANY pojazd jest największy (nawet niezwycięski)', () => {
+    const a = photo('a', det('ZS12345', 0.4, { winner: true }), det('GD99999', 0.1));
+    const b = photo('b', det('GD99999', 0.25, { winner: true }));
+    expect(chooseRoles([a, b]).slots.car).toBe('a'); // domyślnie największe auto
+    const r = chooseRoles([a, b], { plate: 'GD99999' });
+    expect(r.slots).toEqual({ car: 'b', context: 'a', third: null });
+    expect(r.plate).toBe('GD99999');
+  });
 });

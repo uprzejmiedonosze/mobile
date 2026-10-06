@@ -7,6 +7,9 @@ import { uploadConfig } from '../config';
 // Zdjęcie jest wysyłane RAZ: POST /api/rest/photos (etap „wip” na backendzie). Analiza (vision/candidate) i przydział do
 // slotu (POST /app/{id}/image z photoId) czytają już plik z serwera – nie ma osobnych, mniejszych kopii „do analizy”.
 //
+// Wycinki tablicy i (przy jednym zdjęciu) auta NIE powstają z tej kopii, tylko z oryginału z galerii (lib/crop.ts) – dzięki temu
+// tablica ma pełną rozdzielczość w PDF i na stronie zgłoszenia; serwer przelicza na nie odczyt ALPR z kopii (ułamki kadru).
+//
 // SYNC z drugim repo (../uprzejmiedonosze, backend + web):
 //  - API.php: MAX_IMAGE_DIM (1600) i JPEG_QUALITY (85) – serwer re-enkoduje i ucina do tych wartości przy przydziale do
 //    slotu; web robi to samo w src/js/new-app/images.js. Zmiana tu (szerokość/jakość) = zmiana tam i odwrotnie.

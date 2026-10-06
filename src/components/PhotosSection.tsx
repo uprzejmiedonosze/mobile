@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { ImageViewer } from './ImageViewer';
-import type { Phase } from '../lib/usePhotoBatch';
-import { SLOT_ORDER } from '../lib/roles';
+import type { CropPreview, Phase } from '../lib/usePhotoBatch';
+import { SLOT_ORDER, type Vehicle } from '../lib/roles';
 import type { Slot, Slots } from '../lib/suggest';
 import { ud } from '../theme';
 
@@ -28,14 +28,29 @@ function TileImage({ uri, box, natural }: { uri: string; box?: VehicleBox | null
   );
 }
 
-const LABEL: Record<Slot, string> = { context: 'Kontekst', car: 'Auto', third: 'Dodatkowe' };
+// Jedno zdjęcie: drugi kafelek to wycinek auta (+20% marginesu) liczony lokalnie z oryginału i boxu pojazdu z ALPR – gotowy zaraz po
+// odczycie, bez czekania na wycinek z serwera.
+function CropTile({ preview }: { preview: CropPreview }) {
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  let img = null;
+  if (size.w > 0) {
+    const [x1, y1, x2, y2] = preview.box.map((v) => v / 1000);
+    const mx = (x2 - x1) * 0.2, my = (y2 - y1) * 0.2;
+    const fx1 = Math.max(0, x1 - mx), fx2 = Math.min(1, x2 + mx), fy1 = Math.max(0, y1 - my), fy2 = Math.min(1, y2 + my);
+    const scale = Math.max(size.w / ((fx2 - fx1) * preview.w), size.h / ((fy2 - fy1) * preview.h)); // „cover” obszaru wycinka
+    const cx = ((fx1 + fx2) / 2) * preview.w, cy = ((fy1 + fy2) / 2) * preview.h;
+    img = <Image source={{ uri: preview.uri }} style={{ position: 'absolute', width: preview.w * scale, height: preview.h * scale, left: size.w / 2 - cx * scale, top: size.h / 2 - cy * scale }} />;
+  }
+  return <View style={{ flex: 1, overflow: 'hidden' }} onLayout={(e) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>{img}</View>;
+}
 const SLOTS: Slot[] = SLOT_ORDER; // auto → kontekst → dodatkowe
 // Przy jednym zdjęciu drugi kafelek to wycinek auta z serwera (to samo zdjęcie pełni rolę kontekstu i auta).
 export const CROP_TILE_ID = '__car_crop';
 
-// Jedno pole na 1–3 zdjęcia: kafelki z podglądem (od razu), pod każdym wybór roli. Role podpowiada analiza ALPR (lib/roles.ts)
-// (usePhotoBatch); dotknięcie innej roli zamienia zdjęcia miejscami.
-export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, carBox, carNatural, onPick, onAssign, onRemove }: {
+// Pole na 2–3 kafelki (jedno zdjęcie też daje dwa: oryginał + wycinek auta – układ się nie przestawia). Opisujemy tylko „Auto”,
+// a pod nim miniatura tablicy rejestracyjnej. Role wynikają z analizy ALPR (lib/roles.ts) i nie są do ręcznej zmiany; jedyny wybór
+// użytkownika to „którego pojazdu dotyczy zgłoszenie”, gdy wykryto kilka pewnych pojazdów.
+export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, cropPreview, pending, plateUri, vehicles, vehicleIdx, carBox, carNatural, onPick, onVehicle, onRemove }: {
   tiles: Tile[];
   slots: Slots;
   phase: Phase;
@@ -43,15 +58,20 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
   note: string | null;
   carBox?: VehicleBox | null;
   carNatural?: { w: number; h: number } | null;
-  crop?: boolean; // jedno zdjęcie = kontekst + wycinek auta: bez wyboru ról
+  crop?: boolean; // jedno zdjęcie = oryginał + wycinek auta (drugi kafelek, CROP_TILE_ID)
+  cropPreview?: CropPreview | null;
+  pending?: boolean; // role są przeliczane po usunięciu zdjęcia (opóźnione) – spinner tylko na kafelku wycinka
+  plateUri?: string | null; // miniatura tablicy z ALPR (wycinek z serwera) – pod zdjęciem auta
   editable: boolean; // false = zdjęcia z serwera (edycja istniejącego zgłoszenia) – role bez zmian
   onPick: () => void;
-  onAssign: (id: string, to: Slot | null) => void;
+  vehicles?: Vehicle[]; // ≥2 = wykryto kilka pojazdów o sporej pewności: pytamy, którego dotyczy zgłoszenie
+  vehicleIdx?: number;
+  onVehicle?: (plate: string) => void;
   onRemove: (id: string) => void;
 }) {
   const analyzing = phase === 'preparing' || phase === 'analyzing';
   const [viewer, setViewer] = useState<number | null>(null); // dotknięcie zdjęcia otwiera galerię (zoom, swipe)
-  const slotOf = (id: string): Slot | null => (id === CROP_TILE_ID ? 'car' : crop ? 'context' : SLOTS.find((s) => slots[s] === id) ?? null);
+  const slotOf = (id: string): Slot | null => (id === CROP_TILE_ID ? 'car' : crop ? null : SLOTS.find((s) => slots[s] === id) ?? null);
   return (
     <View style={{ marginTop: 14 }}>
       {tiles.length === 0 ? (
@@ -64,13 +84,23 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
             {tiles.map((t, idx) => {
               const slot = slotOf(t.id);
               const isCropTile = t.id === CROP_TILE_ID;
+              const isCar = slot === 'car';
+              const waiting = isCropTile && !cropPreview && (analyzing || pending);
               return (
                 <View key={t.id} style={{ flex: 1 }}>
                   <View style={{ aspectRatio: 3 / 4, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream, overflow: 'hidden' }}>
                     <Pressable style={{ flex: 1 }} onPress={() => setViewer(idx)}>
-                      <TileImage uri={t.uri} box={slot === 'car' && !analyzing && !uploading.includes('car') ? carBox : null} /* ramka dotyczy zdjęcia już wysłanego, nie takiego w trakcie podmiany */ natural={carNatural} />
+                      {isCropTile ? (
+                        cropPreview ? <CropTile preview={cropPreview} /> : (
+                          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 8 }}>
+                            {waiting ? null : <Text style={{ color: ud.muted, textAlign: 'center', fontSize: 12 }}>Brak zdjęcia z widocznym numerem rejestracyjnym</Text>}
+                          </View>
+                        )
+                      ) : (
+                        <TileImage uri={t.uri} box={isCar && !analyzing && !uploading.includes('car') ? carBox : null} /* ramka dotyczy zdjęcia już wysłanego, nie takiego w trakcie podmiany */ natural={carNatural} />
+                      )}
                     </Pressable>
-                    {(analyzing || (slot && uploading.includes(slot))) ? (
+                    {(waiting || (!isCropTile && analyzing) || (slot && uploading.includes(slot))) ? (
                       <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.55)', alignItems: 'center', justifyContent: 'center' }}>
                         <ActivityIndicator color={ud.primary} />
                       </View>
@@ -81,24 +111,32 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
                       </Pressable>
                     ) : null}
                   </View>
-                  {editable && !crop ? (
-                    <View style={{ marginTop: 6, gap: 4 }}>
-                      {SLOTS.map((s) => {
-                        const on = slot === s;
-                        return (
-                          <Pressable key={s} disabled={analyzing} onPress={() => onAssign(t.id, on && s === 'third' ? null : s)} style={{ borderRadius: ud.radiusPill, paddingVertical: 4, alignItems: 'center', backgroundColor: on ? ud.primary : 'transparent', borderWidth: 1, borderColor: on ? ud.primary : ud.primaryOutline, opacity: analyzing ? 0.5 : 1 }}>
-                            <Text style={{ fontSize: 12, fontFamily: ud.fontBodyBold, color: on ? '#fff' : ud.primary }}>{LABEL[s]}</Text>
-                          </Pressable>
-                        );
-                      })}
+                  {/* Tylko „Auto”, a pod nim miniatura tablicy – to wyróżnia zdjęcie auta spośród pozostałych. */}
+                  {isCar ? (
+                    <View style={{ marginTop: 6 }}>
+                      <Text style={{ textAlign: 'center', fontSize: 12, fontFamily: ud.fontBodyBold, color: ud.primary }}>Auto</Text>
+                      {plateUri ? <Image source={{ uri: plateUri }} style={{ marginTop: 4, height: 34, width: '100%', borderRadius: 4, backgroundColor: ud.surfaceCream }} resizeMode="contain" /> : null}
                     </View>
-                  ) : (
-                    <Text style={{ textAlign: 'center', marginTop: 6, fontSize: 12, fontFamily: ud.fontBodyBold, color: ud.primary }}>{isCropTile ? 'Auto (wycinek)' : crop ? 'Kontekst' : slot ? LABEL[slot] : ''}</Text>
-                  )}
+                  ) : null}
                 </View>
               );
             })}
           </View>
+          {editable && !analyzing && vehicles && vehicles.length >= 2 ? (
+            <View style={{ marginTop: 10 }}>
+              <Text style={{ color: ud.text, fontFamily: ud.fontBodyBold }}>Wykryto kilka pojazdów – którego dotyczy zgłoszenie?</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
+                {vehicles.map((v, i) => {
+                  const on = i === vehicleIdx;
+                  return (
+                    <Pressable key={v.plate} onPress={() => onVehicle?.(v.plate)} style={{ borderRadius: ud.radiusPill, borderWidth: 1, borderColor: ud.primary, paddingHorizontal: 14, paddingVertical: 6, backgroundColor: on ? ud.primary : 'transparent' }}>
+                      <Text style={{ fontFamily: ud.fontBodyBold, letterSpacing: 1, color: on ? '#fff' : ud.primary }}>{v.plate}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
           <Text style={{ color: analyzing ? ud.primary : ud.muted, marginTop: 8 }}>
             {phase === 'preparing' ? 'Wysyłam zdjęcia i odczytuję tablice rejestracyjne…' : phase === 'analyzing' ? 'Wybieram zdjęcie auta i kontekst…' : uploading.length ? 'Zapisuję zdjęcia…' : ''}
           </Text>
