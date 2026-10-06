@@ -1,7 +1,6 @@
 // Tworzenie/edycja zgłoszenia – cienkie wrappery na JWT REST (/api/rest/app/*, patrz API.md w backendzie).
 // Cała logika domenowa (walidacja, SM/Policja, numer, efekty uboczne „Potwierdź”) siedzi w backendzie.
 import { File } from 'expo-file-system';
-import { downscale } from '../lib/resize';
 import type { GeoAddress } from '../types';
 import { toGeoAddress } from './geo';
 import type { Recipient, UdApp } from './apps';
@@ -66,36 +65,6 @@ export async function fetchReport(appId: string): Promise<UdApp> {
   return apiJson(await authFetch(`/api/rest/app/${encodeURIComponent(appId)}`), 'Nie udało się pobrać zgłoszenia');
 }
 
-// multipart: pole `image` + `pictureType` (+ dateTime/dtFromPicture/lat/lng dla carImage). Serwer sam
-// ustawia datę i GPS ze zdjęcia auta oraz rozpoznaje tablicę (ALPR) – odpowiedź to zaktualizowane zgłoszenie.
-export async function uploadReportImage(
-  appId: string,
-  type: PictureType,
-  uri: string,
-  meta: { dateTime?: string | null; lat?: number | null; lng?: number | null } = {},
-  prescaled = false, // true = `uri` jest już po downscale() (np. to samo zdjęcie poszło do analizy)
-): Promise<UdApp> {
-  const small = prescaled ? { uri } : await downscale(uri);
-  const form = new FormData();
-  // UWAGA: globalny fetch to expo/fetch (SDK 57) – nie rozumie RN-owego {uri, name, type} w FormData
-  // ("Unsupported FormDataPart implementation"); przyjmuje string, Blob albo obiekt z bytes(), czyli File.
-  form.append('image', new File(small.uri) as unknown as Blob);
-  form.append('pictureType', type);
-  if (type === 'carImage') {
-    if (meta.dateTime) {
-      form.append('dateTime', meta.dateTime);
-      form.append('dtFromPicture', 'true');
-    }
-    if (meta.lat != null && meta.lng != null) {
-      form.append('lat', String(meta.lat));
-      form.append('lng', String(meta.lng));
-    }
-  }
-  // bez Content-Type – fetch ustawia multipart boundary sam
-  const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/image`, { method: 'POST', body: form });
-  return apiJson(res, 'Nie udało się wysłać zdjęcia');
-}
-
 // Przydział zdjęcia z etapu „wip” (api/photos.ts) do slotu szkicu – serwer bierze bajty ze swojego dysku, skaluje je i
 // przycina wycinek tablicy; ALPR nie jest wołany ponownie (wynik leży przy zdjęciu).
 // `crop: 'vehicle'` (tylko auto): zamiast całego zdjęcia zapisz wycinek pojazdu z ALPR + 20% marginesu – gdy jedno zdjęcie
@@ -109,7 +78,7 @@ export async function assignReportPhoto(appId: string, type: PictureType, photoI
 // (formularz, strona zgłoszenia, PDF). Serwerowy wycinek zostaje rezerwą, gdy to wywołanie się nie uda.
 export async function uploadPlateImage(appId: string, uri: string): Promise<UdApp> {
   const form = new FormData();
-  form.append('image', new File(uri) as unknown as Blob); // jak w uploadReportImage: expo/fetch przyjmuje File
+  form.append('image', new File(uri) as unknown as Blob); // expo/fetch (SDK 57) nie rozumie RN-owego {uri, name, type} w FormData – przyjmuje File
   const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/plate-image`, { method: 'POST', body: form });
   return apiJson(res, 'Nie udało się wysłać wycinka tablicy');
 }

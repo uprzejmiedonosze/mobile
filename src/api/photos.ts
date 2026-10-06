@@ -16,7 +16,7 @@ export async function stagePhoto(uri: string, meta: { dateTime?: string | null; 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const form = new FormData();
-      // UWAGA: globalny fetch to expo/fetch – przyjmuje File (patrz uploadReportImage w reports.ts)
+      // UWAGA: globalny fetch to expo/fetch (SDK 57) – nie rozumie RN-owego {uri, name, type} w FormData; przyjmuje File
       form.append('image', new File(uri) as unknown as Blob);
       if (meta.dateTime) form.append('dateTime', meta.dateTime);
       if (meta.lat != null && meta.lng != null) { form.append('lat', String(meta.lat)); form.append('lng', String(meta.lng)); }
