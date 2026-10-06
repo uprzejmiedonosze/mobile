@@ -4,19 +4,19 @@ import type { PhotoQuota } from '../api/udApi';
 import { isPatronTier, quotaNotice } from '../lib/quotaNotice';
 import { ud } from '../theme';
 
-const Link = ({ children, onPress }: { children: string; onPress: () => void }) => (
-  <Text onPress={onPress} accessibilityRole="link" style={{ color: ud.primary, textDecorationLine: 'underline', fontFamily: ud.fontBodyBold }}>{children}</Text>
+const Link = ({ children, onPress, underline = true }: { children: string; onPress: () => void; underline?: boolean }) => (
+  <Text onPress={onPress} accessibilityRole="link" style={{ color: ud.primary, textDecorationLine: underline ? 'underline' : 'none', fontFamily: ud.fontBodyBold }}>{children}</Text>
 );
 
 // Nad dodawaniem zdjęć: przy < 3 zdjęciach limitu – komunikat z opcjami, przy > 80% zużycia – krótkie „Potrzebujesz więcej zdjęć?”.
-export function PhotoQuotaNotice({ quota, onPatronite }: { quota: PhotoQuota | null; onPatronite: () => void }) {
+export function PhotoQuotaNotice({ quota, patronem, onPatronite }: { quota: PhotoQuota | null; patronem: string; onPatronite: () => void }) {
   const kind = quotaNotice(quota);
   if (!quota || !kind) return null;
 
   if (kind === 'more') {
     return (
       <Text style={{ color: ud.text, marginBottom: 12, lineHeight: 21 }}>
-        <Link onPress={onPatronite}>Potrzebujesz więcej zdjęć?</Link>
+        <Link onPress={onPatronite} underline={false}>Potrzebujesz więcej zdjęć?</Link>
       </Text>
     );
   }
@@ -30,8 +30,8 @@ export function PhotoQuotaNotice({ quota, onPatronite }: { quota: PhotoQuota | n
         {' Chcesz donosić za darmo – skorzystaj z wersji '}<Link onPress={web}>www</Link>{'. Chcesz podnieść limit?'}
       </Text>
       <Pressable onPress={onPatronite} accessibilityRole="button" style={{ marginTop: 10 }}>
-        <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, textDecorationLine: 'underline' }}>
-          {isPatronTier(quota) ? 'Podnieś swój próg wsparcia na Patronite' : 'Zostań Patronem/nką już od 10 zł miesięcznie'}
+        <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>
+          {isPatronTier(quota) ? 'Podnieś swój próg wsparcia na Patronite' : `Zostań ${patronem} już od 10 zł miesięcznie`}
         </Text>
       </Pressable>
     </View>

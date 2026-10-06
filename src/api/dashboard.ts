@@ -25,6 +25,7 @@ export type Dashboard = {
   rank: DashRank;
   badges: DashBadge[];
   photoQuota?: PhotoQuota; // brak u starszego backendu
+  sexStrings?: Record<string, string>; // odmiana przez płeć (brak u starszego backendu)
 };
 
 // Publiczny słownik z /api/rest/config/{name} (extensions, category-groups, …); {} przy błędzie.

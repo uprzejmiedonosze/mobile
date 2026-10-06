@@ -19,6 +19,7 @@ import { PhotoQuotaNotice } from '../components/PhotoQuotaNotice';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import { openUdPage } from '../lib/openPage';
 import { usePhotoQuota } from '../lib/usePhotoQuota';
+import { PATRONEM_DEFAULT } from '../lib/sex';
 import { usePhotoBatch } from '../lib/usePhotoBatch';
 import { SLOT_ORDER } from '../lib/roles';
 import type { Slot, Suggestion } from '../lib/suggest';
@@ -126,6 +127,7 @@ export function NewReportScreen({ navigation, route }: any) {
   const [dateText, setDateText] = useState('');
   const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
   const [bylam, setBylam] = useState('byłam/em'); // odmiana przez płeć użytkownika
+  const [patron, setPatron] = useState(PATRONEM_DEFAULT); // „Patronem/Patronką” – j.w.
   const [weightWarning, setWeightWarning] = useState<string | null>(null);
   const [addrNote, setAddrNote] = useState<string | null>(null);
   const autoLine = useRef<string | null>(null); // ostatnia automatyczna linia „Pojazd marki …” w komentarzu
@@ -153,7 +155,7 @@ export function NewReportScreen({ navigation, route }: any) {
   // Punkt startowy mapy jak na www: ostatnie zgłoszenie → adres zamieszkania → (brak) środek Polski. Odświeżane przy
   // każdym wejściu na ekran, bo wysłanie zgłoszenia przesuwa „ostatnią lokalizację” po stronie backendu.
   useFocusEffect(useCallback(() => {
-    fetchProfile().then((p) => { setBylam(p.bylam); setMapStart(p.lastLocation); }).catch(() => {});
+    fetchProfile().then((p) => { setBylam(p.bylam); setPatron(p.patronem); setMapStart(p.lastLocation); }).catch(() => {});
   }, []));
   useFocusEffect(useCallback(() => { refreshQuota(); }, [refreshQuota])); // licznik limitu zdjęć przy każdym wejściu na ekran
   useEffect(() => {
@@ -404,7 +406,7 @@ export function NewReportScreen({ navigation, route }: any) {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {editId ? <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>{`Edycja${app?.number ? ` ${app.number}` : ''}`}</Text> : null}
 
-        <PhotoQuotaNotice quota={quota} onPatronite={() => openUdPage(navigation, '/patronite.html', 'Patronite')} />
+        <PhotoQuotaNotice quota={quota} patronem={patron} onPatronite={() => openUdPage(navigation, '/patronite.html', 'Patronite')} />
         <PhotosSection
           tiles={tiles}
           slots={tileSlots}

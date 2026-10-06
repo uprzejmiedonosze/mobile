@@ -4,6 +4,7 @@ import { fetchDashboard, fmtInt, num, stripHtml, type DashBadge, type Dashboard 
 import { udConfig } from '../config';
 import { log } from '../lib/log';
 import { openUdPage } from '../lib/openPage';
+import { patronem } from '../lib/sex';
 import { plural } from '../lib/reports';
 import type { PhotoQuota } from '../api/udApi';
 import { ErrorScreen } from '../components/ErrorScreen';
@@ -15,7 +16,7 @@ const Eyebrow = ({ children }: { children: string }) => (
 );
 
 // Zużycie limitu unikalnych przetworzonych zdjęć (okno kroczące); patroni mają wyższe progi, 50 zł = bez limitu.
-function PhotoQuotaSection({ q, onPatronite }: { q: PhotoQuota; onPatronite: () => void }) {
+function PhotoQuotaSection({ q, patronem, onPatronite }: { q: PhotoQuota; patronem: string; onPatronite: () => void }) {
   const left = q.remaining;
   // Zachęta do patronatu po przekroczeniu 50% limitu – tylko bez patronatu (patroni od 10 zł już mają wyższy próg).
   const upsell = q.limit !== null && q.used > q.limit / 2 && (q.tier === 'free' || q.tier === 'patron-below-min');
@@ -39,7 +40,7 @@ function PhotoQuotaSection({ q, onPatronite }: { q: PhotoQuota; onPatronite: () 
       {upsell ? (
         <Pressable onPress={onPatronite} accessibilityRole="link" style={{ marginTop: 8 }}>
           <Text style={{ color: ud.text, lineHeight: 21 }}>
-            Potrzebujesz więcej? <Text style={{ color: ud.primary, textDecorationLine: 'underline', fontFamily: ud.fontBodyBold }}>Zostań Patronem już od 10 zł</Text>
+            Potrzebujesz więcej? <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>{`Zostań ${patronem} już od 10 zł`}</Text>
           </Text>
         </Pressable>
       ) : null}
@@ -184,7 +185,7 @@ export function DashboardScreen({ navigation }: any) {
               </Section>
             ) : null}
 
-            {d.photoQuota ? <PhotoQuotaSection q={d.photoQuota} onPatronite={() => openUdPage(navigation, '/patronite.html', 'Patronite')} /> : null}
+            {d.photoQuota ? <PhotoQuotaSection q={d.photoQuota} patronem={patronem(d.sexStrings)} onPatronite={() => openUdPage(navigation, '/patronite.html', 'Patronite')} /> : null}
 
             <Section>
               <Text accessibilityRole="header" style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 22, marginBottom: 6 }}>Nie chcesz „donosić”?</Text>

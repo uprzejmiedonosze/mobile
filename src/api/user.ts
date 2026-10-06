@@ -1,6 +1,7 @@
 // Onboarding UD po REST – bez web UI, patrz CLAUDE.md sekcja Auth.
 // isRegistered() (../uprzejmiedonosze/src/inc/dataclasses/User.php) = name && address niepuste.
 // isTermsConfirmed = termsConfirmation > LATEST_TERMS_UPDATE.
+import { patronem } from '../lib/sex';
 import { udConfig } from '../config';
 import { logFetch } from '../lib/log';
 import { apiJson, authFetch } from './udApi';
@@ -24,6 +25,7 @@ export type UserProfile = {
   edelivery: string;
   shareRecydywa: boolean;
   lastLocation: { lat: number; lng: number } | null; // ostatnie zgłoszenie albo geokodowany adres zamieszkania (backend), null = brak
+  patronem: string; // „Patronem”/„Patronką”/„Patronką(em)” (po „Zostań”)
   bylam: string; // „byłem”/„byłam”/„byłam/em” – fraza odmieniona przez płeć (sexStrings z backendu, jak config.sex na webie)
 };
 
@@ -47,6 +49,7 @@ export async function fetchProfile(): Promise<UserProfile> {
     shareRecydywa: d.shareRecydywa ?? false,
     lastLocation: parseLatLng(j?.lastLocation),
     bylam: j?.sexStrings?.bylam ?? 'byłam/em',
+    patronem: patronem(j?.sexStrings),
   };
 }
 
