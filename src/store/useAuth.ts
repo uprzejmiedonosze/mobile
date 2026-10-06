@@ -5,12 +5,15 @@ import {
   refreshIdToken,
   sendEmailLink,
   signInWithCode,
+  signInWithCustomToken,
   signInWithGoogleIdToken,
   storedEmail,
   storedRefreshToken,
 } from '../api/firebaseAuth';
 import { authFetch, verifySession } from '../api/udApi';
 import { googleConfig } from '../config';
+import { loginWithPasskey } from '../api/passkey';
+import { isPasskeyCancelled } from '../lib/passkey';
 
 // UWAGA: @react-native-google-signin/google-signin czyta natywny moduł (TurboModuleRegistry)
 // już na poziomie SWOJEGO pliku, w chwili gdy JS go require'uje – nie dopiero przy wywołaniu
@@ -35,7 +38,7 @@ try {
   log.warn('auth', `Google Sign-In niedostępny (Expo Go / brak natywnego modułu) – logowanie e-mail-link działa normalnie: ${String(e?.message ?? e).slice(0, 150)}`);
 }
 
-type Status = 'idle' | 'link-sending' | 'link-sent' | 'verifying' | 'google-signing' | 'logged' | 'error';
+type Status = 'idle' | 'link-sending' | 'link-sent' | 'verifying' | 'google-signing' | 'passkey-signing' | 'logged' | 'error';
 
 type Auth = {
   status: Status;
@@ -55,6 +58,7 @@ type Auth = {
   requestLink: () => Promise<void>;
   verifyCode: (code: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signInWithPasskey: () => Promise<void>;
   applySession: (s: { idToken: string; refreshToken: string; expiresAt: number; email: string }) => void;
   checkRegistration: () => Promise<void>;
   hydrate: () => Promise<void>;
@@ -131,6 +135,25 @@ export const useAuth = create<Auth>((set, get) => ({
       const m = e?.message ?? String(e);
       set({ status: 'error', error: m });
       log.error('auth', `Google: ${m}`);
+    }
+  },
+  signInWithPasskey: async () => {
+    set({ status: 'passkey-signing', error: null });
+    try {
+      const sess = await signInWithCustomToken(await loginWithPasskey());
+      get().applySession(sess);
+      const who = await verifySession(sess.idToken);
+      if (who?.name) set({ name: who.name });
+      if (who?.email && !get().email) set({ email: who.email });
+      set({ status: 'logged' });
+    } catch (e: any) {
+      if (isPasskeyCancelled(e)) {
+        set({ status: 'idle' }); // anulowane przez usera – nie traktujemy jak błąd
+        return;
+      }
+      const m = e?.message ?? String(e);
+      set({ status: 'error', error: m });
+      log.error('auth', `Passkey: ${m}`);
     }
   },
   applySession: (s) => set({ idToken: s.idToken, refreshToken: s.refreshToken, expiresAt: s.expiresAt, email: s.email || get().email }),

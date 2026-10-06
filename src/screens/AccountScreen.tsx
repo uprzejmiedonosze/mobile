@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Linking, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { deleteAccount, fetchPasskeys, fetchProfile, removePasskey, updateUserProfile, type Passkey } from '../api/user';
+import { registerPasskey } from '../api/passkey';
+import { isPasskeyCancelled, passkeysEnabled } from '../lib/passkey';
 import { googleSignInReady, useAuth } from '../store/useAuth';
 import { udConfig, udEnv } from '../config';
 import { ud } from '../theme';
@@ -12,6 +14,7 @@ export function AccountScreen({ navigation }: any) {
   const go = (r: string) => navigation.navigate(r);
 
   const logged = a.status === 'logged' && !!a.idToken;
+  const busy = a.status === 'link-sending' || a.status === 'verifying' || a.status === 'google-signing' || a.status === 'passkey-signing';
 
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
@@ -63,13 +66,26 @@ export function AccountScreen({ navigation }: any) {
           <UdCard>
             <Text style={{ color: ud.heading, fontWeight: '700' }}>Google</Text>
             <Text style={{ color: ud.muted, marginTop: 4 }}>
-              Szybsze logowanie – bez kopiowania kodu z maila. Passkey (WebAuthn) na mobile w kolejnym etapie.
+              Szybsze logowanie – bez kopiowania kodu z maila.
             </Text>
             <UdButton
               title={a.status === 'google-signing' ? 'Loguję…' : 'Zaloguj przez Google'}
               variant="accent"
               onPress={a.signInWithGoogle}
-              disabled={a.status === 'link-sending' || a.status === 'verifying' || a.status === 'google-signing'}
+              disabled={busy}
+            />
+          </UdCard>
+        ) : null}
+
+        {!logged && passkeysEnabled() ? (
+          <UdCard>
+            <Text style={{ color: ud.heading, fontWeight: '700' }}>Passkey</Text>
+            <Text style={{ color: ud.muted, marginTop: 4 }}>Odcisk palca, twarz lub PIN – bez kodu z maila.</Text>
+            <UdButton
+              title={a.status === 'passkey-signing' ? 'Loguję…' : 'Zaloguj passkeyem'}
+              variant="accent"
+              onPress={a.signInWithPasskey}
+              disabled={busy}
             />
           </UdCard>
         ) : null}
@@ -95,6 +111,7 @@ function ProfileCards({ onLogout }: { onLogout: () => void }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [passkeys, setPasskeys] = useState<Passkey[] | null>(null);
+  const [addingPasskey, setAddingPasskey] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteEmail, setDeleteEmail] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -106,6 +123,14 @@ function ProfileCards({ onLogout }: { onLogout: () => void }) {
   }, []);
 
   useEffect(() => { fetchPasskeys().then(setPasskeys).catch(() => setPasskeys([])); }, []);
+
+  const addPasskey = async () => {
+    setAddingPasskey(true);
+    setMsg(null);
+    try { setPasskeys(await registerPasskey()); setMsg({ ok: true, text: 'Passkey dodany.' }); }
+    catch (e: any) { if (!isPasskeyCancelled(e)) setMsg({ ok: false, text: e?.message ?? String(e) }); }
+    finally { setAddingPasskey(false); }
+  };
 
   const dropPasskey = async (id: string) => {
     try { await removePasskey(id); setPasskeys((l) => (l ?? []).filter((k) => k.id !== id)); }
@@ -187,7 +212,11 @@ function ProfileCards({ onLogout }: { onLogout: () => void }) {
             </View>
           ))
         )}
-        <Text style={{ color: ud.primary, textDecorationLine: 'underline', marginTop: 10 }} onPress={() => web('/app/account?update')}>Dodaj passkey (na stronie)</Text>
+        {passkeysEnabled() ? (
+          <UdButton title={addingPasskey ? 'Dodaję…' : 'Dodaj passkey'} variant="primary" onPress={addPasskey} disabled={addingPasskey} />
+        ) : (
+          <Text style={{ color: ud.primary, textDecorationLine: 'underline', marginTop: 10 }} onPress={() => web('/app/account?update')}>Dodaj passkey (na stronie)</Text>
+        )}
       </View>
 
       <View style={{ marginTop: 20 }}>

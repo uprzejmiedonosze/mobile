@@ -128,6 +128,43 @@ export async function signInWithGoogleIdToken(googleIdToken: string): Promise<Fb
   return sess;
 }
 
+// Passkey: backend po zweryfikowaniu asercji WebAuthn zwraca Firebase custom token (ten sam projekt co reszta
+// logowań); wymieniamy go na sesję, a e-mail (którego odpowiedź nie zawiera) pobieramy z accounts:lookup.
+export async function signInWithCustomToken(customToken: string): Promise<FbSession> {
+  log.info('auth', 'wymieniam custom token (passkey) na sesję Firebase…');
+  const res = await logFetch('auth', `${IDTK}/accounts:signInWithCustomToken?key=${firebaseConfig.apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: customToken, returnSecureToken: true }),
+  });
+  if (!res.ok) {
+    log.error('auth', `signInWithCustomToken: HTTP ${res.status}`);
+    await fbErr(res);
+  }
+  const j = (await res.json()) as any;
+  let email = '';
+  try {
+    const lr = await logFetch('auth', `${IDTK}/accounts:lookup?key=${firebaseConfig.apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: j.idToken }),
+    });
+    if (lr.ok) email = (((await lr.json()) as any)?.users?.[0]?.email ?? '').trim().toLowerCase();
+  } catch {
+    /* e-mail uzupełni verifySession / kolejne logowanie */
+  }
+  const sess: FbSession = {
+    idToken: j.idToken,
+    refreshToken: j.refreshToken,
+    expiresAt: Date.now() + Number(j.expiresIn ?? 3600) * 1000,
+    email,
+  };
+  await SecureStore.setItemAsync(K_REFRESH, sess.refreshToken);
+  if (email) await SecureStore.setItemAsync(K_EMAIL, email);
+  log.info('auth', `zalogowano passkeyem: ${email || '?'}`);
+  return sess;
+}
+
 export async function refreshIdToken(refreshToken: string): Promise<FbSession> {
   const res = await logFetch('auth', `${SECURE}/token?key=${firebaseConfig.apiKey}`, {
     method: 'POST',
