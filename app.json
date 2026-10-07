@@ -60,6 +60,14 @@
       "expo-secure-store",
       "@react-native-google-signin/google-signin",
       "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 288,
+          "backgroundColor": "#0d7a55"
+        }
+      ],
       "@sentry/react-native"
     ],
     "extra": {
