@@ -12,7 +12,7 @@ import { pickPhotos } from './gallery';
 import { log } from './log';
 import { downscale, type Scaled } from './resize';
 import { exifToIso } from './reports';
-import { chooseRoles, listVehicles, SLOT_ORDER, type Detection, type PhotoDetections, type Vehicle } from './roles';
+import { BOTH_VEHICLES, canChooseBoth, chooseRoles, listVehicles, secondVehicle, SLOT_ORDER, type Detection, type PhotoDetections, type Vehicle } from './roles';
 import { plateMatches } from './compose';
 import { defaultSlots, EMPTY_SLOTS, type Slot, type Slots, type Suggestion } from './suggest';
 import type { PhotoItem } from '../types';
@@ -54,6 +54,8 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
   const [vehicles, setVehicles] = useState<Vehicle[]>([]); // pewnie wykryte pojazdy (≥2 = pytamy, którego dotyczy zgłoszenie)
   const [plate, setPlate] = useState<string | null>(null); // tablica pojazdu zgłoszenia (wybrana lub domyślna)
   const plateRef = useRef<string | null>(null);
+  const [plate2, setPlate2] = useState<string | null>(null); // „Oba”: tablica drugiego pojazdu (pierwszym jest `plate`)
+  const bothRef = useRef(false); // użytkownik odpowiedział „Oba” (obowiązuje, dopóki na zdjęciach są dokładnie dwa pojazdy)
   const detectionsRef = useRef<PhotoDetections[]>([]); // odczyty ALPR zdjęć (lokalne id) – do ponownego wyboru ról
   // Wycinki z ORYGINAŁU (lib/crop.ts) liczone po wyborze auta: tablica (zawsze) i – przy jednym zdjęciu – samo auto.
   const [plateCropUri, setPlateCropUri] = useState<string | null>(null);
@@ -174,7 +176,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
 
   // Role z odczytów ALPR (`detectionsRef`), opcjonalnie dla pojazdu wskazanego przez użytkownika. Zastępuje ręczną zmianę ról:
   // jedyna decyzja użytkownika to „którego auta dotyczy zgłoszenie” (gdy wykryto kilka), reszta wynika ze zdjęć.
-  const applyChoice = useCallback((chosenPlate?: string, list: LocalPhoto[] = photosRef.current) => {
+  const applyChoice = useCallback((chosenPlate?: string, list: LocalPhoto[] = photosRef.current, wantBoth = bothRef.current) => {
     const dets = detectionsRef.current;
     const choice = chooseRoles(dets, { plate: chosenPlate });
     // jedno zdjęcie: lokalny podgląd wycinka z boxu wskazanego pojazdu
@@ -185,7 +187,12 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
     setCropPreview(carPhoto?.small && d?.vehicle_bbox ? { uri: carPhoto.small.uri, w: carPhoto.small.width, h: carPhoto.small.height, box: d.vehicle_bbox } : null);
     plateRef.current = choice.plate;
     setPlate(choice.plate);
-    setVehicles(listVehicles(dets));
+    const found = listVehicles(dets);
+    setVehicles(found);
+    // „Oba”: pojazd główny jak zwykle (zdjęcie auta, tablica), drugi tylko trafia do formularza
+    const second = wantBoth && canChooseBoth(found) ? secondVehicle(found, choice.plate) : null;
+    bothRef.current = !!second;
+    setPlate2(second?.plate ?? null);
     setCrop(choice.crop);
     setSlots(choice.slots);
     setNote(choice.note);
@@ -193,8 +200,9 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
     return choice;
   }, [prepareCar]);
 
-  const chooseVehicle = useCallback((chosenPlate: string) => {
-    const choice = applyChoice(chosenPlate);
+  const chooseVehicle = useCallback((chosen: string) => {
+    const both = chosen === BOTH_VEHICLES;
+    const choice = applyChoice(both ? undefined : chosen, photosRef.current, both);
     const car = photosRef.current.find((p) => p.id === choice.slots.car);
     if (car) onCarExif?.(car); // inne auto = inne zdjęcie auta = inna data/GPS
   }, [applyChoice, onCarExif]);
@@ -209,7 +217,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
       const ids = picked.map((p) => p.id);
       setNote(null);
       setCrop(false);
-      setVehicles([]); setPlate(null); plateRef.current = null; detectionsRef.current = []; setCropPreview(null);
+      setVehicles([]); setPlate(null); setPlate2(null); bothRef.current = false; plateRef.current = null; detectionsRef.current = []; setCropPreview(null);
       originals.current.clear(); prepSeq.current++; plateCrop.current = null; carCropId.current = null; setPlateCropUri(null);
       if (reanalyzeTimer.current) { clearTimeout(reanalyzeTimer.current); reanalyzeTimer.current = null; setReanalyzing(false); }
       // 1) podgląd natychmiast, na razie w kolejności wyboru
@@ -254,7 +262,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
       if (car) onCarExif?.(car); // rola auta ustalona – jeśli to inne zdjęcie niż zgadywane, popraw datę/GPS
       setPhase('ready'); // → efekt wyżej wysyła zdjęcia do szkicu
     } catch (e) {
-      if (my === batch.current) { setPhotos([]); setSlots(EMPTY_SLOTS); setCrop(false); setVehicles([]); setPlate(null); plateRef.current = null; detectionsRef.current = []; }
+      if (my === batch.current) { setPhotos([]); setSlots(EMPTY_SLOTS); setCrop(false); setVehicles([]); setPlate(null); setPlate2(null); bothRef.current = false; plateRef.current = null; detectionsRef.current = []; }
       setPhase('idle');
       onError(e);
     }
@@ -279,7 +287,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
 
   const retry = useCallback(() => { setFailed([]); void syncUploads(); }, [syncUploads]);
 
-  const vehicleIdx = plate ? vehicles.findIndex((v) => plateMatches(v.plate, plate)) : -1;
+  const vehicleIdx = plate && plate2 === null ? vehicles.findIndex((v) => plateMatches(v.plate, plate)) : -1;
 
-  return { photos, slots, phase, uploading, note, crop, cropPreview, plateCropUri, reanalyzing, vehicles, vehicleIdx, chooseVehicle, failed, retry, pick, remove, busy: phase === 'preparing' || phase === 'analyzing' || reanalyzing || uploading.length > 0 };
+  return { photos, slots, phase, uploading, note, crop, cropPreview, plateCropUri, reanalyzing, vehicles, vehicleIdx, both: plate2 !== null, plate2, chooseVehicle, failed, retry, pick, remove, busy: phase === 'preparing' || phase === 'analyzing' || reanalyzing || uploading.length > 0 };
 }

@@ -35,6 +35,7 @@ export type UdApp = {
     address?: string; addressGPS?: string; city?: string; voivodeship?: string; district?: string;
     county?: string; municipality?: string; postcode?: string; lat?: number | null; lng?: number | null;
   };
+  carInfo2?: { plateId?: string; description?: string }; // zgłoszenie o dwóch pojazdach łamiących te same przepisy
   carInfo?: { plateId?: string; brand?: string; model?: string; plateImage?: string; vehicleBox?: { x: number; y: number; width: number; height: number } }; // plateImage = wycinek tablicy, vehicleBox = ramka pojazdu z ALPR (piksele carImage)
   recipient?: Recipient | null;
   contextImage?: AppImage;

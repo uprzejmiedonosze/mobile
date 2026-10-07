@@ -18,6 +18,9 @@ the user can swap roles. `POST /app/new` (lazy) → `POST /app/{id}/image` per s
 server runs ALPR and reads date/GPS from the car photo) → form (reverse geocode `/geo/{lat},{lng}/n`, typed address `/geo/search`,
 recydywa `/recydywa/{plate}`, vehicle `/vehicle/{plate}`) → `POST /app/{id}` (server-side validation, 422 + `field`)
 → `POST /app/{id}/finish {send:true}` (confirm + send; same side effects as web `/app/done`) → `ReportDoneScreen`.
+Dwa pojazdy na zdjęciach: pytanie „którego dotyczy zgłoszenie?” ma też odpowiedź **„Oba”** (`BOTH_VEHICLES`, tylko przy dokładnie 2 pojazdach):
+pojazd główny jak zwykle, drugi trafia jako `plateId2` (+ `desc`/`desc2` = marka/model w nawiasach w treści zamiast linii „Pojazd marki” w komentarzu);
+backend zapisuje `carInfo2`, a appka sprawdza w odpowiedzi `saveReport`, czy `carInfo2` wrócił (starszy backend ignoruje pola – wtedy nie idziemy dalej).
 The draft id is persisted (`useNewReport`, like web `$_SESSION['newAppId']`); "EDYTUJ" on the list opens the same
 screen with `editId`. API contract: `../uprzejmiedonosze/API.md`.
 

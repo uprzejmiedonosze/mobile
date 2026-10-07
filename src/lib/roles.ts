@@ -19,6 +19,14 @@ export type Vehicle = { plate: string; score: number; area: number };
 // Wybór pojazdu pokazujemy tylko, gdy są co najmniej dwa pojazdy o sporej pewności odczytu i nie są to ledwo widoczne
 // auta w tle (pole pojazdu w kadrze).
 export const CONFIDENT_SCORE = 0.8;
+
+// Odpowiedź „Oba” na pytanie, którego pojazdu dotyczy zgłoszenie: oba łamią te same przepisy. Tylko przy dokładnie dwóch
+// pojazdach (przy trzech nie wiadomo, które „oba”).
+export const BOTH_VEHICLES = 'both';
+export const canChooseBoth = (vehicles: Vehicle[]): boolean => vehicles.length === 2;
+// Drugi pojazd zgłoszenia = pierwszy z wykrytych, który nie jest pojazdem głównym (największym na zdjęciu auta).
+export const secondVehicle = (vehicles: Vehicle[], primaryPlate: string | null): Vehicle | null =>
+  (primaryPlate ? vehicles.find((v) => !plateMatches(v.plate, primaryPlate)) : null) ?? null;
 export const MIN_VEHICLE_AREA = 0.03;
 
 export type RoleChoice = {

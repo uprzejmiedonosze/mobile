@@ -100,6 +100,7 @@ export function ReportConfirmScreen({ navigation, route }: any) {
         <View style={{ marginTop: 16, backgroundColor: ud.surface, borderRadius: ud.radiusSm, padding: 14 }}>
           <Text style={{ color: ud.text, lineHeight: 21 }}>{c.body}</Text>
           <Text style={{ color: ud.text, marginTop: 8 }}>{c.witness}</Text>
+          {c.plateId2 ? <Text style={{ color: ud.text, marginTop: 8 }}>Dotyczy dwóch pojazdów: <Text style={{ fontFamily: ud.fontBodyBold }}>{c.plateId} i {c.plateId2}</Text>.</Text> : null}
         </View>
 
         <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, marginTop: 16 }}>📍 {c.shortAddress}</Text>

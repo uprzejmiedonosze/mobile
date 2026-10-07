@@ -10,6 +10,9 @@ export type PictureType = 'contextImage' | 'carImage' | 'thirdImage';
 
 export type ReportForm = {
   plateId: string;
+  plateId2?: string; // „Oba”: drugi pojazd; opisy pojazdów (marka/model) trafiają w nawiasy przy numerach zamiast do komentarza
+  desc?: string;
+  desc2?: string;
   address: string; // adres widoczny dla użytkownika (web: `lokalizacja`)
   addressGPS?: string; // co zwrócił geokoder
   city?: string;
@@ -36,6 +39,7 @@ export type Confirmation = {
   witness: string; // „Nie byłeś świadkiem parkowania.” / „Byłeś świadkiem parkowania.”
   shortAddress: string;
   plateId: string | null;
+  plateId2?: string | null; // zgłoszenie o dwóch pojazdach
   vehicleBox: { x: number; y: number; width: number; height: number } | null; // piksele zdjęcia auta
   recipient: { name: string; shortName: string; automated: boolean; unknown: boolean };
   sender: { name: string; email: string; address: string; msisdn: string; edelivery: string };

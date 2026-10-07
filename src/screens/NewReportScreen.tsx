@@ -36,6 +36,7 @@ type Groups = Record<string, { name: string }>;
 // (updateApplication w API.php) – klient sprawdza tylko, czy są zdjęcia, i pokazuje błędy `field` z 422.
 type Form = {
   plateId: string;
+  plateId2: string; // „Oba”: drugi pojazd łamiący te same przepisy (pusty = zgłoszenie o jednym pojeździe)
   address: string;
   geo: GeoAddress | null;
   lat: number | null;
@@ -50,7 +51,7 @@ type Form = {
 };
 
 const EMPTY: Form = {
-  plateId: '', address: '', geo: null, lat: null, lng: null, datetime: '', dtFromPicture: true,
+  plateId: '', plateId2: '', address: '', geo: null, lat: null, lng: null, datetime: '', dtFromPicture: true,
   category: 0, extensions: [], comment: '', witness: false, unit: 'SA',
 };
 
@@ -65,6 +66,7 @@ function formFromApp(a: UdApp, prev: Form = EMPTY): Form {
   return {
     ...prev,
     plateId: a.carInfo?.plateId ?? prev.plateId,
+    plateId2: a.carInfo2?.plateId ?? prev.plateId2,
     address: a.address?.address ?? prev.address,
     lat: a.address?.lat ?? prev.lat,
     lng: a.address?.lng ?? prev.lng,
@@ -77,6 +79,10 @@ function formFromApp(a: UdApp, prev: Form = EMPTY): Form {
     unit: a.stopAgresji ? 'SA' : 'SM',
   };
 }
+
+// „Jaguar XF 2,0D” z odpowiedzi /vehicle (albo z odczytu ALPR zdjęcia) – opis pojazdu w treści zgłoszenia o dwóch pojazdach.
+const vehicleName = (v: { brand: string | null; model: string | null } | null, brand?: string, model?: string) =>
+  [v?.brand ?? brand, v?.model ?? model].filter(Boolean).join(' ').trim();
 
 const H = ({ children }: { children: string }) => (
   <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 22, marginTop: 24, marginBottom: 6 }}>{children}</Text>
@@ -126,6 +132,10 @@ export function NewReportScreen({ navigation, route }: any) {
   const [plateTouched, setPlateTouched] = useState(false); // web chowa wycinek tablicy po ręcznej zmianie numeru
   const [dateText, setDateText] = useState('');
   const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
+  const [recydywa2, setRecydywa2] = useState<RecydywaInfo | null>(null);
+  const [weightWarning2, setWeightWarning2] = useState<string | null>(null);
+  const [desc, setDesc] = useState(''); // „Oba”: opisy pojazdów („Jaguar XF 2,0D”) idą w nawiasy przy numerach, nie do komentarza
+  const [desc2, setDesc2] = useState('');
   const [bylam, setBylam] = useState('byłam/em'); // odmiana przez płeć użytkownika
   const [patron, setPatron] = useState(PATRONEM_DEFAULT); // „Patronem/Patronką” – j.w.
   const [weightWarning, setWeightWarning] = useState<string | null>(null);
@@ -201,7 +211,7 @@ export function NewReportScreen({ navigation, route }: any) {
     setForm((f) => {
       const n = formFromApp(a, f);
       let out: Form = { ...n, plateId: edited.current.plate ? f.plateId : n.plateId, address: edited.current.address ? f.address : n.address,
-        category: f.category, extensions: f.extensions, comment: f.comment, witness: f.witness, unit: f.unit };
+        category: f.category, extensions: f.extensions, comment: f.comment, witness: f.witness, unit: f.unit, plateId2: f.plateId2 };
       if (carMeta && !carMeta.gps) out = { ...out, lat: null, lng: null, geo: null, address: '' };
       if (carMeta) out = carMeta.date ? { ...out, dtFromPicture: true } : { ...out, dtFromPicture: false, datetime: nowIso() };
       return out;
@@ -228,22 +238,31 @@ export function NewReportScreen({ navigation, route }: any) {
   }, [lat, lng]);
 
   // Recydywa + opis pojazdu po wpisaniu tablicy (debounce). Linię „Pojazd marki …” i ostrzeżenie o masie
-  // liczy backend (GET /api/rest/vehicle/{plate}); tu tylko dopisujemy ją do komentarza jak web.
+  // liczy backend (GET /api/rest/vehicle/{plate}); tu tylko dopisujemy ją do komentarza jak web. Przy „Oba” (dwie tablice)
+  // opisy obu pojazdów trafiają w nawiasy przy numerach w treści zgłoszenia, więc linii w komentarzu nie dopisujemy.
   const ocrBrand = app?.carInfo?.brand, ocrModel = app?.carInfo?.model;
   useEffect(() => {
     const plate = form.plateId.replace(/\s/g, '');
-    if (plate.length < 4) { setRecydywa(null); setWeightWarning(null); return; }
+    const plate2 = form.plateId2.replace(/\s/g, '');
+    const both = plate2.length >= 4;
+    if (!both) { setRecydywa2(null); setWeightWarning2(null); setDesc2(''); }
+    if (plate.length < 4) { setRecydywa(null); setWeightWarning(null); setDesc(''); return; }
     const t = setTimeout(() => {
       validIdToken().then((tok) => fetchRecydywa(plate, tok)).then(setRecydywa).catch(() => {});
       fetchVehicleDescription(plate, { brand: ocrBrand, model: ocrModel }).then((v) => {
         setWeightWarning(v?.weightWarning ?? null);
-        const line = v?.comment ?? null;
+        setDesc(vehicleName(v, ocrBrand, ocrModel));
+        const line = both ? null : v?.comment ?? null;
         setForm((f) => ({ ...f, comment: appendAutoLine(f.comment, line, autoLine.current) }));
         autoLine.current = line;
       });
+      if (both) {
+        validIdToken().then((tok) => fetchRecydywa(plate2, tok)).then(setRecydywa2).catch(() => {});
+        fetchVehicleDescription(plate2).then((v) => { setWeightWarning2(v?.weightWarning ?? null); setDesc2(vehicleName(v)); });
+      }
     }, 700);
     return () => clearTimeout(t);
-  }, [form.plateId, ocrBrand, ocrModel]);
+  }, [form.plateId, form.plateId2, ocrBrand, ocrModel]);
 
   // Ręcznie wpisany adres → współrzędne + miasto/województwo (bez nich backend nie ustali SM/Policji).
   const lookupAddress = async () => {
@@ -327,6 +346,9 @@ export function NewReportScreen({ navigation, route }: any) {
   }, []);
   const batch = usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError: fail, onCarExif: applyCarExif });
   const uploading = batch.busy;
+  // Odpowiedź „Oba” (albo wybór jednego pojazdu / nowe zdjęcia) ustawia drugą tablicę; ręczna poprawka zostaje do następnego wyboru.
+  const localPhotos = batch.photos.length > 0;
+  useEffect(() => { if (localPhotos) setForm((f) => (f.plateId2 === (batch.plate2 ?? '') ? f : { ...f, plateId2: batch.plate2 ?? '' })); }, [batch.plate2, localPhotos]);
   useEffect(() => { if (batch.phase === 'ready') refreshQuota(); }, [batch.phase, refreshQuota]); // zdjęcia właśnie przetworzone → nowe zużycie
 
   // Bez lokalnych zdjęć (edycja / wznowiony szkic) pokazujemy te z serwera, role bez zmian.
@@ -391,8 +413,14 @@ export function NewReportScreen({ navigation, route }: any) {
         municipality: geo.municipality, postcode: geo.postcode, lat, lng,
         datetime: form.datetime || nowIso(), dtFromPicture: form.dtFromPicture, category: form.category,
         extensions: form.extensions, comment: form.comment.trim(), witness: form.witness, stopAgresji: unit,
+        ...(form.plateId2.trim() ? { plateId2: form.plateId2.trim(), desc, desc2 } : {}),
       };
-      await saveReport(app.id, body);
+      const saved = await saveReport(app.id, body);
+      // starszy backend ignoruje nieznane pola – zgłoszenie wyszłoby z jednym pojazdem, więc nie idziemy dalej
+      if (body.plateId2 && !saved.carInfo2?.plateId) {
+        fail(new ApiError('Serwer nie obsługuje jeszcze zgłoszeń o dwóch pojazdach – usuń drugi numer rejestracyjny albo spróbuj później', 422, 'plateId2'));
+        return;
+      }
       navigation.navigate('ReportConfirm', { appId: app.id }); // ekran „Sprawdź przed wysłaniem” (jak potwierdz.html na www)
     } catch (e) { fail(e); } finally { setSubmitting(false); }
   };
@@ -423,6 +451,7 @@ export function NewReportScreen({ navigation, route }: any) {
           onPick={batch.pick}
           vehicles={batch.vehicles}
           vehicleIdx={batch.vehicleIdx}
+          both={batch.both}
           onVehicle={batch.chooseVehicle}
           onRemove={batch.remove}
         />
@@ -448,6 +477,19 @@ export function NewReportScreen({ navigation, route }: any) {
         {weightWarning ? <Text style={{ color: ud.warning, marginTop: 6 }}>{weightWarning}</Text> : null}
         {recydywa && recydywa.appsCnt > 0 ? (
           <Text style={{ color: ud.text, marginTop: 6 }}>❗ Ten pojazd był już zgłaszany: {plural(recydywa.appsCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}.</Text>
+        ) : null}
+
+        {form.plateId2 ? (
+          <>
+            <L>Drugi pojazd (to samo wykroczenie) – numer rejestracyjny</L>
+            <TextInput style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }]} value={form.plateId2} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => set('plateId2', t)} />
+            <Text style={{ color: ud.muted, fontSize: 12, marginTop: 4 }}>Wyczyść pole, aby zgłosić tylko pierwszy pojazd.</Text>
+            {fieldErr('plateId2')}
+            {weightWarning2 ? <Text style={{ color: ud.warning, marginTop: 6 }}>{weightWarning2}</Text> : null}
+            {recydywa2 && recydywa2.appsCnt > 0 ? (
+              <Text style={{ color: ud.text, marginTop: 6 }}>❗ Drugi pojazd był już zgłaszany: {plural(recydywa2.appsCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}.</Text>
+            ) : null}
+          </>
         ) : null}
 
         <L>Adres (z GPS zdjęcia, możesz poprawić)</L>

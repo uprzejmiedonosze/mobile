@@ -140,7 +140,10 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <StatusDot status={app.status} label={statusName} police={police} />
           <Text style={{ color: ud.muted, fontSize: 13 }}>{fmtShortDate(app.date)}</Text>
-          <PlateBadge plate={plate} />
+          <View style={{ flexDirection: 'row', gap: 4 }}>
+            <PlateBadge plate={plate} />
+            {app.carInfo2?.plateId ? <PlateBadge plate={app.carInfo2.plateId} /> : null}
+          </View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
           <Text numberOfLines={1} style={{ flex: 1, fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 17 }}>

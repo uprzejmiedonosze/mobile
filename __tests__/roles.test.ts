@@ -1,4 +1,4 @@
-import { chooseRoles, listVehicles, NO_PLATE_NOTE, type Detection, type PhotoDetections } from '../src/lib/roles';
+import { canChooseBoth, chooseRoles, listVehicles, NO_PLATE_NOTE, secondVehicle, type Detection, type PhotoDetections } from '../src/lib/roles';
 
 // compose.ts (skąd bierzemy plateMatches) importuje expo-file-system – jak w suggest.test.ts
 jest.mock('expo-file-system/legacy', () => ({
@@ -145,5 +145,32 @@ describe('wybór pojazdu przez użytkownika', () => {
     const r = chooseRoles([a, b], { plate: 'GD99999' });
     expect(r.slots).toEqual({ car: 'b', context: 'a', third: null });
     expect(r.plate).toBe('GD99999');
+  });
+});
+
+describe('odpowiedź „Oba”', () => {
+  const two = () => listVehicles([
+    photo('a', det('ZS12345', 0.4, { winner: true }), det('GD99999', 0.1)),
+    photo('b', det('GD99999', 0.25, { winner: true })),
+  ]);
+
+  it('„Oba” tylko przy dokładnie dwóch pojazdach', () => {
+    expect(canChooseBoth(two())).toBe(true);
+    expect(canChooseBoth(two().slice(0, 1))).toBe(false);
+    expect(canChooseBoth([...two(), { plate: 'PO55555', score: 0.9, area: 0.2 }])).toBe(false);
+  });
+
+  it('drugi pojazd = ten, który nie jest głównym (z tolerancją błędu odczytu jednego znaku)', () => {
+    const v = two();
+    expect(secondVehicle(v, 'ZS12345')?.plate).toBe('GD99999');
+    expect(secondVehicle(v, 'GD99999')?.plate).toBe('ZS12345');
+    expect(secondVehicle(v, 'ZS12346')?.plate).toBe('GD99999');
+    expect(secondVehicle(v, null)).toBeNull();
+  });
+
+  it('pojazd główny przy „Oba” = domyślny (największy), jak bez wyboru', () => {
+    const photos = [photo('a', det('ZS12345', 0.4, { winner: true }), det('GD99999', 0.1)), photo('b', det('GD99999', 0.25, { winner: true }))];
+    expect(chooseRoles(photos).plate).toBe('ZS12345');
+    expect(secondVehicle(listVehicles(photos), chooseRoles(photos).plate)?.plate).toBe('GD99999');
   });
 });
