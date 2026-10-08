@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { ImageViewer } from './ImageViewer';
-import type { CropPreview, Phase } from '../lib/usePhotoBatch';
+import type { CropPreview, Phase, SecondVehicle } from '../lib/usePhotoBatch';
 import { BOTH_VEHICLES, SLOT_ORDER, type Vehicle } from '../lib/roles';
 import type { Slot, Slots } from '../lib/suggest';
 import { ud } from '../theme';
@@ -50,7 +50,7 @@ export const CROP_TILE_ID = '__car_crop';
 // Pole na 2–3 kafelki (jedno zdjęcie też daje dwa: oryginał + wycinek auta – układ się nie przestawia). Bez podpisów ról; zdjęcie auta
 // wyróżnia miniatura tablicy rejestracyjnej pod nim. Role wynikają z analizy ALPR (lib/roles.ts) i nie są do ręcznej zmiany; jedyny wybór
 // użytkownika to „którego pojazdu dotyczy zgłoszenie”, gdy wykryto kilka pewnych pojazdów.
-export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, cropPreview, pending, plateUri, vehicles, vehicleIdx, canBoth, both, carBox, carNatural, onPick, onVehicle, onRemove }: {
+export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, cropPreview, pending, plateUri, vehicles, vehicleIdx, canBoth, both, second, carBox, carNatural, onPick, onVehicle, onRemove }: {
   tiles: Tile[];
   slots: Slots;
   phase: Phase;
@@ -67,6 +67,7 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
   vehicles?: Vehicle[]; // ≥2 = wykryto kilka pojazdów o sporej pewności: pytamy, którego dotyczy zgłoszenie
   vehicleIdx?: number;
   canBoth?: boolean; // czy pokazać „Oba” (≥2 zdjęcia i dokładnie dwa pojazdy – roles.canChooseBoth)
+  second?: SecondVehicle | null; // „Oba”: ramka i tablica drugiego pojazdu pod JEGO zdjęciem
   both?: boolean; // odpowiedź „Oba” (oba pojazdy łamią te same przepisy)
   onVehicle?: (plate: string) => void; // tablica albo BOTH_VEHICLES
   onRemove: (id: string) => void;
@@ -87,6 +88,7 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
               const slot = slotOf(t.id);
               const isCropTile = t.id === CROP_TILE_ID;
               const isCar = slot === 'car';
+              const isSecond = !!both && !!second && t.id === second.photoId;
               const waiting = isCropTile && !cropPreview && (analyzing || pending);
               return (
                 <View key={t.id} style={{ flex: 1 }}>
@@ -99,7 +101,9 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
                           </View>
                         )
                       ) : (
-                        <TileImage uri={t.uri} box={isCar && !analyzing && !uploading.includes('car') ? carBox : null} /* ramka dotyczy zdjęcia już wysłanego, nie takiego w trakcie podmiany */ natural={carNatural} />
+                        isSecond ? <TileImage uri={t.uri} box={analyzing ? null : second!.box} natural={second!.natural} /> : (
+                          <TileImage uri={t.uri} box={isCar && !analyzing && !uploading.includes('car') ? carBox : null} /* ramka dotyczy zdjęcia już wysłanego, nie takiego w trakcie podmiany */ natural={carNatural} />
+                        )
                       )}
                     </Pressable>
                     {(waiting || (!isCropTile && analyzing) || (slot && uploading.includes(slot))) ? (
@@ -116,6 +120,9 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
                   {/* Miniatura tablicy pod zdjęciem auta – bez podpisu; to ona wyróżnia zdjęcie auta spośród pozostałych. */}
                   {isCar && plateUri ? (
                     <Image source={{ uri: plateUri }} style={{ marginTop: 8, height: 64, width: '100%', borderRadius: 4, backgroundColor: ud.surfaceCream }} resizeMode="contain" />
+                  ) : null}
+                  {isSecond && second!.plateUri ? (
+                    <Image source={{ uri: second!.plateUri }} style={{ marginTop: 8, height: 64, width: '100%', borderRadius: 4, backgroundColor: ud.surfaceCream }} resizeMode="contain" />
                   ) : null}
                 </View>
               );

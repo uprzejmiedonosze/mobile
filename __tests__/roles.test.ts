@@ -1,4 +1,4 @@
-import { canChooseBoth, chooseRoles, listVehicles, NO_PLATE_NOTE, secondVehicle, type Detection, type PhotoDetections } from '../src/lib/roles';
+import { canChooseBoth, chooseBothRoles, chooseRoles, splitVehicles, listVehicles, NO_PLATE_NOTE, secondVehicle, type Detection, type PhotoDetections } from '../src/lib/roles';
 
 // compose.ts (skąd bierzemy plateMatches) importuje expo-file-system – jak w suggest.test.ts
 jest.mock('expo-file-system/legacy', () => ({
@@ -190,5 +190,48 @@ describe('odpowiedź „Oba”', () => {
     const photos = [photo('a', det('ZS12345', 0.4, { winner: true }), det('GD99999', 0.1)), photo('b', det('GD99999', 0.25, { winner: true }))];
     expect(chooseRoles(photos).plate).toBe('ZS12345');
     expect(secondVehicle(listVehicles(photos), chooseRoles(photos).plate)?.plate).toBe('GD99999');
+  });
+});
+
+describe('„Oba” – osobne zdjęcie dla każdego pojazdu', () => {
+  const carA = photo('a', det('ZS12345', 0.4, { winner: true }));
+  const carB = photo('b', det('GD99999', 0.35, { winner: true }));
+  const wide = photo('w', det('ZS12345', 0.05, { winner: true }), det('GD99999', 0.04));
+
+  it('dwa zdjęcia, po jednym pojeździe: każdy pojazd ma swoje zdjęcie, drugie jest też kontekstem', () => {
+    const split = splitVehicles([carA, carB]);
+    expect(split).toEqual({ first: { photo: 'a', plate: 'ZS12345' }, second: { photo: 'b', plate: 'GD99999' } });
+    expect(chooseBothRoles([carA, carB], split!).slots).toEqual({ car: 'a', context: 'b', third: null });
+  });
+
+  it('trzy zdjęcia: szeroki kadr z obiema tablicami to kontekst, zdjęcie drugiego pojazdu – dodatkowe', () => {
+    const photos = [wide, carA, carB];
+    const split = splitVehicles(photos)!;
+    expect(split.first.photo).toBe('a');
+    expect(split.second.photo).toBe('b');
+    expect(chooseBothRoles(photos, split).slots).toEqual({ car: 'a', context: 'w', third: 'b' });
+  });
+
+  it('dwa pojazdy na jednym zdjęciu nie wystarczą – bez „Oba”', () => {
+    const both = photo('x', det('ZS12345', 0.4, { winner: true }), det('GD99999', 0.2));
+    expect(splitVehicles([both, photo('y')])).toBeNull();
+    expect(splitVehicles([both, photo('y', det('ZS12345', 0.1, { winner: true }))])).toBeNull(); // drugi pojazd nie ma własnego zdjęcia
+  });
+
+  it('drugi pojazd ledwo widoczny na innym zdjęciu (poniżej progu pola) nie liczy się jako jego zdjęcie', () => {
+    const both = photo('x', det('ZS12345', 0.4, { winner: true }), det('GD99999', 0.2));
+    expect(splitVehicles([both, photo('y', det('GD99999', 0.01))])).toBeNull();
+  });
+});
+
+describe('wybór pojazdu tylko przy osobnych zdjęciach', () => {
+  it('dwa auta wyłącznie na jednym zdjęciu (przy 2–3 zdjęciach) → brak wyboru', () => {
+    const both = photo('x', det('ZS12345', 0.4, { winner: true }), det('GD99999', 0.2));
+    expect(splitVehicles([both, photo('y'), photo('z')])).toBeNull();
+  });
+
+  it('drugie auto na innym zdjęciu bez pewnie odczytanej tablicy → brak wyboru', () => {
+    const both = photo('x', det('ZS12345', 0.4, { winner: true }), det('GD99999', 0.2));
+    expect(splitVehicles([both, photo('y', det('GD99999', 0.3, { score: 0.5 }))])).toBeNull();
   });
 });

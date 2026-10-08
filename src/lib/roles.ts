@@ -66,6 +66,35 @@ export function listVehicles(photos: PhotoDetections[]): Vehicle[] {
   return out.sort((a, b) => b.area - a.area).slice(0, MAX_VEHICLES);
 }
 
+// Wybór pojazdu (także „Oba”) oferujemy tylko wtedy, gdy splitVehicles() daje wynik: każdy z dwóch pojazdów ma własne zdjęcie
+// z widoczną tablicą. Dwa auta tylko na jednym zdjęciu = bez wyboru, zostaje domyślny (największy) pojazd.
+// „Oba”: każdy z dwóch pojazdów ma WŁASNE zdjęcie (tablica + ramka pod osobnym kafelkiem) – dwa pojazdy na jednym zdjęciu nie
+// wystarczą. Pierwszy (większy) pojazd bierze zdjęcie, na którym jest największy; drugi – najlepsze INNE zdjęcie, na którym
+// jest widoczny z czytelną tablicą (pole pojazdu ≥ MIN_VEHICLE_AREA, pewność ≥ CONFIDENT_SCORE). Brak takiego zdjęcia → null (nie oferujemy „Oba”).
+export type BothSplit = { first: { photo: string; plate: string }; second: { photo: string; plate: string } };
+export function splitVehicles(photos: PhotoDetections[]): BothSplit | null {
+  const vehicles = listVehicles(photos);
+  if (vehicles.length < MAX_VEHICLES) return null;
+  const best = (plate: string, skip?: string) => photos
+    .map((p, i) => ({ p, i, d: p.id === skip ? null : candidateOf(p, plate) }))
+    .filter((x): x is { p: PhotoDetections; i: number; d: Detection } => x.d !== null && area(x.d) >= MIN_VEHICLE_AREA && score(x.d) >= CONFIDENT_SCORE)
+    .sort((a, b) => area(b.d) - area(a.d) || a.i - b.i)[0];
+  const first = best(vehicles[0].plate);
+  const second = first ? best(vehicles[1].plate, first.p.id) : undefined;
+  if (!first || !second) return null;
+  return { first: { photo: first.p.id, plate: first.d.text }, second: { photo: second.p.id, plate: second.d.text } };
+}
+
+// Role przy „Oba”: auto = zdjęcie pierwszego pojazdu; kontekst = pozostałe zdjęcie (gdy są trzy), inaczej zdjęcie drugiego
+// pojazdu; przy trzech zdjęciach zdjęcie drugiego pojazdu to „dodatkowe”.
+export function chooseBothRoles(photos: PhotoDetections[], split: BothSplit): RoleChoice {
+  const rest = photos.find((p) => p.id !== split.first.photo && p.id !== split.second.photo);
+  const slots: Slots = rest
+    ? { car: split.first.photo, context: rest.id, third: split.second.photo }
+    : { car: split.first.photo, context: split.second.photo, third: null };
+  return { slots, crop: false, plate: split.first.plate, vehicleFound: true, note: null };
+}
+
 // `opts.plate` = pojazd wskazany przez użytkownika (gdy wykryto kilka): auto = zdjęcie, na którym JEGO pojazd jest największy.
 export function chooseRoles(photos: PhotoDetections[], opts: { plate?: string } = {}): RoleChoice {
   const empty: Slots = { car: null, context: null, third: null };

@@ -12,7 +12,7 @@ import { pickPhotos } from './gallery';
 import { log } from './log';
 import { downscale, type Scaled } from './resize';
 import { exifToIso } from './reports';
-import { BOTH_VEHICLES, canChooseBoth, chooseRoles, listVehicles, secondVehicle, SLOT_ORDER, type Detection, type PhotoDetections, type Vehicle } from './roles';
+import { BOTH_VEHICLES, canChooseBoth, chooseBothRoles, chooseRoles, listVehicles, splitVehicles, SLOT_ORDER, type Detection, type PhotoDetections, type Vehicle } from './roles';
 import { plateMatches } from './compose';
 import { defaultSlots, EMPTY_SLOTS, type Slot, type Slots, type Suggestion } from './suggest';
 import type { PhotoItem } from '../types';
@@ -26,6 +26,14 @@ const SLOTS: Slot[] = SLOT_ORDER; // auto → kontekst → dodatkowe
 // bez czekania na wycinek z serwera (nie ma „placeholdera”, który sam się wypełnia).
 export type CropPreview = { uri: string; w: number; h: number; box: [number, number, number, number] }; // box 0..1000
 export const REANALYZE_DELAY_MS = 900;
+
+// „Oba”: drugi pojazd ma własne zdjęcie – ramka (piksele zdjęcia lokalnego) i wycinek tablicy liczone lokalnie z odczytu ALPR.
+export type SecondVehicle = {
+  photoId: string; plate: string;
+  box: { x: number; y: number; width: number; height: number } | null;
+  natural: { w: number; h: number } | null;
+  plateUri: string | null;
+};
 
 export type LocalPhoto = PhotoItem & { small?: Scaled; serverId?: string }; // serverId = photoId z etapu „wip” na backendzie
 export type Phase = 'idle' | 'preparing' | 'analyzing' | 'ready';
@@ -55,6 +63,8 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
   const [plate, setPlate] = useState<string | null>(null); // tablica pojazdu zgłoszenia (wybrana lub domyślna)
   const plateRef = useRef<string | null>(null);
   const [plate2, setPlate2] = useState<string | null>(null); // „Oba”: tablica drugiego pojazdu (pierwszym jest `plate`)
+  const [second, setSecond] = useState<SecondVehicle | null>(null);
+  const secondSeq = useRef(0);
   const bothRef = useRef(false); // użytkownik odpowiedział „Oba” (obowiązuje, dopóki na zdjęciach są dokładnie dwa pojazdy)
   const detectionsRef = useRef<PhotoDetections[]>([]); // odczyty ALPR zdjęć (lokalne id) – do ponownego wyboru ról
   // Wycinki z ORYGINAŁU (lib/crop.ts) liczone po wyborze auta: tablica (zawsze) i – przy jednym zdjęciu – samo auto.
@@ -174,11 +184,33 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
     })().catch((e) => log.warn('wycinki', `z oryginału: ${String(e?.message ?? e).slice(0, 160)}`)); // błąd = zostają wycinki serwerowe
   }, []);
 
+  // „Oba”: ramka i wycinek tablicy drugiego pojazdu na jego zdjęciu (samo podglądowe, na serwer nie leci).
+  const prepareSecond = useCallback((photoId: string, plate: string, dets: PhotoDetections[], list: LocalPhoto[]) => {
+    const seq = ++secondSeq.current;
+    const p = list.find((x) => x.id === photoId);
+    const d = (dets.find((x) => x.id === photoId)?.detections ?? []).filter((x) => plateMatches(x.text, plate))
+      .sort((a, b) => (b.vehicle_area ?? 0) - (a.vehicle_area ?? 0))[0];
+    const nat = p?.small ? { w: p.small.width, h: p.small.height } : null;
+    const vb = d?.vehicle_bbox;
+    const box = nat && vb ? { x: vb[0] / 1000 * nat.w, y: vb[1] / 1000 * nat.h, width: (vb[2] - vb[0]) / 1000 * nat.w, height: (vb[3] - vb[1]) / 1000 * nat.h } : null;
+    setSecond({ photoId, plate, box, natural: nat, plateUri: null });
+    if (!p || !d?.plate_bbox) return;
+    (async () => {
+      let orig = originals.current.get(p.id);
+      if (!orig) { orig = prepareOriginal(p.uri); originals.current.set(p.id, orig); }
+      const c = await cropRegion(await orig, bboxToRegion(d.plate_bbox!, 0.12, 0.3), 800);
+      if (seq === secondSeq.current) setSecond((s) => (s && s.photoId === photoId ? { ...s, plateUri: c.uri } : s));
+    })().catch((e) => log.warn('wycinki', `druga tablica: ${String(e?.message ?? e).slice(0, 160)}`));
+  }, []);
+
   // Role z odczytów ALPR (`detectionsRef`), opcjonalnie dla pojazdu wskazanego przez użytkownika. Zastępuje ręczną zmianę ról:
   // jedyna decyzja użytkownika to „którego auta dotyczy zgłoszenie” (gdy wykryto kilka), reszta wynika ze zdjęć.
   const applyChoice = useCallback((chosenPlate?: string, list: LocalPhoto[] = photosRef.current, wantBoth = bothRef.current) => {
     const dets = detectionsRef.current;
-    const choice = chooseRoles(dets, { plate: chosenPlate });
+    // „Oba” wymaga osobnych zdjęć obu pojazdów; gdy już ich nie ma (np. po usunięciu zdjęcia), wracamy do jednego pojazdu
+    const offer = splitVehicles(dets); // wybór pojazdu tylko, gdy każdy ma własne zdjęcie z tablicą
+    const split = wantBoth ? offer : null;
+    const choice = split ? chooseBothRoles(dets, split) : chooseRoles(dets, { plate: offer ? chosenPlate : undefined });
     // jedno zdjęcie: lokalny podgląd wycinka z boxu wskazanego pojazdu
     const carPhoto = choice.crop ? list.find((p) => p.id === choice.slots.car) : undefined;
     const d = choice.crop && choice.plate
@@ -188,17 +220,18 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
     plateRef.current = choice.plate;
     setPlate(choice.plate);
     const found = listVehicles(dets);
-    setVehicles(found);
-    // „Oba”: pojazd główny jak zwykle (zdjęcie auta, tablica), drugi tylko trafia do formularza
-    const second = wantBoth && canChooseBoth(found, dets.length) ? secondVehicle(found, choice.plate) : null;
-    bothRef.current = !!second;
-    setPlate2(second?.plate ?? null);
+    setVehicles(offer ? found : []); // bez własnych zdjęć nie pytamy, którego pojazdu dotyczy zgłoszenie
+    // „Oba”: pojazd główny jak zwykle (zdjęcie auta, tablica na serwerze); drugi ma własny podgląd (ramka + tablica) i trafia do formularza
+    bothRef.current = !!split;
+    setPlate2(split?.second.plate ?? null);
+    if (split) prepareSecond(split.second.photo, split.second.plate, dets, list);
+    else { secondSeq.current++; setSecond(null); }
     setCrop(choice.crop);
     setSlots(choice.slots);
     setNote(choice.note);
     prepareCar(choice.slots.car, choice.crop, choice.plate, dets, list);
     return choice;
-  }, [prepareCar]);
+  }, [prepareCar, prepareSecond]);
 
   const chooseVehicle = useCallback((chosen: string) => {
     const both = chosen === BOTH_VEHICLES;
@@ -217,7 +250,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
       const ids = picked.map((p) => p.id);
       setNote(null);
       setCrop(false);
-      setVehicles([]); setPlate(null); setPlate2(null); bothRef.current = false; plateRef.current = null; detectionsRef.current = []; setCropPreview(null);
+      setVehicles([]); setPlate(null); setPlate2(null); setSecond(null); secondSeq.current++; bothRef.current = false; plateRef.current = null; detectionsRef.current = []; setCropPreview(null);
       originals.current.clear(); prepSeq.current++; plateCrop.current = null; carCropId.current = null; setPlateCropUri(null);
       if (reanalyzeTimer.current) { clearTimeout(reanalyzeTimer.current); reanalyzeTimer.current = null; setReanalyzing(false); }
       // 1) podgląd natychmiast, na razie w kolejności wyboru
@@ -289,5 +322,5 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
 
   const vehicleIdx = plate && plate2 === null ? vehicles.findIndex((v) => plateMatches(v.plate, plate)) : -1;
 
-  return { photos, slots, phase, uploading, note, crop, cropPreview, plateCropUri, reanalyzing, vehicles, vehicleIdx, canBoth: canChooseBoth(vehicles, detectionsRef.current.length), both: plate2 !== null, plate2, chooseVehicle, failed, retry, pick, remove, busy: phase === 'preparing' || phase === 'analyzing' || reanalyzing || uploading.length > 0 };
+  return { photos, slots, phase, uploading, note, crop, cropPreview, plateCropUri, reanalyzing, vehicles, vehicleIdx, canBoth: canChooseBoth(vehicles, detectionsRef.current.length) && splitVehicles(detectionsRef.current) !== null, both: plate2 !== null, plate2, second, chooseVehicle, failed, retry, pick, remove, busy: phase === 'preparing' || phase === 'analyzing' || reanalyzing || uploading.length > 0 };
 }
