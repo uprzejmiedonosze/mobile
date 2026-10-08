@@ -376,7 +376,7 @@ export function ReportsScreen({ navigation, route }: any) {
           autoCorrect={false}
           style={{ backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusButton, paddingHorizontal: 14, paddingVertical: 10, color: ud.text }}
         />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18, paddingVertical: 12 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 18, rowGap: 10, paddingVertical: 12 }}>
           {chips.map((c) => {
             const on = c.key === filter;
             const col = statusColor(c.key);
@@ -390,7 +390,7 @@ export function ReportsScreen({ navigation, route }: any) {
               </Pressable>
             );
           })}
-        </ScrollView>
+        </View>
       </View>
       )}
       {loading && !apps.length ? (
