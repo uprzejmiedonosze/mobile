@@ -190,7 +190,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
     const found = listVehicles(dets);
     setVehicles(found);
     // „Oba”: pojazd główny jak zwykle (zdjęcie auta, tablica), drugi tylko trafia do formularza
-    const second = wantBoth && canChooseBoth(found) ? secondVehicle(found, choice.plate) : null;
+    const second = wantBoth && canChooseBoth(found, dets.length) ? secondVehicle(found, choice.plate) : null;
     bothRef.current = !!second;
     setPlate2(second?.plate ?? null);
     setCrop(choice.crop);
@@ -289,5 +289,5 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
 
   const vehicleIdx = plate && plate2 === null ? vehicles.findIndex((v) => plateMatches(v.plate, plate)) : -1;
 
-  return { photos, slots, phase, uploading, note, crop, cropPreview, plateCropUri, reanalyzing, vehicles, vehicleIdx, both: plate2 !== null, plate2, chooseVehicle, failed, retry, pick, remove, busy: phase === 'preparing' || phase === 'analyzing' || reanalyzing || uploading.length > 0 };
+  return { photos, slots, phase, uploading, note, crop, cropPreview, plateCropUri, reanalyzing, vehicles, vehicleIdx, canBoth: canChooseBoth(vehicles, detectionsRef.current.length), both: plate2 !== null, plate2, chooseVehicle, failed, retry, pick, remove, busy: phase === 'preparing' || phase === 'analyzing' || reanalyzing || uploading.length > 0 };
 }

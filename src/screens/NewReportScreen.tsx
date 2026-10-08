@@ -451,6 +451,7 @@ export function NewReportScreen({ navigation, route }: any) {
           onPick={batch.pick}
           vehicles={batch.vehicles}
           vehicleIdx={batch.vehicleIdx}
+          canBoth={batch.canBoth}
           both={batch.both}
           onVehicle={batch.chooseVehicle}
           onRemove={batch.remove}

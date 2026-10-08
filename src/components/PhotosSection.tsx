@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { ImageViewer } from './ImageViewer';
 import type { CropPreview, Phase } from '../lib/usePhotoBatch';
-import { BOTH_VEHICLES, canChooseBoth, SLOT_ORDER, type Vehicle } from '../lib/roles';
+import { BOTH_VEHICLES, SLOT_ORDER, type Vehicle } from '../lib/roles';
 import type { Slot, Slots } from '../lib/suggest';
 import { ud } from '../theme';
 
@@ -50,7 +50,7 @@ export const CROP_TILE_ID = '__car_crop';
 // Pole na 2–3 kafelki (jedno zdjęcie też daje dwa: oryginał + wycinek auta – układ się nie przestawia). Bez podpisów ról; zdjęcie auta
 // wyróżnia miniatura tablicy rejestracyjnej pod nim. Role wynikają z analizy ALPR (lib/roles.ts) i nie są do ręcznej zmiany; jedyny wybór
 // użytkownika to „którego pojazdu dotyczy zgłoszenie”, gdy wykryto kilka pewnych pojazdów.
-export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, cropPreview, pending, plateUri, vehicles, vehicleIdx, both, carBox, carNatural, onPick, onVehicle, onRemove }: {
+export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, cropPreview, pending, plateUri, vehicles, vehicleIdx, canBoth, both, carBox, carNatural, onPick, onVehicle, onRemove }: {
   tiles: Tile[];
   slots: Slots;
   phase: Phase;
@@ -66,6 +66,7 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
   onPick: () => void;
   vehicles?: Vehicle[]; // ≥2 = wykryto kilka pojazdów o sporej pewności: pytamy, którego dotyczy zgłoszenie
   vehicleIdx?: number;
+  canBoth?: boolean; // czy pokazać „Oba” (≥2 zdjęcia i dokładnie dwa pojazdy – roles.canChooseBoth)
   both?: boolean; // odpowiedź „Oba” (oba pojazdy łamią te same przepisy)
   onVehicle?: (plate: string) => void; // tablica albo BOTH_VEHICLES
   onRemove: (id: string) => void;
@@ -132,7 +133,7 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
                     </Pressable>
                   );
                 })}
-                {canChooseBoth(vehicles) ? (
+                {canBoth ? (
                   <Pressable onPress={() => onVehicle?.(BOTH_VEHICLES)} style={{ borderRadius: ud.radiusPill, borderWidth: 1, borderColor: ud.primary, paddingHorizontal: 14, paddingVertical: 6, backgroundColor: both ? ud.primary : 'transparent' }}>
                     <Text style={{ fontFamily: ud.fontBodyBold, color: both ? '#fff' : ud.primary }}>Oba</Text>
                   </Pressable>

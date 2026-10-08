@@ -154,10 +154,28 @@ describe('odpowiedź „Oba”', () => {
     photo('b', det('GD99999', 0.25, { winner: true })),
   ]);
 
-  it('„Oba” tylko przy dokładnie dwóch pojazdach', () => {
-    expect(canChooseBoth(two())).toBe(true);
-    expect(canChooseBoth(two().slice(0, 1))).toBe(false);
-    expect(canChooseBoth([...two(), { plate: 'PO55555', score: 0.9, area: 0.2 }])).toBe(false);
+  it('„Oba” tylko przy co najmniej dwóch zdjęciach i dwóch pojazdach', () => {
+    expect(canChooseBoth(two(), 2)).toBe(true);
+    expect(canChooseBoth(two(), 3)).toBe(true);
+    expect(canChooseBoth(two(), 1)).toBe(false); // jedno zdjęcie nie udokumentuje dwóch pojazdów
+    expect(canChooseBoth(two().slice(0, 1), 2)).toBe(false);
+  });
+
+  it('przy co najmniej dwóch zdjęciach lista ograniczona do dwóch największych pojazdów – „Oba” zawsze dostępne', () => {
+    const photos = [
+      photo('a', det('ZS12345', 0.4, { winner: true }), det('PO55555', 0.05), det('GD99999', 0.1)),
+      photo('b', det('GD99999', 0.25, { winner: true })),
+    ];
+    const v = listVehicles(photos);
+    expect(v.map((x) => x.plate)).toEqual(['ZS12345', 'GD99999']);
+    expect(canChooseBoth(v, photos.length)).toBe(true);
+  });
+
+  it('jedno zdjęcie: dwa największe pojazdy do wyboru jednego, bez „Oba”', () => {
+    const photos = [photo('a', det('ZS12345', 0.4, { winner: true }), det('GD99999', 0.1), det('PO55555', 0.05))];
+    const v = listVehicles(photos);
+    expect(v.map((x) => x.plate)).toEqual(['ZS12345', 'GD99999']);
+    expect(canChooseBoth(v, photos.length)).toBe(false);
   });
 
   it('drugi pojazd = ten, który nie jest głównym (z tolerancją błędu odczytu jednego znaku)', () => {

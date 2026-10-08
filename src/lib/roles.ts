@@ -20,10 +20,12 @@ export type Vehicle = { plate: string; score: number; area: number };
 // auta w tle (pole pojazdu w kadrze).
 export const CONFIDENT_SCORE = 0.8;
 
-// Odpowiedź „Oba” na pytanie, którego pojazdu dotyczy zgłoszenie: oba łamią te same przepisy. Tylko przy dokładnie dwóch
-// pojazdach (przy trzech nie wiadomo, które „oba”).
+// Odpowiedź „Oba” na pytanie, którego pojazdu dotyczy zgłoszenie: oba łamią te same przepisy. Tylko przy co najmniej dwóch
+// zdjęciach (jedno zdjęcie nie udokumentuje dwóch pojazdów). listVehicles() zwraca najwyżej dwa pojazdy, więc „Oba” jest
+// zawsze jednoznaczne.
 export const BOTH_VEHICLES = 'both';
-export const canChooseBoth = (vehicles: Vehicle[]): boolean => vehicles.length === 2;
+export const MAX_VEHICLES = 2;
+export const canChooseBoth = (vehicles: Vehicle[], photoCount: number): boolean => photoCount >= 2 && vehicles.length === MAX_VEHICLES;
 // Drugi pojazd zgłoszenia = pierwszy z wykrytych, który nie jest pojazdem głównym (największym na zdjęciu auta).
 export const secondVehicle = (vehicles: Vehicle[], primaryPlate: string | null): Vehicle | null =>
   (primaryPlate ? vehicles.find((v) => !plateMatches(v.plate, primaryPlate)) : null) ?? null;
@@ -51,6 +53,7 @@ export const NO_PLATE_NOTE = 'Brak zdjęcia z widocznym numerem rejestracyjnym �
 const FALLBACK_NOTE = 'Nie rozpoznałem tablicy rejestracyjnej na żadnym zdjęciu – sprawdź przydział i wpisz numer ręcznie.';
 
 // Różne pojazdy na zdjęciach (klastry tablic wg plateMatches) o pewności ≥ CONFIDENT_SCORE i widocznej wielkości, od największego.
+// Tylko dwa największe (MAX_VEHICLES) – auta dalej w tle i tak nie są przedmiotem zgłoszenia.
 export function listVehicles(photos: PhotoDetections[]): Vehicle[] {
   const out: Vehicle[] = [];
   for (const d of photos.flatMap((p) => p.detections)) {
@@ -60,7 +63,7 @@ export function listVehicles(photos: PhotoDetections[]): Vehicle[] {
     if ((d.score ?? 0) > v.score) { v.plate = d.text; v.score = d.score ?? 0; }
     v.area = Math.max(v.area, d.vehicle_area ?? 0);
   }
-  return out.sort((a, b) => b.area - a.area);
+  return out.sort((a, b) => b.area - a.area).slice(0, MAX_VEHICLES);
 }
 
 // `opts.plate` = pojazd wskazany przez użytkownika (gdy wykryto kilka): auto = zdjęcie, na którym JEGO pojazd jest największy.
