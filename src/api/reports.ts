@@ -10,9 +10,6 @@ export type PictureType = 'contextImage' | 'carImage' | 'thirdImage';
 
 export type ReportForm = {
   plateId: string;
-  plateId2?: string; // „Oba”: drugi pojazd; opisy pojazdów (marka/model) trafiają w nawiasy przy numerach zamiast do komentarza
-  desc?: string;
-  desc2?: string;
   address: string; // adres widoczny dla użytkownika (web: `lokalizacja`)
   addressGPS?: string; // co zwrócił geokoder
   city?: string;
@@ -39,7 +36,6 @@ export type Confirmation = {
   witness: string; // „Nie byłeś świadkiem parkowania.” / „Byłeś świadkiem parkowania.”
   shortAddress: string;
   plateId: string | null;
-  plateId2?: string | null; // zgłoszenie o dwóch pojazdach
   vehicleBox: { x: number; y: number; width: number; height: number } | null; // piksele zdjęcia auta
   recipient: { name: string; shortName: string; automated: boolean; unknown: boolean };
   sender: { name: string; email: string; address: string; msisdn: string; edelivery: string };
@@ -117,15 +113,13 @@ export async function searchAddress(q: string): Promise<{ lat: number; lng: numb
   return { lat: j.lat, lng: j.lng, geo: toGeoAddress(j) };
 }
 
-// Linia do komentarza i ostrzeżenie o masie liczone w backendzie (port vehicle-info.js: \vehicle\lookup).
-export type VehicleDescription = { brand: string | null; model: string | null; comment: string | null; weightWarning: string | null };
+// Podgląd tego, co serwer zapisze przy zapisie zgłoszenia (\vehicle_info\refresh, parkowanie.info): marka/model i ostrzeżenie
+// o masie. Marka trafia do treści sama (po numerze rejestracyjnym) – komentarz należy do użytkownika.
+export type VehicleDescription = { brand: string | null; model: string | null; warning: string | null };
 
-export async function fetchVehicleDescription(plateId: string, ocr: { brand?: string; model?: string } = {}): Promise<VehicleDescription | null> {
-  const q = new URLSearchParams();
-  if (ocr.brand) q.set('brand', ocr.brand);
-  if (ocr.model) q.set('model', ocr.model);
+export async function fetchVehicleDescription(plateId: string): Promise<VehicleDescription | null> {
   try {
-    const res = await authFetch(`/api/rest/vehicle/${encodeURIComponent(plateId.replace(/\s/g, ''))}?${q}`);
+    const res = await authFetch(`/api/rest/vehicle/${encodeURIComponent(plateId.replace(/\s/g, ''))}`);
     return res.ok ? ((await res.json()) as VehicleDescription) : null;
   } catch {
     return null; // wzbogacenie jest opcjonalne – jak na webie

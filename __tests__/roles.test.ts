@@ -1,4 +1,4 @@
-import { canChooseBoth, chooseBothRoles, chooseRoles, splitVehicles, listVehicles, NO_PLATE_NOTE, secondVehicle, type Detection, type PhotoDetections } from '../src/lib/roles';
+import { canChooseBoth, chooseBothRoles, chooseRoles, secondDraftSlots, splitVehicles, listVehicles, NO_PLATE_NOTE, secondVehicle, type Detection, type PhotoDetections } from '../src/lib/roles';
 
 // compose.ts (skąd bierzemy plateMatches) importuje expo-file-system – jak w suggest.test.ts
 jest.mock('expo-file-system/legacy', () => ({
@@ -233,5 +233,14 @@ describe('wybór pojazdu tylko przy osobnych zdjęciach', () => {
   it('drugie auto na innym zdjęciu bez pewnie odczytanej tablicy → brak wyboru', () => {
     const both = photo('x', det('ZS12345', 0.4, { winner: true }), det('GD99999', 0.2));
     expect(splitVehicles([both, photo('y', det('GD99999', 0.3, { score: 0.5 }))])).toBeNull();
+  });
+});
+
+describe('„Oba” = dwa osobne zgłoszenia – sloty drugiego szkicu', () => {
+  it('dwa zdjęcia: auta się zamieniają (kontekst = zdjęcie auta 1)', () => {
+    expect(secondDraftSlots({ car: 'A', context: 'B', third: null }, 'B')).toEqual({ car: 'B', context: 'A', third: null });
+  });
+  it('trzy zdjęcia: kontekst zostaje, „dodatkowe” = zdjęcie auta 1', () => {
+    expect(secondDraftSlots({ car: 'A', context: 'W', third: 'B' }, 'B')).toEqual({ car: 'B', context: 'W', third: 'A' });
   });
 });

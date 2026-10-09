@@ -72,20 +72,6 @@ export function reportBody(formal: string | undefined, comment: string | undefin
   return [formal, comment].filter((x) => x && x.trim()).join(' ');
 }
 
-// Dopisuje linię do komentarza, o ile jej tam nie ma (appendAutoComment z web vehicle-info.js);
-// `replace` = poprzednia automatyczna linia do usunięcia (zmiana tablicy zamienia, nie dokłada).
-export function appendAutoLine(comment: string, line: string | null, replace?: string | null): string {
-  let lines = comment.split('\n');
-  if (replace) lines = lines.filter((l) => l.trim() !== replace.trim());
-  const text = line?.trim();
-  if (text && !lines.some((l) => l.trim() === text)) {
-    const last = lines[lines.length - 1];
-    if (last !== undefined && last.trim().length) lines.push(text);
-    else lines[lines.length ? lines.length - 1 : 0] = text;
-  }
-  return lines.join('\n');
-}
-
 // EXIF "2026:09:10 19:43:00" → ISO "2026-09-10T19:43:00" (to samo robi web w images.js)
 export function exifToIso(s: string | null): string | null {
   const m = s ? /^(\d{4})[:-](\d{2})[:-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(s) : null;

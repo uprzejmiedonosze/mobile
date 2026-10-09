@@ -95,6 +95,16 @@ export function chooseBothRoles(photos: PhotoDetections[], split: BothSplit): Ro
   return { slots, crop: false, plate: split.first.plate, vehicleFound: true, note: null };
 }
 
+// „Oba” = dwa osobne zgłoszenia. Sloty szkicu drugiego pojazdu: auto = zdjęcie drugiego pojazdu, a zdjęcie, które leżało w jego
+// slocie (kontekst albo dodatkowe), zajmuje zdjęcie auta pierwszego pojazdu. Reszta bez zmian (to samo zdjęcie może leżeć w wielu szkicach).
+export function secondDraftSlots(slots: Slots, secondPhoto: string): Slots {
+  const out: Slots = { ...slots };
+  const from = SLOT_ORDER.find((s) => s !== 'car' && slots[s] === secondPhoto);
+  if (from) out[from] = slots.car;
+  out.car = secondPhoto;
+  return out;
+}
+
 // `opts.plate` = pojazd wskazany przez użytkownika (gdy wykryto kilka): auto = zdjęcie, na którym JEGO pojazd jest największy.
 export function chooseRoles(photos: PhotoDetections[], opts: { plate?: string } = {}): RoleChoice {
   const empty: Slots = { car: null, context: null, third: null };

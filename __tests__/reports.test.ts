@@ -1,4 +1,4 @@
-import { appendAutoLine, filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor } from '../src/lib/reports';
+import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor } from '../src/lib/reports';
 
 describe('reports helpers', () => {
   it('formats dates like the web list', () => {
@@ -27,12 +27,3 @@ describe('reports helpers', () => {
   });
 });
 
-describe('appendAutoLine', () => {
-  it('adds once, keeps user text, replaces the previous auto line', () => {
-    expect(appendAutoLine('', 'Pojazd marki BMW 320d.')).toBe('Pojazd marki BMW 320d.');
-    expect(appendAutoLine('Stoi na zieleni.', 'Pojazd marki BMW 320d.')).toBe('Stoi na zieleni.\nPojazd marki BMW 320d.');
-    expect(appendAutoLine('Pojazd marki BMW 320d.', 'Pojazd marki BMW 320d.')).toBe('Pojazd marki BMW 320d.');
-    expect(appendAutoLine('Stoi.\nPojazd marki BMW 320d.', 'Pojazd marki Audi A4.', 'Pojazd marki BMW 320d.')).toBe('Stoi.\nPojazd marki Audi A4.');
-    expect(appendAutoLine('Stoi.\nPojazd marki BMW 320d.', null, 'Pojazd marki BMW 320d.')).toBe('Stoi.');
-  });
-});

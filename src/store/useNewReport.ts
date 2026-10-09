@@ -9,10 +9,10 @@ const KEY = 'ud_new_report_id';
 type NewReport = {
   draftId: string | null;
   hydrated: boolean;
-  done: FinishResult | null; // wynik ostatniego „Potwierdź” dla ekranu podsumowania
+  done: FinishResult[] | null; // wyniki ostatniego „Potwierdź” (jedno zgłoszenie albo dwa przy „Oba”) dla ekranu podsumowania
   hydrate: () => Promise<void>;
   setDraftId: (id: string | null) => void;
-  setDone: (r: FinishResult | null) => void;
+  setDone: (r: FinishResult[] | null) => void;
 };
 
 export const useNewReport = create<NewReport>((set, get) => ({

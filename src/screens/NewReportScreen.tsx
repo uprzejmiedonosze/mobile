@@ -11,7 +11,7 @@ import {
 import { ApiError, isPhotoQuotaError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { log } from '../lib/log';
-import { appendAutoLine, commentWarning, dropMatchingExtension, exifToIso, fmtLongDate, isExtensionDisabled, plural } from '../lib/reports';
+import { commentWarning, dropMatchingExtension, exifToIso, fmtLongDate, isExtensionDisabled, plural } from '../lib/reports';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
 import { MapPreview } from '../components/MapPreview';
 import { CROP_TILE_ID, PhotosSection, type Tile } from '../components/PhotosSection';
@@ -66,7 +66,6 @@ function formFromApp(a: UdApp, prev: Form = EMPTY): Form {
   return {
     ...prev,
     plateId: a.carInfo?.plateId ?? prev.plateId,
-    plateId2: a.carInfo2?.plateId ?? prev.plateId2,
     address: a.address?.address ?? prev.address,
     lat: a.address?.lat ?? prev.lat,
     lng: a.address?.lng ?? prev.lng,
@@ -79,10 +78,6 @@ function formFromApp(a: UdApp, prev: Form = EMPTY): Form {
     unit: a.stopAgresji ? 'SA' : 'SM',
   };
 }
-
-// „Jaguar XF 2,0D” z odpowiedzi /vehicle (albo z odczytu ALPR zdjęcia) – opis pojazdu w treści zgłoszenia o dwóch pojazdach.
-const vehicleName = (v: { brand: string | null; model: string | null } | null, brand?: string, model?: string) =>
-  [v?.brand ?? brand, v?.model ?? model].filter(Boolean).join(' ').trim();
 
 const H = ({ children }: { children: string }) => (
   <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 22, marginTop: 24, marginBottom: 6 }}>{children}</Text>
@@ -134,13 +129,10 @@ export function NewReportScreen({ navigation, route }: any) {
   const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
   const [recydywa2, setRecydywa2] = useState<RecydywaInfo | null>(null);
   const [weightWarning2, setWeightWarning2] = useState<string | null>(null);
-  const [desc, setDesc] = useState(''); // „Oba”: opisy pojazdów („Jaguar XF 2,0D”) idą w nawiasy przy numerach, nie do komentarza
-  const [desc2, setDesc2] = useState('');
   const [bylam, setBylam] = useState('byłam/em'); // odmiana przez płeć użytkownika
   const [patron, setPatron] = useState(PATRONEM_DEFAULT); // „Patronem/Patronką” – j.w.
   const [weightWarning, setWeightWarning] = useState<string | null>(null);
   const [addrNote, setAddrNote] = useState<string | null>(null);
-  const autoLine = useRef<string | null>(null); // ostatnia automatyczna linia „Pojazd marki …” w komentarzu
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [geoBusy, setGeoBusy] = useState(0); // trwające geokodowanie (jak na webie: wysyłka zablokowana do czasu adresu)
@@ -237,32 +229,25 @@ export function NewReportScreen({ navigation, route }: any) {
     }).catch(() => {}).finally(() => setGeoBusy((n) => n - 1));
   }, [lat, lng]);
 
-  // Recydywa + opis pojazdu po wpisaniu tablicy (debounce). Linię „Pojazd marki …” i ostrzeżenie o masie
-  // liczy backend (GET /api/rest/vehicle/{plate}); tu tylko dopisujemy ją do komentarza jak web. Przy „Oba” (dwie tablice)
-  // opisy obu pojazdów trafiają w nawiasy przy numerach w treści zgłoszenia, więc linii w komentarzu nie dopisujemy.
-  const ocrBrand = app?.carInfo?.brand, ocrModel = app?.carInfo?.model;
+  // Recydywa i ostrzeżenie o masie po wpisaniu tablicy (debounce). Marka/model pojazdu trafia do treści zgłoszenia po stronie
+  // serwera (carInfo.vehicle, parkowanie.info) – komentarz należy do użytkownika i nie jest tu ruszany.
   useEffect(() => {
     const plate = form.plateId.replace(/\s/g, '');
     const plate2 = form.plateId2.replace(/\s/g, '');
-    const both = plate2.length >= 4;
-    if (!both) { setRecydywa2(null); setWeightWarning2(null); setDesc2(''); }
-    if (plate.length < 4) { setRecydywa(null); setWeightWarning(null); setDesc(''); return; }
+    if (plate2.length < 4) { setRecydywa2(null); setWeightWarning2(null); }
+    if (plate.length < 4) { setRecydywa(null); setWeightWarning(null); }
     const t = setTimeout(() => {
-      validIdToken().then((tok) => fetchRecydywa(plate, tok)).then(setRecydywa).catch(() => {});
-      fetchVehicleDescription(plate, { brand: ocrBrand, model: ocrModel }).then((v) => {
-        setWeightWarning(v?.weightWarning ?? null);
-        setDesc(vehicleName(v, ocrBrand, ocrModel));
-        const line = both ? null : v?.comment ?? null;
-        setForm((f) => ({ ...f, comment: appendAutoLine(f.comment, line, autoLine.current) }));
-        autoLine.current = line;
-      });
-      if (both) {
+      if (plate.length >= 4) {
+        validIdToken().then((tok) => fetchRecydywa(plate, tok)).then(setRecydywa).catch(() => {});
+        fetchVehicleDescription(plate).then((v) => setWeightWarning(v?.warning ?? null));
+      }
+      if (plate2.length >= 4) {
         validIdToken().then((tok) => fetchRecydywa(plate2, tok)).then(setRecydywa2).catch(() => {});
-        fetchVehicleDescription(plate2).then((v) => { setWeightWarning2(v?.weightWarning ?? null); setDesc2(vehicleName(v)); });
+        fetchVehicleDescription(plate2).then((v) => setWeightWarning2(v?.warning ?? null));
       }
     }, 700);
     return () => clearTimeout(t);
-  }, [form.plateId, form.plateId2, ocrBrand, ocrModel]);
+  }, [form.plateId, form.plateId2]);
 
   // Ręcznie wpisany adres → współrzędne + miasto/województwo (bez nich backend nie ustali SM/Policji).
   const lookupAddress = async () => {
@@ -317,6 +302,10 @@ export function NewReportScreen({ navigation, route }: any) {
     });
     return draftRef.current;
   }, [editId, setDraftId]);
+
+  // „Oba” = dwa osobne zgłoszenia: drugi szkic powstaje dopiero przy „Dalej” i jest używany ponownie przy powrocie z potwierdzenia.
+  const draft2Ref = useRef<Promise<UdApp> | null>(null);
+  const ensureDraft2 = () => (draft2Ref.current ??= createDraft().catch((e) => { draft2Ref.current = null; throw e; }));
 
   // Analiza zdjęć podpowiada kategorię (z markerów) i tablicę – tylko tam, gdzie użytkownik jeszcze nic nie wybrał.
   const onSuggestion = useCallback((s: Suggestion) => {
@@ -413,15 +402,17 @@ export function NewReportScreen({ navigation, route }: any) {
         municipality: geo.municipality, postcode: geo.postcode, lat, lng,
         datetime: form.datetime || nowIso(), dtFromPicture: form.dtFromPicture, category: form.category,
         extensions: form.extensions, comment: form.comment.trim(), witness: form.witness, stopAgresji: unit,
-        ...(form.plateId2.trim() ? { plateId2: form.plateId2.trim(), desc, desc2 } : {}),
       };
-      const saved = await saveReport(app.id, body);
-      // starszy backend ignoruje nieznane pola – zgłoszenie wyszłoby z jednym pojazdem, więc nie idziemy dalej
-      if (body.plateId2 && !saved.carInfo2?.plateId) {
-        fail(new ApiError('Serwer nie obsługuje jeszcze zgłoszeń o dwóch pojazdach – usuń drugi numer rejestracyjny albo spróbuj później', 422, 'plateId2'));
-        return;
+      await saveReport(app.id, body);
+      const appIds = [app.id];
+      const plate2 = form.plateId2.trim();
+      if (plate2 && batch.both) {
+        const draft2 = await batch.assignSecondDraft(await ensureDraft2());
+        if (!draft2.contextImage?.thumb || !draft2.carImage?.thumb) { setErr({ field: 'images', text: 'Nie udało się dodać zdjęć drugiego pojazdu.' }); return; }
+        await saveReport(draft2.id, { ...body, plateId: plate2 });
+        appIds.push(draft2.id);
       }
-      navigation.navigate('ReportConfirm', { appId: app.id }); // ekran „Sprawdź przed wysłaniem” (jak potwierdz.html na www)
+      navigation.navigate('ReportConfirm', { appIds }); // ekran „Sprawdź przed wysłaniem” (jak potwierdz.html na www)
     } catch (e) { fail(e); } finally { setSubmitting(false); }
   };
 
