@@ -29,7 +29,8 @@
       },
       "env": {
         "EXPO_PUBLIC_UD_ENV": "staging",
-        "EXPO_PUBLIC_SENTRY_ENV": "staging"
+        "EXPO_PUBLIC_SENTRY_ENV": "staging",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "shadow": {
