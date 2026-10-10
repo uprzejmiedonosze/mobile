@@ -40,7 +40,9 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Wybierz 1–3 zdjęcia pojazdu do zgłoszenia."
+          "photosPermission": "Wybierz 1–3 zdjęcia pojazdu do zgłoszenia.",
+          "cameraPermission": "Zrób zdjęcie pisma z Policji lub Straży Miejskiej, żeby przypisać je do zgłoszenia.",
+          "microphonePermission": false
         }
       ],
       [

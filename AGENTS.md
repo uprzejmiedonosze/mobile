@@ -31,6 +31,15 @@ screen with `editId`. API contract: `../uprzejmiedonosze/API.md`.
 > `src/api/vision.ts`, `useSession`, the Picker/Grouping/Analyze/Pairing/Proposals screens) but is **not
 > reachable from navigation** — do not delete it.
 
+**Pisma z Policji/SM (`LetterScreen`, link „Dodaj pismo od Policji / SM” na liście Zgłoszenia).** Użytkownik robi zdjęcie aparatem (domyślne źródło, `takePhoto` w `src/lib/gallery.ts`) albo wybiera z galerii, łącznie 1–4 strony pisma → `POST /api/rest/letters/analyze` (multipart `images[]`; OCR + ekstrakcja LLM, dopasowanie do zgłoszeń z fuzzy-matchingiem
+nr rej./daty/adresu, mapowanie wyniku na status UD) → serwer zwraca `cases[]` z kandydatami i gotową propozycją
+`{set:{status, externalId}, append:{privateComment}}` → użytkownik zatwierdza/edytuje → `POST /api/rest/app/{id}/letter/apply`
+(jedna blokada po stronie serwera, notatka dopisywana tam). **Cała logika jest w backendzie** (`../uprzejmiedonosze`:
+`src/inc/{integrations/LetterVision,LetterMatcher,LetterProposal}.php`); front (`src/api/letters.ts`, `src/lib/letters.ts`) tylko pokazuje
+i składa body. Analiza zużywa kredyty analizy zdjęć (1 na unikalną stronę; 402 → `PhotoQuotaNotice`), ten sam skan drugi raz jest za darmo.
+Fixture'y: `tests/correspondence/` (skan + `.txt` transkrypcja + `expected.json`) – **korzystaj z transkrypcji zamiast ponownie czytać obrazy**.
+Kontrakt: `../uprzejmiedonosze/API.md` → „Letters endpoints”.
+
 ## Non-functional requirements
 
 `docs/NFR.md` — wymagania niefunkcjonalne i status. Najważniejsze: każde żądanie REST niesie `X-UD-Schema` (wersja kontraktu API = `SCHEMA`)

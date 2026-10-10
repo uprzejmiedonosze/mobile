@@ -39,6 +39,7 @@ Każdy build do sklepu podbija `expo.version` w `app.json` (build number rośnie
 | Tokeny wyłącznie w SecureStore | ✅ | |
 | Brak treści odpowiedzi API (adresy, tablice, e-maile) w logach release | ✅ | `logFetch` |
 | Minimalne uprawnienia Androida (obrazy, lokalizacja z EXIF); audio/storage zablokowane | ✅ | `npx expo config --type public` |
+| Pisma z Policji/SM (dane osobowe): skan wysyłany tylko do `/letters/analyze`, nigdzie zapisywany; transkrypt i treść odpowiedzi nie trafiają do logów; domyślnym źródłem jest aparat (zgoda CAMERA tylko do tego ekranu, bez mikrofonu), alternatywnie galeria | ✅ | `src/api/letters.ts`, backend: `LetterProposal.php` |
 | Aktualne opisy uprawnień (iOS `Info.plist`) | ✅ | |
 | Wyłącznie HTTPS, keystore poza repo (`*.jks` w `.gitignore`) | ✅ | |
 | Polityka prywatności / Data safety w sklepach | ⬜ | |

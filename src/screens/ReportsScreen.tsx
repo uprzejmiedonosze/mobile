@@ -367,6 +367,9 @@ export function ReportsScreen({ navigation, route }: any) {
       <UdHeader />
       {noReports ? null : (
       <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
+        <Pressable onPress={() => navigation.navigate('Letter')} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 8 }}>
+          <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, textDecorationLine: 'underline' }}>Dodaj pismo od Policji / SM</Text>
+        </Pressable>
         <TextInput
           value={search}
           onChangeText={setSearch}

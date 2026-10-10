@@ -27,11 +27,17 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // „Attempting to launch an unregistered ActivityResultLauncher…” – kontrakty Activity są rejestrowane przez
 // expo-modules-core dopiero w onHostResume (po odtworzeniu Activity, np. po oknie uprawnień). Czekamy,
 // aż aplikacja będzie aktywna, i przy tym konkretnym błędzie ponawiamy z rosnącym opóźnieniem.
-async function launchLibrary(opts: ImagePicker.ImagePickerOptions): Promise<ImagePicker.ImagePickerResult> {
+const launchLibrary = (opts: ImagePicker.ImagePickerOptions) => launchWithRetry(ImagePicker.launchImageLibraryAsync, opts);
+const launchCamera = (opts: ImagePicker.ImagePickerOptions) => launchWithRetry(ImagePicker.launchCameraAsync, opts);
+
+async function launchWithRetry(
+  launch: (opts: ImagePicker.ImagePickerOptions) => Promise<ImagePicker.ImagePickerResult>,
+  opts: ImagePicker.ImagePickerOptions,
+): Promise<ImagePicker.ImagePickerResult> {
   for (let attempt = 0; ; attempt++) {
     for (let i = 0; i < 10 && AppState.currentState !== 'active'; i++) await sleep(150);
     try {
-      return await ImagePicker.launchImageLibraryAsync(opts);
+      return await launch(opts);
     } catch (e: any) {
       const unregistered = /unregistered ActivityResultLauncher/i.test(String(e?.message ?? e));
       if (!unregistered || attempt >= 3) throw e;
@@ -39,6 +45,19 @@ async function launchLibrary(opts: ImagePicker.ImagePickerOptions): Promise<Imag
       await sleep(400 * (attempt + 1));
     }
   }
+}
+
+// Jedno zdjęcie z aparatu (np. pismo z Policji/SM) → uri albo null, gdy użytkownik anulował. Bez EXIF/GPS – to nie jest zdjęcie
+// wykroczenia. Android ma wbudowany podgląd systemowej aplikacji aparatu, więc zgoda CAMERA jest potrzebna tylko do jej wywołania.
+export async function takePhoto(): Promise<string | null> {
+  let perm = await ImagePicker.getCameraPermissionsAsync();
+  if (!perm.granted) perm = await ImagePicker.requestCameraPermissionsAsync();
+  if (!perm.granted) {
+    log.error('aparat', 'brak zgody na aparat');
+    throw new Error('Brak zgody na aparat. Możesz wybrać zdjęcie z galerii.');
+  }
+  const res = await launchCamera({ mediaTypes: ['images'], quality: 1 });
+  return res.canceled || !res.assets[0] ? null : res.assets[0].uri;
 }
 
 export async function pickPhotosFromGallery(existing: number): Promise<Omit<PhotoItem, 'exif'>[]> {

@@ -193,7 +193,7 @@ export function UdPhoto({
 const TABS = [
   { key: 'Start', route: 'Dashboard', icon: TAB_ICONS.start, screens: ['Dashboard'] },
   { key: 'Nowe', route: 'NewReport', icon: TAB_ICONS.nowe, screens: ['NewReport', 'ReportConfirm', 'ReportDone'] },
-  { key: 'Zgłoszenia', route: 'Reports', icon: TAB_ICONS.zgloszenia, screens: ['Reports'] },
+  { key: 'Zgłoszenia', route: 'Reports', icon: TAB_ICONS.zgloszenia, screens: ['Reports', 'Letter'] },
   { key: 'Konto', route: 'Account', icon: TAB_ICONS.konto, screens: ['Account'] },
 ];
 
