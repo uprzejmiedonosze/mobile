@@ -26,6 +26,7 @@ export type UserProfile = {
   shareRecydywa: boolean;
   lastLocation: { lat: number; lng: number } | null; // ostatnie zgłoszenie albo geokodowany adres zamieszkania (backend), null = brak
   patronem: string; // „Patronem”/„Patronką”/„Patronką(em)” (po „Zostań”)
+  sex: 'm' | 'f' | null; // forma gramatyczna do formularza konta (sexIdentifier z backendu; null = starszy backend, nie nadpisujemy)
   bylam: string; // „byłem”/„byłam”/„byłam/em” – fraza odmieniona przez płeć (sexStrings z backendu, jak config.sex na webie)
 };
 
@@ -48,6 +49,7 @@ export async function fetchProfile(): Promise<UserProfile> {
     edelivery: d.edelivery ?? '',
     shareRecydywa: d.shareRecydywa ?? false,
     lastLocation: parseLatLng(j?.lastLocation),
+    sex: j?.sexIdentifier === 'f' || j?.sexIdentifier === 'm' ? j.sexIdentifier : null,
     bylam: j?.sexStrings?.bylam ?? 'byłam/em',
     patronem: patronem(j?.sexStrings),
   };
@@ -58,18 +60,19 @@ export async function fetchProfile(): Promise<UserProfile> {
 export async function updateUserProfile(
   name: string,
   address: string,
-  extra: { msisdn?: string; edelivery?: string; shareRecydywa?: boolean } = {},
+  extra: { msisdn?: string; edelivery?: string; shareRecydywa?: boolean; sex?: 'm' | 'f' | null } = {},
 ): Promise<void> {
   const body: Record<string, string> = { name, address };
   if (extra.msisdn !== undefined) body.msisdn = extra.msisdn;
   if (extra.edelivery !== undefined) body.edelivery = extra.edelivery;
   if (extra.shareRecydywa !== undefined) body.shareRecydywa = extra.shareRecydywa ? 'Y' : 'N';
+  if (extra.sex) body.sex = extra.sex; // bez pola serwer zostawia wybór albo zgaduje z imienia (rejestracja nie pyta)
   const res = await authFetch('/api/rest/user/', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`Nie udało się zapisać danych (HTTP ${res.status}).`);
+  await apiJson(res, 'Nie udało się zapisać danych'); // komunikat walidacji z serwera (imię, adres) zamiast „HTTP 4xx”
 }
 
 // Publiczne (bez auth) – config group w rest/index.php nie ma middleware.

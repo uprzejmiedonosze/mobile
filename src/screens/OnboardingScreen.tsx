@@ -8,6 +8,7 @@ import { openUdPage } from '../lib/openPage';
 import { termSegments } from '../lib/reports';
 import { ud } from '../theme';
 import { UdButton, UdCard, UdHeader } from '../components/UD';
+import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
 
 // Rejestracja + regulamin po REST (bez web UI), patrz CLAUDE.md sekcja Auth.
 // App.tsx pokazuje ten ekran, gdy zalogowany, ale isRegistered/isTermsConfirmed = false
@@ -15,8 +16,7 @@ import { UdButton, UdCard, UdHeader } from '../components/UD';
 export function OnboardingScreen() {
   const navigation = useNavigation<any>();
   const a = useAuth();
-  const [name, setName] = useState(a.name);
-  const [address, setAddress] = useState('');
+  const [profile, setProfile] = useState<ProfileDraft>({ ...EMPTY_PROFILE, name: a.name });
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,12 @@ export function OnboardingScreen() {
     setError(null);
     try {
       await ensureUserRow();
-      await updateUserProfile(name.trim(), address.trim());
+      // jak formularz rejestracji na www: bez pytania o formę gramatyczną (serwer zgadnie z imienia, zmiana w „Konto”)
+      await updateUserProfile(profile.name.trim(), profile.address.trim(), {
+        msisdn: profile.msisdn.trim(),
+        edelivery: profile.edelivery.trim().toUpperCase(),
+        shareRecydywa: profile.shareRecydywa,
+      });
       await a.checkRegistration();
     } catch (e: any) {
       setError(e?.message ?? String(e));
@@ -66,30 +71,19 @@ export function OnboardingScreen() {
         <UdCard>
           <Text style={{ color: ud.heading, fontWeight: '800', fontSize: 17 }}>Witaj, {a.name || a.email}</Text>
           <Text style={{ color: ud.muted, marginTop: 4 }}>
-            Zanim zaczniesz zgłaszać, dokończ rejestrację w UD – tak samo jak na stronie. „← wróć” wylogowuje, gdyby to było złe konto.
+            Zanim zaczniesz zgłaszać, dokończ rejestrację – te same kroki co na stronie: dane konta, potem regulamin. „← wróć” wylogowuje, gdyby to było złe konto.
           </Text>
         </UdCard>
 
         {step === 'register' ? (
           <UdCard>
-            <Text style={{ color: ud.heading, fontWeight: '700' }}>Dane do rejestracji</Text>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Imię i nazwisko"
-              style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 8 }}
-            />
-            <TextInput
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Adres (ulica, numer, miasto)"
-              style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 8 }}
-            />
+            <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 26 }}>Dane konta</Text>
+            <ProfileFields value={profile} onChange={(patch) => { setError(null); setProfile((o) => ({ ...o, ...patch })); }} email={a.email} disabled={saving} navigation={navigation} />
             <UdButton
-              title={saving ? 'Zapisuję…' : 'Zapisz i dalej'}
+              title={saving ? 'Zapisuję…' : 'Potwierdź'}
               variant="accent"
               onPress={submitProfile}
-              disabled={saving || !name.trim() || !address.trim()}
+              disabled={saving || !profileValid(profile)}
             />
           </UdCard>
         ) : (

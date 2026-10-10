@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { deleteAccount, fetchPasskeys, fetchProfile, removePasskey, updateUserProfile, type Passkey } from '../api/user';
 import { registerPasskey } from '../api/passkey';
 import { isPasskeyCancelled, passkeysEnabled } from '../lib/passkey';
@@ -7,6 +7,7 @@ import { googleSignInReady, useAuth } from '../store/useAuth';
 import { udConfig, udEnv } from '../config';
 import { ud } from '../theme';
 import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
+import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
 
 export function AccountScreen({ navigation }: any) {
   const a = useAuth();
@@ -37,7 +38,7 @@ export function AccountScreen({ navigation }: any) {
         )}
 
         {logged ? (
-          <ProfileCards onLogout={a.logout} />
+          <ProfileCards onLogout={a.logout} navigation={navigation} />
         ) : (
           <UdCard>
             <Text style={{ color: ud.heading, fontWeight: '700' }}>1. Podaj e-mail</Text>
@@ -105,8 +106,9 @@ const label = { color: ud.muted, fontSize: 13, marginTop: 12 } as const;
 
 // Odpowiednik /app/account (register.html.twig, tryb edycji): dane konta, ustawienia, wylogowanie.
 // Passkeye (lista/usuń) i „Skasuj konto” przez REST; dodanie passkeya wymaga WebAuthn w natywnej apce – na razie na www.
-function ProfileCards({ onLogout }: { onLogout: () => void }) {
-  const [p, setP] = useState({ name: '', email: '', address: '', msisdn: '', edelivery: '', shareRecydywa: true, bylam: 'byłam/em' });
+function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigation: any }) {
+  const [p, setP] = useState<ProfileDraft>(EMPTY_PROFILE);
+  const [email, setEmail] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -118,7 +120,7 @@ function ProfileCards({ onLogout }: { onLogout: () => void }) {
 
   useEffect(() => {
     fetchProfile()
-      .then((x) => { setP(x); setLoaded(true); })
+      .then((x) => { setP({ name: x.name, address: x.address, msisdn: x.msisdn, edelivery: x.edelivery, shareRecydywa: x.shareRecydywa, sex: x.sex }); setEmail(x.email); setLoaded(true); })
       .catch((e: any) => setMsg({ ok: false, text: e?.message ?? String(e) }));
   }, []);
 
@@ -143,8 +145,7 @@ function ProfileCards({ onLogout }: { onLogout: () => void }) {
     catch (e: any) { setMsg({ ok: false, text: e?.message ?? String(e) }); setDeleting(false); }
   };
 
-  const set = (k: keyof typeof p) => (v: string | boolean) => { setMsg(null); setP((o) => ({ ...o, [k]: v })); };
-  const valid = p.name.trim().length > 0 && p.address.trim().length > 0 && (p.edelivery === '' || p.edelivery.length === 26);
+  const valid = profileValid(p);
 
   const save = async () => {
     setSaving(true);
@@ -154,6 +155,7 @@ function ProfileCards({ onLogout }: { onLogout: () => void }) {
         msisdn: p.msisdn.trim(),
         edelivery: p.edelivery.trim().toUpperCase(),
         shareRecydywa: p.shareRecydywa,
+        sex: p.sex,
       });
       setMsg({ ok: true, text: 'Zapisano.' });
     } catch (e: any) {
@@ -169,29 +171,7 @@ function ProfileCards({ onLogout }: { onLogout: () => void }) {
     <>
       <View style={{ marginTop: 20 }}>
         <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 34 }}>Dane konta</Text>
-        <Text style={{ color: ud.muted, marginTop: 4 }}>
-          Imię, nazwisko i adres są wymagane przez SM do przyjęcia zgłoszenia. Dane osobowe są szyfrowane na serwerze.
-        </Text>
-        <Text style={label}>Imię i nazwisko</Text>
-        <TextInput style={input} value={p.name} onChangeText={set('name')} maxLength={30} editable={loaded} placeholder="(twoje imię i nazwisko)" />
-        <Text style={label}>E-mail (z logowania)</Text>
-        <TextInput style={[input, { opacity: 0.6 }]} value={p.email} editable={false} />
-        <Text style={label}>Adres zamieszkania z numerem lokalu i miastem</Text>
-        <TextInput style={input} value={p.address} onChangeText={set('address')} maxLength={70} editable={loaded} placeholder="Ulica 10a/7, Miasto" />
-        <Text style={label}>Numer kontaktowy (opcjonalny)</Text>
-        <TextInput style={input} value={p.msisdn} onChangeText={set('msisdn')} maxLength={12} keyboardType="phone-pad" editable={loaded} placeholder="666 666 666" />
-        <Text style={label}>Adres e-Doręczeń (opcjonalny, 26 znaków)</Text>
-        <TextInput style={input} value={p.edelivery} onChangeText={set('edelivery')} maxLength={26} autoCapitalize="characters" autoCorrect={false} editable={loaded} placeholder="AE:PL-00000-00000-AAAAA-00" />
-      </View>
-
-      <View style={{ marginTop: 20 }}>
-        <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 22 }}>Ustawienia</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 12 }}>
-          <Text style={{ flex: 1, color: ud.text }}>
-            Pozwalam na prezentowanie pierwszego zdjęcia każdego zgłoszenia w galerii recydywistów (wyłączone = mocno „rozpikselowane”).
-          </Text>
-          <Switch value={p.shareRecydywa} onValueChange={set('shareRecydywa')} disabled={!loaded} trackColor={{ true: ud.primary }} />
-        </View>
+        <ProfileFields value={p} onChange={(patch) => { setMsg(null); setP((o) => ({ ...o, ...patch })); }} email={email} disabled={!loaded} navigation={navigation} askSex />
         <UdButton title={saving ? 'Zapisuję…' : 'Zapisz'} variant="primary" onPress={save} disabled={!loaded || saving || !valid} />
         {msg ? <Text style={{ color: msg.ok ? ud.primary : 'red', marginTop: 6, fontWeight: '700' }}>{msg.text}</Text> : null}
       </View>
@@ -226,9 +206,9 @@ function ProfileCards({ onLogout }: { onLogout: () => void }) {
           <Text style={{ color: ud.plateVerified, textDecorationLine: 'underline', marginTop: 10 }} onPress={() => setConfirmDelete(true)}>Skasuj konto</Text>
         ) : (
           <>
-            <Text style={label}>Aby potwierdzić, wpisz swój adres e-mail: {p.email}</Text>
+            <Text style={label}>Aby potwierdzić, wpisz swój adres e-mail: {email}</Text>
             <TextInput style={input} value={deleteEmail} onChangeText={setDeleteEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" />
-            <UdButton title={deleting ? 'Kasuję…' : 'Skasuj konto'} variant="outline" onPress={removeAccount} disabled={deleting || deleteEmail.trim().toLowerCase() !== p.email.toLowerCase()} />
+            <UdButton title={deleting ? 'Kasuję…' : 'Skasuj konto'} variant="outline" onPress={removeAccount} disabled={deleting || deleteEmail.trim().toLowerCase() !== email.toLowerCase()} />
           </>
         )}
       </View>
