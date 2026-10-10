@@ -64,11 +64,11 @@ export type LetterAnalysis = {
   usage: { prompt_tokens: number; completion_tokens: number; calls: number; cost_usd: number } | null; // null = trafienie w cache serwera (za darmo)
 };
 
-// POST /api/rest/letters/analyze – multipart `images[]` (1–4 strony). Uwaga: globalny fetch to expo/fetch (SDK 57) – plik przez `File`.
-// Bez retry: błąd 4xx nic nie zmieni, a ponowna próba po 5xx/timeoucie i tak jest za darmo (serwer cache'uje wynik po sha1 stron).
-export async function analyzeLetter(uris: string[]): Promise<LetterAnalysis> {
+// POST /api/rest/letters/analyze – multipart `image` (jedno zdjęcie pisma). Uwaga: globalny fetch to expo/fetch (SDK 57) – plik przez `File`.
+// Bez retry: błąd 4xx nic nie zmieni, a ponowna próba po 5xx/timeoucie i tak jest za darmo (serwer cache'uje wynik po sha1 zdjęcia).
+export async function analyzeLetter(uri: string): Promise<LetterAnalysis> {
   const form = new FormData();
-  for (const uri of uris) form.append('images[]', new File(uri) as unknown as Blob);
+  form.append('image', new File(uri) as unknown as Blob);
   const res = await authFetch('/api/rest/letters/analyze', { method: 'POST', body: form }, { timeoutMs: UPLOAD_TIMEOUT_MS });
   return apiJson<LetterAnalysis>(res, 'Nie udało się odczytać pisma');
 }

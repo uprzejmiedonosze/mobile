@@ -3,8 +3,6 @@
 import type { LetterApplyBody, LetterCandidate, LetterCase, LetterCaseResult, LetterKind, LetterMatchLevel, LetterOutcome, LetterProposal } from '../api/letters';
 import { fmtShortDate } from './reports';
 
-export const MAX_LETTER_PAGES = 4; // = LETTER_MAX_PAGES na backendzie (config.php)
-
 export const OUTCOME_LABELS: Record<LetterOutcome, string> = {
   fined: 'Mandat / grzywna',
   instructed: 'Pouczenie',

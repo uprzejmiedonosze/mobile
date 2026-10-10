@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { fetchStatuses, type StatusDef } from '../api/apps';
 import { analyzeLetter, applyLetter, type LetterAnalysis, type LetterCandidate, type LetterCaseResult } from '../api/letters';
-import { ApiError, isPhotoQuotaError } from '../api/udApi';
+import { isPhotoQuotaError } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { PhotoQuotaNotice } from '../components/PhotoQuotaNotice';
 import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
 import { pickPhotos, takePhoto } from '../lib/gallery';
 import {
   buildApplyBody, caseSummary, describeSignals, findCandidate, hasChanges, initialDraft, initialPick, kindNotice, matchHeadline,
-  MAX_LETTER_PAGES, outcomeLabel, type ProposalDraft,
+  outcomeLabel, type ProposalDraft,
 } from '../lib/letters';
 import { log } from '../lib/log';
 import { openUdPage } from '../lib/openPage';
@@ -138,15 +138,17 @@ function CaseCard({ result, letter, statuses }: { result: LetterCaseResult; lett
   );
 }
 
+// Jedno zdjęcie na raz: po zrobieniu zdjęcia (domyślnie aparat) albo wyborze z galerii analiza startuje od razu.
 export function LetterScreen({ navigation }: any) {
   const go = (r: string) => navigation.navigate(r);
-  const [uris, setUris] = useState<string[]>([]);
+  const [uri, setUri] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<LetterAnalysis | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ text: string; quota: boolean } | null>(null);
   const [statuses, setStatuses] = useState<Record<string, StatusDef>>({});
   const [patron, setPatron] = useState(PATRONEM_DEFAULT);
   const { quota, setQuota, refresh } = usePhotoQuota();
+  const running = useRef(false); // podwójne dotknięcie nie może wysłać tego samego pisma dwa razy (każde wysłanie to kredyt)
 
   useEffect(() => {
     fetchStatuses().then(setStatuses);
@@ -154,78 +156,75 @@ export function LetterScreen({ navigation }: any) {
     refresh();
   }, [refresh]);
 
+  const analyze = useCallback(async (photo: string) => {
+    if (running.current) return;
+    running.current = true;
+    setUri(photo); setBusy(true); setError(null); setAnalysis(null);
+    try {
+      const scaled = await downscale(photo);
+      setAnalysis(await analyzeLetter(scaled.uri));
+      refresh(); // kredyt został zużyty
+    } catch (e: any) {
+      const isQuota = isPhotoQuotaError(e);
+      if (isQuota && e.quota) setQuota(e.quota);
+      log.error('pismo', e?.message ?? String(e));
+      setError({ text: e?.message ? String(e.message) : 'Nie udało się odczytać pisma.', quota: isQuota });
+    } finally {
+      running.current = false;
+      setBusy(false);
+    }
+  }, [refresh, setQuota]);
+
   // Domyślnym źródłem jest aparat (pismo zwykle fotografuje się „z ręki”); galeria – dla gotowych skanów.
   const add = useCallback(async (source: 'camera' | 'gallery') => {
+    if (running.current) return;
     try {
-      const added = source === 'camera'
-        ? [await takePhoto()].filter((u): u is string => !!u)
-        : (await pickPhotos(MAX_LETTER_PAGES - uris.length)).map((p) => p.uri);
-      if (added.length) {
-        setUris((u) => [...u, ...added].slice(0, MAX_LETTER_PAGES));
-        setAnalysis(null);
-        setError(null);
-      }
+      const photo = source === 'camera' ? await takePhoto() : (await pickPhotos(1))[0]?.uri ?? null;
+      if (photo) void analyze(photo);
     } catch (e: any) {
       toast.error(e?.message ?? 'Nie udało się dodać zdjęcia.');
     }
-  }, [uris.length]);
+  }, [analyze]);
 
-  const run = async () => {
-    setBusy(true); setError(null); setAnalysis(null);
-    try {
-      const scaled = await Promise.all(uris.map((u) => downscale(u)));
-      setAnalysis(await analyzeLetter(scaled.map((s) => s.uri)));
-      refresh(); // kredyty zostały zużyte
-    } catch (e: any) {
-      if (isPhotoQuotaError(e) && e.quota) setQuota(e.quota);
-      log.error('pismo', e?.message ?? String(e));
-      setError(e instanceof ApiError || e?.message ? String(e.message) : 'Nie udało się odczytać pisma.');
-    } finally {
-      setBusy(false);
-    }
-  };
-
+  const reset = () => { setUri(null); setAnalysis(null); setError(null); };
   const notice = analysis ? kindNotice(analysis.letter.kind, analysis.cases.length) : null;
 
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       <UdHeader title="Pismo" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-        <Text style={{ color: ud.text, lineHeight: 21 }}>
-          Dodaj zdjęcie lub skan odpowiedzi Policji / Straży Miejskiej. Odczytamy numer sprawy i wynik, znajdziemy właściwe zgłoszenie i zaproponujemy zmianę statusu, numeru sprawy i uwag.
-        </Text>
-        <Text style={{ color: ud.muted, marginTop: 6, fontSize: 12 }}>Odczyt zużywa kredyty analizy zdjęć (1 na stronę). Skan nie jest nigdzie zapisywany.</Text>
-
-        <View style={{ marginTop: 12 }}>
-          <PhotoQuotaNotice quota={quota} patronem={patron} onPatronite={() => openUdPage(navigation, '/patronite.html', 'Patronite')} />
-        </View>
-
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 }}>
-          {uris.map((u, i) => (
-            <View key={u}>
-              <Image source={{ uri: u }} style={{ width: 84, height: 112, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream }} />
-              <Pressable onPress={() => { setUris((x) => x.filter((_, j) => j !== i)); setAnalysis(null); }} hitSlop={8} accessibilityLabel="Usuń stronę"
-                style={{ position: 'absolute', top: -6, right: -6, width: 24, height: 24, borderRadius: 12, backgroundColor: ud.heading, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 12 }}>✕</Text>
-              </Pressable>
-            </View>
-          ))}
-        </View>
-
-        {uris.length ? <UdButton title="Odczytaj pismo" onPress={run} disabled={busy} /> : null}
-        {uris.length < MAX_LETTER_PAGES ? (
+        {!uri ? (
           <>
-            <UdButton title={uris.length ? 'Zrób zdjęcie kolejnej strony' : 'Zrób zdjęcie pisma'} variant={uris.length ? 'outline' : 'primary'} onPress={() => add('camera')} disabled={busy} />
-            <UdButton title="Wybierz z galerii" variant="outline" onPress={() => add('gallery')} disabled={busy} />
+            <Text style={{ color: ud.text, lineHeight: 21 }}>
+              Zrób zdjęcie odpowiedzi Policji lub Straży Miejskiej. Odczytamy numer sprawy i wynik, znajdziemy zgłoszenie i zaproponujemy zmiany.
+            </Text>
+            <Text style={{ color: ud.muted, marginTop: 6, fontSize: 12 }}>Odczyt zużywa 1 kredyt analizy zdjęć. Zdjęcie nie jest nigdzie zapisywane.</Text>
+            <View style={{ marginTop: 12 }}>
+              <PhotoQuotaNotice quota={quota} patronem={patron} onPatronite={() => openUdPage(navigation, '/patronite.html', 'Patronite')} />
+            </View>
+            <UdButton title="Zrób zdjęcie pisma" onPress={() => add('camera')} />
+            <UdButton title="Wybierz z galerii" variant="outline" onPress={() => add('gallery')} />
           </>
-        ) : null}
-        {busy ? (
-          <View style={{ alignItems: 'center', marginTop: 12 }}>
-            <ActivityIndicator color={ud.primary} />
-            <Text style={{ color: ud.muted, marginTop: 6 }}>Czytam pismo… to może potrwać kilkanaście sekund.</Text>
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Image source={{ uri }} style={{ width: 84, height: 112, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream }} />
+            {busy ? (
+              <View style={{ flex: 1 }}>
+                <ActivityIndicator color={ud.primary} style={{ alignSelf: 'flex-start' }} />
+                <Text style={{ color: ud.muted, marginTop: 8, lineHeight: 20 }}>Czytam pismo… to może potrwać kilkanaście sekund.</Text>
+              </View>
+            ) : null}
+          </View>
+        )}
+
+        {error ? (
+          <View style={{ marginTop: 12 }}>
+            <Text style={{ color: ud.plateVerified, lineHeight: 20 }}>{error.text}</Text>
+            {error.quota ? <View style={{ marginTop: 10 }}><PhotoQuotaNotice quota={quota} patronem={patron} onPatronite={() => openUdPage(navigation, '/patronite.html', 'Patronite')} /></View> : null}
+            {!error.quota && uri ? <UdButton title="Spróbuj ponownie" onPress={() => void analyze(uri)} /> : null}
+            <UdButton title="Wybierz inne zdjęcie" variant="outline" onPress={reset} />
           </View>
         ) : null}
-        {error ? <Text style={{ color: ud.plateVerified, marginTop: 12, lineHeight: 20 }}>{error}</Text> : null}
 
         {analysis ? (
           <View style={{ marginTop: 16 }}>
@@ -234,6 +233,7 @@ export function LetterScreen({ navigation }: any) {
             </Text>
             {notice ? <Text style={{ color: ud.muted, marginTop: 6, lineHeight: 20 }}>{notice}</Text> : null}
             {analysis.cases.map((c) => <CaseCard key={c.index} result={c} letter={analysis.letter} statuses={statuses} />)}
+            <UdButton title="Dodaj kolejne pismo" onPress={reset} />
             <UdButton title="Zobacz zgłoszenia" variant="outline" onPress={() => go('Reports')} />
           </View>
         ) : null}

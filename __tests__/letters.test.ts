@@ -45,17 +45,18 @@ const result = (level: 'match' | 'candidates' | 'none', over: Partial<LetterCase
 describe('api/letters (klient REST)', () => {
   beforeEach(() => mockedAuthFetch.mockReset());
 
-  it('POSTuje strony jako multipart images[] z długim timeoutem i zwraca analizę', async () => {
+  it('POSTuje jedno zdjęcie jako multipart `image` z długim timeoutem i zwraca analizę', async () => {
     const analysis: LetterAnalysis = { letter: { kind: 'single', authority: 'KP I', date: '2026-09-15' }, cases: [], warnings: [], usage: null };
     mockedAuthFetch.mockResolvedValue({ ok: true, json: async () => analysis });
 
-    const out = await analyzeLetter(['a.jpg', 'b.jpg']);
+    const out = await analyzeLetter('a.jpg');
 
     expect(out).toEqual(analysis);
     const [path, init, opts] = mockedAuthFetch.mock.calls[0];
     expect(path).toBe('/api/rest/letters/analyze');
     expect(init.method).toBe('POST');
-    expect((init.body as FormData).getAll('images[]')).toEqual(['file:a.jpg', 'file:b.jpg']);
+    expect((init.body as FormData).getAll('image')).toEqual(['file:a.jpg']);
+    expect((init.body as FormData).has('images[]')).toBe(false);
     expect(init.headers).toBeUndefined(); // Content-Type z boundary ustawia fetch
     expect(opts).toEqual({ timeoutMs: UPLOAD_TIMEOUT_MS });
   });
@@ -63,14 +64,14 @@ describe('api/letters (klient REST)', () => {
   it('przenosi komunikat i `quota` przy 402 (limit zdjęć)', async () => {
     const quota = { used: 50, limit: 50, remaining: 0, windowDays: 30, resetsAt: 1790000000, tier: 'free' };
     mockedAuthFetch.mockResolvedValue({ ok: false, status: 402, json: async () => ({ error: 'Wykorzystano limit', status: 402, quota }) });
-    const err: any = await analyzeLetter(['a.jpg']).catch((e) => e);
+    const err: any = await analyzeLetter('a.jpg').catch((e) => e);
     expect(isPhotoQuotaError(err)).toBe(true);
     expect(err.quota).toEqual(quota);
   });
 
   it('502 modelu to zwykły błąd z komunikatem serwera', async () => {
     mockedAuthFetch.mockResolvedValue({ ok: false, status: 502, json: async () => ({ error: 'Nie udało się odczytać pisma: x', status: 502 }) });
-    const err: any = await analyzeLetter(['a.jpg']).catch((e) => e);
+    const err: any = await analyzeLetter('a.jpg').catch((e) => e);
     expect(err.status).toBe(502);
     expect(err.message).toContain('Nie udało się odczytać pisma');
     expect(isPhotoQuotaError(err)).toBe(false);
