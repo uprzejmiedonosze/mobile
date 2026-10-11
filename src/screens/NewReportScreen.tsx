@@ -11,7 +11,7 @@ import {
 import { ApiError, isPhotoQuotaError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { log } from '../lib/log';
-import { commentWarning, dropMatchingExtension, exifToIso, isExtensionDisabled, plural } from '../lib/reports';
+import { commentWarning, dropMatchingExtension, clearFieldError, exifToIso, hasRequiredPhotos, isExtensionDisabled, plural } from '../lib/reports';
 import { DateTimeField } from '../components/DateTimeField';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
 import { MapPreview } from '../components/MapPreview';
@@ -135,7 +135,7 @@ export function NewReportScreen({ navigation, route }: any) {
   const [err, setErr] = useState<{ field?: string; text: string } | null>(null);
   const edited = useRef({ plate: false, address: false }); // ręczne poprawki nie są nadpisywane danymi ze zdjęcia
 
-  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => { setForm((f) => ({ ...f, [k]: v })); setErr((e) => clearFieldError(e, k)); };
   // Błąd pola (422 z `field`) – przy polu; wszystko inne (upload, sieć…) jako toast, bo formularz jest długi
   // i komunikat na jego dole nie jest widoczny.
   const { quota, setQuota, refresh: refreshQuota } = usePhotoQuota();
@@ -327,6 +327,8 @@ export function NewReportScreen({ navigation, route }: any) {
     }));
   }, []);
   const batch = usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError: fail, onCarExif: applyCarExif });
+  const photosOk = hasRequiredPhotos(app);
+  useEffect(() => { if (photosOk) setErr((e) => clearFieldError(e, 'images')); }, [photosOk]); // zdjęcia dodane → znika „Dodaj zdjęcie auta…”
   const uploading = batch.busy;
   // Odpowiedź „Oba” (albo wybór jednego pojazdu / nowe zdjęcia) ustawia drugą tablicę; ręczna poprawka zostaje do następnego wyboru.
   const localPhotos = batch.photos.length > 0;
@@ -382,7 +384,7 @@ export function NewReportScreen({ navigation, route }: any) {
 
   const submit = async () => {
     setErr(null);
-    if (!app?.contextImage?.thumb || !app?.carImage?.thumb) { setErr({ field: 'images', text: 'Dodaj zdjęcie auta z widocznym numerem rejestracyjnym i zdjęcie kontekstu.' }); toast.error('Dodaj zdjęcie auta z widocznym numerem rejestracyjnym i zdjęcie kontekstu.'); return; }
+    if (!hasRequiredPhotos(app)) { setErr({ field: 'images', text: 'Dodaj zdjęcie auta z widocznym numerem rejestracyjnym i zdjęcie kontekstu.' }); toast.error('Dodaj zdjęcie auta z widocznym numerem rejestracyjnym i zdjęcie kontekstu.'); return; }
     if (form.address.trim().length <= 10) { fail(new ApiError('Podaj adres lub wskaż go na mapie', 422, 'address')); return; }
     setSubmitting(true);
     try {
@@ -447,7 +449,7 @@ export function NewReportScreen({ navigation, route }: any) {
         {fieldErr('images')}
 
         <L>Data i czas zgłoszenia</L>
-        <DateTimeField value={form.datetime} onChange={(iso) => setForm((f) => ({ ...f, datetime: iso, dtFromPicture: false }))} />
+        <DateTimeField value={form.datetime} onChange={(iso) => { setForm((f) => ({ ...f, datetime: iso, dtFromPicture: false })); setErr((e) => clearFieldError(e, 'datetime')); }} />
         {fieldErr('datetime')}
 
         <L>Numer rejestracyjny</L>

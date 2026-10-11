@@ -1,4 +1,4 @@
-import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor } from '../src/lib/reports';
+import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor, hasRequiredPhotos, clearFieldError } from '../src/lib/reports';
 
 describe('reports helpers', () => {
   it('formats dates like the web list', () => {
@@ -27,3 +27,24 @@ describe('reports helpers', () => {
   });
 });
 
+
+describe('błędy pól formularza zgłoszenia', () => {
+  it('hasRequiredPhotos: potrzebne oba zdjęcia (kontekst i auto)', () => {
+    expect(hasRequiredPhotos(null)).toBe(false);
+    expect(hasRequiredPhotos(undefined)).toBe(false);
+    expect(hasRequiredPhotos({})).toBe(false);
+    expect(hasRequiredPhotos({ carImage: { thumb: 'a.jpg' } })).toBe(false);
+    expect(hasRequiredPhotos({ contextImage: { thumb: 'b.jpg' } })).toBe(false);
+    expect(hasRequiredPhotos({ contextImage: { thumb: '' }, carImage: { thumb: 'a.jpg' } })).toBe(false);
+    expect(hasRequiredPhotos({ contextImage: { thumb: 'b.jpg' }, carImage: { thumb: 'a.jpg' } })).toBe(true);
+  });
+
+  it('clearFieldError zdejmuje tylko błąd tego pola („Dodaj zdjęcie auta…” po dodaniu zdjęć), inne zostają', () => {
+    const images = { field: 'images', text: 'Dodaj zdjęcie auta…' };
+    expect(clearFieldError(images, 'images')).toBeNull();
+    expect(clearFieldError(images, 'address')).toBe(images);
+    expect(clearFieldError(null, 'images')).toBeNull();
+    const general: { field?: string; text: string } = { text: 'Brak połączenia' }; // błąd bez pola (toast) nie jest związany z żadnym polem
+    expect(clearFieldError(general, 'images')).toBe(general);
+  });
+});

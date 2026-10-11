@@ -80,6 +80,13 @@ export function exifToIso(s: string | null): string | null {
 
 // „Czy pojazd dodatkowo:” – web (new-app/on-load.js::validateExtensions): rozszerzenie o tym samym id co
 // wybrana kategoria jest zablokowane i odznaczone (nie dokładamy kategorii głównej do samej siebie).
+// Zgłoszenie ma oba wymagane zdjęcia (kontekst i auto) – ten sam warunek przy „Dalej” i przy zdejmowaniu błędu „Dodaj zdjęcie auta…”.
+export const hasRequiredPhotos = <A extends { contextImage?: { thumb?: string }; carImage?: { thumb?: string } }>(app?: A | null): app is A =>
+  !!app?.contextImage?.thumb && !!app?.carImage?.thumb;
+
+// Błąd pola formularza znika, gdy użytkownik zajmie się tym polem (albo gdy zrobi to, czego błąd żądał) – inne błędy zostają.
+export const clearFieldError = <E extends { field?: string }>(err: E | null, field: string): E | null => (err?.field === field ? null : err);
+
 export const isExtensionDisabled = (extId: number, category: number): boolean => extId === category;
 export const dropMatchingExtension = (extensions: number[], category: number): number[] =>
   extensions.filter((e) => !isExtensionDisabled(e, category));
