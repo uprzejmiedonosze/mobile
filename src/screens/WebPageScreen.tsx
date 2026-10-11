@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, Linking, Text, View } from 'react-native';
 import { UdButton, UdHeader } from '../components/UD';
 import { udConfig } from '../config';
+import { embedInjection } from '../lib/embedStyle';
 import { isUdPage, withEmbed } from '../lib/openPage';
 import { ud } from '../theme';
 
@@ -47,7 +48,7 @@ export function WebPageScreen({ navigation, route }: any) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: ud.surface }}>
+    <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       <UdHeader title={title} onBack={back} />
       {WebView ? (
         <View style={{ flex: 1 }}>
@@ -61,6 +62,7 @@ export function WebPageScreen({ navigation, route }: any) {
               key={key}
               ref={ref}
               source={{ uri }}
+              injectedJavaScriptBeforeContentLoaded={embedInjection()}
               setSupportMultipleWindows={false}
               onShouldStartLoadWithRequest={onRequest}
               onNavigationStateChange={(s: any) => {
@@ -70,7 +72,7 @@ export function WebPageScreen({ navigation, route }: any) {
               onLoadEnd={() => setLoading(false)}
               onError={() => { setLoading(false); setFailed(true); }}
               onHttpError={() => { setLoading(false); setFailed(true); }}
-              style={{ flex: 1, backgroundColor: ud.surface }}
+              style={{ flex: 1, backgroundColor: ud.surfaceLow }}
             />
           )}
           {loading && !failed ? (

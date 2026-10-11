@@ -35,7 +35,7 @@ export function UdHeader({ title, onBack, onNext, nextLabel = 'Dalej', backIcon 
         <View style={{ minWidth: onNext ? 70 : 0 }} />
       )}
       {title ? (
-        <Text style={{ color: '#fff', fontFamily: ud.fontDisplay, fontSize: 26, letterSpacing: 1 }}>{title}</Text>
+        <Text numberOfLines={1} ellipsizeMode="tail" style={{ flex: 1, textAlign: 'center', color: '#fff', fontFamily: ud.fontDisplay, fontSize: 26, letterSpacing: 1 }}>{title}</Text>
       ) : (
         // Patron: logo + żółte „PRO” (logo bez zmian; puste boki bez minWidth, żeby całość się zmieściła); translateY -3 = optycznie wyżej
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, transform: [{ translateY: -3 }] }}>
