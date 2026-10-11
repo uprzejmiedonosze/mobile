@@ -9,14 +9,14 @@ const Link = ({ children, onPress, underline = true }: { children: string; onPre
 );
 
 // Nad dodawaniem zdjęć: przy < 3 zdjęciach limitu – komunikat z opcjami, przy > 80% zużycia – krótkie „Potrzebujesz więcej zdjęć?”.
-export function PhotoQuotaNotice({ quota, patronem, onPatronite }: { quota: PhotoQuota | null; patronem: string; onPatronite: () => void }) {
+export function PhotoQuotaNotice({ quota, patronem, onMore }: { quota: PhotoQuota | null; patronem: string; onMore: () => void }) {
   const kind = quotaNotice(quota);
   if (!quota || !kind) return null;
 
   if (kind === 'more') {
     return (
       <Text style={{ color: ud.text, marginBottom: 12, lineHeight: 21 }}>
-        <Link onPress={onPatronite} underline={false}>Potrzebujesz więcej zdjęć?</Link>
+        <Link onPress={onMore} underline={false}>Potrzebujesz więcej zdjęć?</Link>
       </Text>
     );
   }
@@ -27,9 +27,9 @@ export function PhotoQuotaNotice({ quota, patronem, onPatronite }: { quota: Phot
     <View style={{ backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.accent, borderRadius: ud.radiusCard, padding: 14, marginBottom: 14 }}>
       <Text style={{ color: ud.text, lineHeight: 21 }}>
         {left === 0 ? 'Skończył Ci się limit zdjęć, jakie możesz przetworzyć w tym miesiącu.' : `Kończy Ci się limit zdjęć, jakie możesz przetworzyć w tym miesiącu (zostało: ${left}).`}
-        {' Chcesz donosić za darmo – skorzystaj z wersji '}<Link onPress={web}>www</Link>{'. Chcesz podnieść limit?'}
+        {' Chcesz donosić za darmo – skorzystaj z wersji '}<Link onPress={web}>www</Link>{'. Chcesz podnieść limit? '}<Link onPress={onMore}>Dlaczego są limity?</Link>
       </Text>
-      <Pressable onPress={onPatronite} accessibilityRole="button" style={{ marginTop: 10 }}>
+      <Pressable onPress={onMore} accessibilityRole="button" style={{ marginTop: 10 }}>
         <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>
           {isPatronTier(quota) ? 'Podnieś swój próg wsparcia na Patronite' : `Zostań ${patronem} już od 10 zł miesięcznie`}
         </Text>

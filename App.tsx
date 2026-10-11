@@ -12,6 +12,7 @@ import { ReportConfirmScreen } from './src/screens/ReportConfirmScreen';
 import { ReportDoneScreen } from './src/screens/ReportDoneScreen';
 import { ReportsScreen } from './src/screens/ReportsScreen';
 import { LetterScreen } from './src/screens/LetterScreen';
+import { QuotaInfoScreen } from './src/screens/QuotaInfoScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { WebPageScreen } from './src/screens/WebPageScreen';
@@ -106,6 +107,7 @@ export default function App() {
           <Stack.Screen name="ReportDone" component={ReportDoneScreen} />
           <Stack.Screen name="Reports" component={ReportsScreen} />
           <Stack.Screen name="Letter" component={LetterScreen} />
+          <Stack.Screen name="QuotaInfo" component={QuotaInfoScreen} />
           <Stack.Screen name="Account" component={AccountScreen} />
           <Stack.Screen name="WebPage" component={WebPageScreen} />
         </Stack.Navigator>

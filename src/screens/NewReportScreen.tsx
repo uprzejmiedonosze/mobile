@@ -17,7 +17,6 @@ import { MapPreview } from '../components/MapPreview';
 import { CROP_TILE_ID, PhotosSection, type Tile } from '../components/PhotosSection';
 import { PhotoQuotaNotice } from '../components/PhotoQuotaNotice';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
-import { openUdPage } from '../lib/openPage';
 import { usePhotoQuota } from '../lib/usePhotoQuota';
 import { PATRONEM_DEFAULT } from '../lib/sex';
 import { usePhotoBatch } from '../lib/usePhotoBatch';
@@ -425,7 +424,7 @@ export function NewReportScreen({ navigation, route }: any) {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {editId ? <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>{`Edycja${app?.number ? ` ${app.number}` : ''}`}</Text> : null}
 
-        <PhotoQuotaNotice quota={quota} patronem={patron} onPatronite={() => openUdPage(navigation, '/patronite.html', 'Patronite')} />
+        <PhotoQuotaNotice quota={quota} patronem={patron} onMore={() => navigation.navigate('QuotaInfo')} />
         <PhotosSection
           tiles={tiles}
           slots={tileSlots}

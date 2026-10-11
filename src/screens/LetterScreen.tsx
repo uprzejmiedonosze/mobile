@@ -12,7 +12,6 @@ import {
   outcomeLabel, type ProposalDraft,
 } from '../lib/letters';
 import { log } from '../lib/log';
-import { openUdPage } from '../lib/openPage';
 import { fmtShortDate, fmtLongDate } from '../lib/reports';
 import { downscale } from '../lib/resize';
 import { PATRONEM_DEFAULT } from '../lib/sex';
@@ -200,7 +199,7 @@ export function LetterScreen({ navigation }: any) {
             </Text>
             <Text style={{ color: ud.muted, marginTop: 6, fontSize: 12 }}>Odczyt zużywa 1 kredyt analizy zdjęć. Zdjęcie nie jest nigdzie zapisywane.</Text>
             <View style={{ marginTop: 12 }}>
-              <PhotoQuotaNotice quota={quota} patronem={patron} onPatronite={() => openUdPage(navigation, '/patronite.html', 'Patronite')} />
+              <PhotoQuotaNotice quota={quota} patronem={patron} onMore={() => navigation.navigate('QuotaInfo')} />
             </View>
             <UdButton title="Zrób zdjęcie pisma" onPress={() => add('camera')} />
             <UdButton title="Wybierz z galerii" variant="outline" onPress={() => add('gallery')} />
@@ -220,7 +219,7 @@ export function LetterScreen({ navigation }: any) {
         {error ? (
           <View style={{ marginTop: 12 }}>
             <Text style={{ color: ud.plateVerified, lineHeight: 20 }}>{error.text}</Text>
-            {error.quota ? <View style={{ marginTop: 10 }}><PhotoQuotaNotice quota={quota} patronem={patron} onPatronite={() => openUdPage(navigation, '/patronite.html', 'Patronite')} /></View> : null}
+            {error.quota ? <View style={{ marginTop: 10 }}><PhotoQuotaNotice quota={quota} patronem={patron} onMore={() => navigation.navigate('QuotaInfo')} /></View> : null}
             {!error.quota && uri ? <UdButton title="Spróbuj ponownie" onPress={() => void analyze(uri)} /> : null}
             <UdButton title="Wybierz inne zdjęcie" variant="outline" onPress={reset} />
           </View>

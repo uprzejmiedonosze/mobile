@@ -16,7 +16,7 @@ const Eyebrow = ({ children }: { children: string }) => (
 );
 
 // Zużycie limitu unikalnych przetworzonych zdjęć (okno kroczące); patroni mają wyższe progi, 50 zł = bez limitu.
-function PhotoQuotaSection({ q, patronem, onPatronite }: { q: PhotoQuota; patronem: string; onPatronite: () => void }) {
+function PhotoQuotaSection({ q, patronem, onMore }: { q: PhotoQuota; patronem: string; onMore: () => void }) {
   const left = q.remaining;
   // Zachęta do patronatu po przekroczeniu 50% limitu – tylko bez patronatu (patroni od 10 zł już mają wyższy próg).
   const upsell = q.limit !== null && q.used > q.limit / 2 && (q.tier === 'free' || q.tier === 'patron-below-min');
@@ -38,7 +38,7 @@ function PhotoQuotaSection({ q, patronem, onPatronite }: { q: PhotoQuota; patron
           : `Zdjęcia w ostatnich ${q.windowDays} dniach. Powtórne wysłanie tego samego zdjęcia nie zużywa limitu.${left === 0 && resets ? ` Limit odnowi się ${resets}.` : ''}`}
       </Text>
       {upsell ? (
-        <Pressable onPress={onPatronite} accessibilityRole="link" style={{ marginTop: 8 }}>
+        <Pressable onPress={onMore} accessibilityRole="link" style={{ marginTop: 8 }}>
           <Text style={{ color: ud.text, lineHeight: 21 }}>
             Potrzebujesz więcej? <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>{`Zostań ${patronem} już od 10 zł`}</Text>
           </Text>
@@ -185,7 +185,7 @@ export function DashboardScreen({ navigation }: any) {
               </Section>
             ) : null}
 
-            {d.photoQuota ? <PhotoQuotaSection q={d.photoQuota} patronem={patronem(d.sexStrings)} onPatronite={() => openUdPage(navigation, '/patronite.html', 'Patronite')} /> : null}
+            {d.photoQuota ? <PhotoQuotaSection q={d.photoQuota} patronem={patronem(d.sexStrings)} onMore={() => navigation.navigate('QuotaInfo')} /> : null}
 
             <Section>
               <Text accessibilityRole="header" style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 22, marginBottom: 6 }}>Nie chcesz „donosić”?</Text>

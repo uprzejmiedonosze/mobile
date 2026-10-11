@@ -107,7 +107,9 @@ export class ApiError extends Error {
 
 // Limit unikalnych przetworzonych zdjęć (backend: store/PhotoQuota.php) – w odpowiedzi pulpitu i w błędzie 402 (`quota`).
 // `limit`/`remaining` = null → bez limitu (patron 50 zł); okno kroczące `windowDays` dni, `resetsAt` = unix ts zwolnienia najstarszego miejsca.
-export type PhotoQuota = { used: number; limit: number | null; remaining: number | null; windowDays: number; resetsAt: number | null; tier: string };
+// `tiers` = progi limitu rosnąco wg miesięcznej kwoty wsparcia w zł (pierwszy `minAmount: 0` = bez wsparcia; limit null = bez limitu) – brak u starszego backendu.
+export type QuotaTier = { minAmount: number; limit: number | null };
+export type PhotoQuota = { used: number; limit: number | null; remaining: number | null; windowDays: number; resetsAt: number | null; tier: string; tiers?: QuotaTier[] };
 
 // 402 = limit zdjęć wyczerpany (komunikat serwera zawiera datę i link do Patronite).
 export const isPhotoQuotaError = (e: unknown): e is ApiError => e instanceof ApiError && e.status === 402;
