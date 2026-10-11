@@ -11,7 +11,8 @@ import {
 import { ApiError, isPhotoQuotaError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { log } from '../lib/log';
-import { commentWarning, dropMatchingExtension, exifToIso, fmtLongDate, isExtensionDisabled, plural } from '../lib/reports';
+import { commentWarning, dropMatchingExtension, exifToIso, isExtensionDisabled, plural } from '../lib/reports';
+import { DateTimeField } from '../components/DateTimeField';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
 import { MapPreview } from '../components/MapPreview';
 import { CROP_TILE_ID, PhotosSection, type Tile } from '../components/PhotosSection';
@@ -56,9 +57,6 @@ const EMPTY: Form = {
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const nowIso = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00`; };
-// "2026-09-10 19:43" (pole tekstowe) → ISO; null gdy nie pasuje
-const parseTyped = (s: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})$/.exec(s.trim()); return m ? `${m[1]}-${m[2]}-${m[3]}T${pad(+m[4])}:${m[5]}:00` : null; };
-const typed = (iso: string) => iso.replace('T', ' ').slice(0, 16);
 
 // Zgłoszenie z backendu → stan formularza (tryb edycji / wznowienie szkicu / odpowiedź po uploadzie).
 function formFromApp(a: UdApp, prev: Form = EMPTY): Form {
@@ -120,11 +118,9 @@ export function NewReportScreen({ navigation, route }: any) {
   const [groups, setGroups] = useState<Groups>({});
   const [exts, setExts] = useState<Record<string, Extension>>({});
   const [showAllCats, setShowAllCats] = useState(false);
-  const [editDate, setEditDate] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [mapStart, setMapStart] = useState<{ lat: number; lng: number } | null>(null);
   const [plateTouched, setPlateTouched] = useState(false); // web chowa wycinek tablicy po ręcznej zmianie numeru
-  const [dateText, setDateText] = useState('');
   const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
   const [recydywa2, setRecydywa2] = useState<RecydywaInfo | null>(null);
   const [weightWarning2, setWeightWarning2] = useState<string | null>(null);
@@ -197,7 +193,6 @@ export function NewReportScreen({ navigation, route }: any) {
     if (carMeta) {
       edited.current.plate = false;
       if (!carMeta.gps) { edited.current.address = false; resolvedText.current = ''; geoFor.current = null; }
-      setEditDate(false);
     }
     setForm((f) => {
       const n = formFromApp(a, f);
@@ -330,7 +325,6 @@ export function NewReportScreen({ navigation, route }: any) {
       ...(gps ? { lat, lng, geo: null } : {}),
       ...(iso ? { datetime: iso, dtFromPicture: true } : {}),
     }));
-    if (iso) setEditDate(false);
   }, []);
   const batch = usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError: fail, onCarExif: applyCarExif });
   const uploading = batch.busy;
@@ -453,14 +447,7 @@ export function NewReportScreen({ navigation, route }: any) {
         {fieldErr('images')}
 
         <L>Data i czas zgłoszenia</L>
-        {editDate ? (
-          <TextInput style={input} value={dateText} onChangeText={(t) => { setDateText(t); const iso = parseTyped(t); if (iso) setForm((f) => ({ ...f, datetime: iso, dtFromPicture: false })); }} placeholder="RRRR-MM-DD GG:MM" keyboardType="numbers-and-punctuation" />
-        ) : (
-          <Text style={{ color: ud.text, fontFamily: ud.fontBodyBold, marginTop: 4 }}>
-            {form.datetime ? fmtLongDate(form.datetime) : 'zostanie ustawiona na teraz'}{'  '}
-            <Text style={{ color: ud.primary }} onPress={() => { setDateText(typed(form.datetime || nowIso())); setEditDate(true); }}>(zmień)</Text>
-          </Text>
-        )}
+        <DateTimeField value={form.datetime} onChange={(iso) => setForm((f) => ({ ...f, datetime: iso, dtFromPicture: false }))} />
         {fieldErr('datetime')}
 
         <L>Numer rejestracyjny</L>
