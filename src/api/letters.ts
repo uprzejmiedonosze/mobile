@@ -1,4 +1,4 @@
-// Pisma z Policji/SM (backend: src/inc/LetterProposal.php w ../uprzejmiedonosze, API.md → „Letters endpoints”).
+// Pisma z policji/SM (backend: src/inc/LetterProposal.php w ../uprzejmiedonosze, API.md → „Letters endpoints”).
 // Klient jest cienki: serwer robi OCR, dopasowanie do zgłoszeń i propozycję edycji – tu tylko wysyłamy skan i zatwierdzamy.
 // Analiza zużywa kredyty analizy zdjęć (1 na unikalną stronę), więc 402 obsługujemy jak przy zdjęciach (`isPhotoQuotaError`).
 import { File } from 'expo-file-system';

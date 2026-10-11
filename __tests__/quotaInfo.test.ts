@@ -1,5 +1,5 @@
 import type { PhotoQuota } from '../src/api/udApi';
-import { BENEFITS, ctaLabel, currentMinAmount, FALLBACK_TIERS, INTRO, limitText, PATRONITE_URL, tierLabel, tierRows, usageLine } from '../src/lib/quotaInfo';
+import { BENEFITS, ctaLabel, currentMinAmount, FALLBACK_TIERS, INTRO, LETTERS_NOTICE, limitText, PATRONITE_URL, tierLabel, tierRows, usageLine } from '../src/lib/quotaInfo';
 
 const TIERS = [{ minAmount: 0, limit: 50 }, { minAmount: 10, limit: 100 }, { minAmount: 25, limit: 300 }, { minAmount: 50, limit: null }];
 const q = (used: number, limit: number | null, tier = 'free', tiers: PhotoQuota['tiers'] = TIERS): PhotoQuota => ({
@@ -75,7 +75,8 @@ describe('quotaInfo – zużycie i CTA', () => {
     expect(INTRO.join(' ')).toMatch(/ALPR/);
     expect(INTRO.join(' ')).toMatch(/model językowy/);
     expect(INTRO.join(' ')).toMatch(/dwa zgłoszenia/);
-    expect(INTRO.join(' ')).toMatch(/Policji lub Straży Miejskiej/);
+    expect(INTRO.join(' ')).toMatch(/policji lub straży miejskiej/);
     expect(BENEFITS.length).toBeGreaterThanOrEqual(3);
+    expect(LETTERS_NOTICE).toMatch(/policji i straży miejskiej.*wspierających/);
   });
 });

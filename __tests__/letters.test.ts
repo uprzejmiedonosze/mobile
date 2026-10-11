@@ -12,7 +12,7 @@ jest.mock('expo-file-system', () => ({ File: class { constructor(public uri: str
 import { analyzeLetter, applyLetter, type LetterAnalysis, type LetterCase, type LetterCaseResult, type LetterProposal } from '../src/api/letters';
 import { authFetch, isPhotoQuotaError, UPLOAD_TIMEOUT_MS } from '../src/api/udApi';
 import {
-  buildApplyBody, caseSummary, describeSignals, findCandidate, hasChanges, initialDraft, initialPick, kindNotice, matchHeadline, outcomeLabel,
+  buildApplyBody, caseSummary, LETTER_LINK_LABEL, letterEntry, describeSignals, findCandidate, hasChanges, initialDraft, initialPick, kindNotice, matchHeadline, outcomeLabel,
 } from '../src/lib/letters';
 
 const mockedAuthFetch = authFetch as jest.Mock;
@@ -93,6 +93,17 @@ describe('api/letters (klient REST)', () => {
     const err: any = await applyLetter('a1', { status: 'confirmed-fined' }).catch((e) => e);
     expect(err.status).toBe(409);
     expect(err.message).toContain('Niedozwolona zmiana statusu');
+  });
+});
+
+describe('wejście do skanera pism', () => {
+  it('etykieta linku', () => {
+    expect(LETTER_LINK_LABEL).toBe('Zeskanuj odpowiedź policji/SM');
+  });
+
+  it('osoba z odznaką PRO dostaje skaner, reszta stronę informacyjną z powodem', () => {
+    expect(letterEntry(true)).toEqual({ route: 'Letter' });
+    expect(letterEntry(false)).toEqual({ route: 'QuotaInfo', params: { reason: 'letters' } });
   });
 });
 

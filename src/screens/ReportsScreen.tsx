@@ -4,6 +4,7 @@ import { changeStatus, fetchApps, fetchStatusCounts, fetchStatuses, imageUrl, PA
 import { fetchCategories } from '../api/geo';
 import { fetchRecydywa } from '../api/recydywa';
 import { validIdToken } from '../api/udApi';
+import { LETTER_LINK_LABEL, letterEntry } from '../lib/letters';
 import { log } from '../lib/log';
 import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plural, reportBody, shortAddress, statusColor, witnessText } from '../lib/reports';
 import { ImageViewer } from '../components/ImageViewer';
@@ -11,6 +12,7 @@ import { ErrorScreen } from '../components/ErrorScreen';
 import { openUdPage } from '../lib/openPage';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import type { Category, RecydywaInfo } from '../types';
+import { useAuth } from '../store/useAuth';
 import { ud } from '../theme';
 
 function StatusDot({ status, label, police }: { status: string; label: string; police?: boolean }) {
@@ -218,6 +220,7 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
 }
 
 export function ReportsScreen({ navigation, route }: any) {
+  const isPatron = useAuth((s) => s.isPatron); // odznaka PRO z backendu
   const go = (r: string) => navigation.navigate(r);
   const [apps, setApps] = useState<UdApp[]>([]);
   const [openId, setOpenId] = useState<string | null>(null); // rozwinięte jest zawsze najwyżej jedno zgłoszenie
@@ -367,8 +370,8 @@ export function ReportsScreen({ navigation, route }: any) {
       <UdHeader />
       {noReports ? null : (
       <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
-        <Pressable onPress={() => navigation.navigate('Letter')} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 8 }}>
-          <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, textDecorationLine: 'underline' }}>Dodaj pismo od Policji / SM</Text>
+        <Pressable onPress={() => { const e = letterEntry(isPatron); navigation.navigate(e.route, e.params); }} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 8 }}>
+          <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, textDecorationLine: 'underline' }}>{LETTER_LINK_LABEL}</Text>
         </Pressable>
         <TextInput
           value={search}

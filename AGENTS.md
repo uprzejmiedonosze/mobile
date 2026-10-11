@@ -31,7 +31,7 @@ screen with `editId`. API contract: `../uprzejmiedonosze/API.md`.
 > `src/api/vision.ts`, `useSession`, the Picker/Grouping/Analyze/Pairing/Proposals screens) but is **not
 > reachable from navigation** — do not delete it.
 
-**Pisma z Policji/SM (`LetterScreen`, link „Dodaj pismo od Policji / SM” na liście Zgłoszenia).** Użytkownik robi zdjęcie aparatem (domyślne źródło, `takePhoto` w `src/lib/gallery.ts`) albo wybiera z galerii **jedno zdjęcie na raz** – analiza startuje od razu, bez przycisku „Odczytaj” i bez wielostronicowości (kolejne pismo = „Dodaj kolejne pismo”) → `POST /api/rest/letters/analyze` (multipart `image`; OCR + ekstrakcja LLM, dopasowanie do zgłoszeń z fuzzy-matchingiem
+**Pisma z policji/SM (`LetterScreen`, link „Zeskanuj odpowiedź policji/SM” na liście Zgłoszenia – **tylko dla osób z odznaką PRO** (`useAuth.isPatron` z backendu, `letterEntry` w `src/lib/letters.ts`); pozostałe trafiają na `QuotaInfoScreen` z notką o powodzie).** Użytkownik robi zdjęcie aparatem (domyślne źródło, `takePhoto` w `src/lib/gallery.ts`) albo wybiera z galerii **jedno zdjęcie na raz** – analiza startuje od razu, bez przycisku „Odczytaj” i bez wielostronicowości (kolejne pismo = „Dodaj kolejne pismo”) → `POST /api/rest/letters/analyze` (multipart `image`; OCR + ekstrakcja LLM, dopasowanie do zgłoszeń z fuzzy-matchingiem
 nr rej./daty/adresu, mapowanie wyniku na status UD) → serwer zwraca `cases[]` z kandydatami i gotową propozycją
 `{set:{status, externalId}, append:{privateComment}}` → użytkownik zatwierdza/edytuje → `POST /api/rest/app/{id}/letter/apply`
 (jedna blokada po stronie serwera, notatka dopisywana tam). **Cała logika jest w backendzie** (`../uprzejmiedonosze`:

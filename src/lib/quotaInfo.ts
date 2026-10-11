@@ -48,11 +48,14 @@ export function ctaLabel(q: PhotoQuota | null, patronem: string): string {
   return q && isPatronTier(q) ? 'Podnieś swój próg wsparcia na Patronite' : `Zostań ${patronem} na Patronite`;
 }
 
+// Notka na górze ekranu, gdy użytkownik bez wsparcia dotknął „Zeskanuj odpowiedź policji/SM” (route param `reason: 'letters'`).
+export const LETTERS_NOTICE = 'Skanowanie odpowiedzi policji i straży miejskiej jest dla osób wspierających Uprzejmie Donoszę. Dlaczego?';
+
 export const HEADING = 'Dlaczego aplikacja ma limity?';
 
 export const INTRO: string[] = [
   'Aplikacja działa inaczej niż strona www. Strona zawsze była i będzie darmowa.',
-  'W aplikacji każde zdjęcie przetwarza algorytm ALPR (rozpoznawania tablic rejestracyjnych) oraz duży model językowy. Dzięki temu możesz np. utworzyć dwa zgłoszenia za jednym razem albo przeanalizować pismo od Policji lub Straży Miejskiej.',
+  'W aplikacji każde zdjęcie przetwarza algorytm ALPR (rozpoznawania tablic rejestracyjnych) oraz duży model językowy. Dzięki temu możesz np. utworzyć dwa zgłoszenia za jednym razem albo przeanalizować pismo od policji lub straży miejskiej.',
   'W tym wariancie każde zgłoszenie kosztuje mnie realne pieniądze, dlatego – niestety – nie mogę pozwolić na nieograniczony dostęp do aplikacji.',
 ];
 
@@ -62,9 +65,9 @@ export const TIERS_INTRO = 'Limit wyraźnie rośnie już od najniższego progu w
 export const SUPPORT_HEADING = 'Wsparcie to coś więcej niż większy limit';
 // Skrót tego, co jest na /patronite.html (źródło treści: ../uprzejmiedonosze/src/templates/patronite.html.twig).
 export const BENEFITS: string[] = [
-  'Finansujesz zmiany w przepisach: Miejską Agendę Parkingową, lobbing w Sejmie, petycje i spotkania z urzędnikami, po których Uprzejmie Donoszę nie będzie potrzebne.',
+  'Finansujesz mój lobbing zmian w przepisach: Miejską Agendę Parkingową, rozmowy z politykami, petycje i spotkania z urzędnikami, po których Uprzejmie Donoszę nie będzie potrzebne.',
   'Utrzymujesz serwis Uprzejmie Donoszę – darmowy dla wszystkich.',
-  'Rozwijasz narzędzia: Ranking Straży Miejskich, generator pism do polityków i Uprzejme WIKI.',
+  'Rozwijasz narzędzia: generator pism do polityków i Uprzejme WIKI.',
   'Dostajesz gratisy: naklejki ROBISZ TO ŹLE i „mazaki sprawiedliwości” (wyższe progi) oraz możliwość pobrania wszystkich zgłoszeń w pliku xls.',
 ];
 export const MORE_LINK = 'Zobacz, co robię i ile to kosztuje';

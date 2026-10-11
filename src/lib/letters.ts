@@ -3,6 +3,14 @@
 import type { LetterApplyBody, LetterCandidate, LetterCase, LetterCaseResult, LetterKind, LetterMatchLevel, LetterOutcome, LetterProposal } from '../api/letters';
 import { fmtShortDate } from './reports';
 
+export const LETTER_LINK_LABEL = 'Zeskanuj odpowiedź policji/SM';
+
+// Skaner pism jest dla osób wspierających (odznaka PRO – `isPatron` z backendu, jak logo „PRO” w nagłówku); pozostałe trafiają na
+// stronę „Dlaczego aplikacja ma limity?” z krótkim wyjaśnieniem (param `reason: 'letters'`).
+export function letterEntry(isPatron: boolean): { route: 'Letter' | 'QuotaInfo'; params?: { reason: 'letters' } } {
+  return isPatron ? { route: 'Letter' } : { route: 'QuotaInfo', params: { reason: 'letters' } };
+}
+
 export const OUTCOME_LABELS: Record<LetterOutcome, string> = {
   fined: 'Mandat / grzywna',
   instructed: 'Pouczenie',

@@ -195,7 +195,7 @@ export function LetterScreen({ navigation }: any) {
         {!uri ? (
           <>
             <Text style={{ color: ud.text, lineHeight: 21 }}>
-              Zrób zdjęcie odpowiedzi Policji lub Straży Miejskiej. Odczytamy numer sprawy i wynik, znajdziemy zgłoszenie i zaproponujemy zmiany.
+              Zrób zdjęcie odpowiedzi policji lub straży miejskiej. Odczytamy numer sprawy i wynik, znajdziemy zgłoszenie i zaproponujemy zmiany.
             </Text>
             <Text style={{ color: ud.muted, marginTop: 6, fontSize: 12 }}>Odczyt zużywa 1 kredyt analizy zdjęć. Zdjęcie nie jest nigdzie zapisywane.</Text>
             <View style={{ marginTop: 12 }}>

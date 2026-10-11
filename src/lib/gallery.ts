@@ -47,7 +47,7 @@ async function launchWithRetry(
   }
 }
 
-// Jedno zdjęcie z aparatu (np. pismo z Policji/SM) → uri albo null, gdy użytkownik anulował. Bez EXIF/GPS – to nie jest zdjęcie
+// Jedno zdjęcie z aparatu (np. pismo z policji/SM) → uri albo null, gdy użytkownik anulował. Bez EXIF/GPS – to nie jest zdjęcie
 // wykroczenia. Android ma wbudowany podgląd systemowej aplikacji aparatu, więc zgoda CAMERA jest potrzebna tylko do jej wywołania.
 export async function takePhoto(): Promise<string | null> {
   let perm = await ImagePicker.getCameraPermissionsAsync();
