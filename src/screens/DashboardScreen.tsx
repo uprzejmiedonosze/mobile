@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { fetchDashboard, fmtInt, num, stripHtml, type DashBadge, type Dashboard } from '../api/dashboard';
 import { udConfig } from '../config';
 import { log } from '../lib/log';
-import { openUdPage } from '../lib/openPage';
+import { externalUrl, openUdPage } from '../lib/openPage';
 import { patronem } from '../lib/sex';
 import { plural } from '../lib/reports';
 import type { PhotoQuota } from '../api/udApi';
@@ -77,7 +77,7 @@ function Stat({ value, label, onPress, highlight }: { value: string; label: stri
 
 function SupportCard({ title, text, url, external, onOpen }: { title: string; text: string; url: string; external?: boolean; onOpen: (url: string, title: string) => void }) {
   return (
-    <Pressable onPress={() => onOpen(url, title)} style={{ paddingVertical: 8, marginBottom: 6 }}>
+    <Pressable onPress={() => (external ? Linking.openURL(externalUrl(url)).catch(() => {}) : onOpen(url, title))} accessibilityRole="link" style={{ paddingVertical: 8, marginBottom: 6 }}>
       <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 16 }}>{title} {external ? '↗' : '→'}</Text>
       <Text style={{ color: ud.muted, marginTop: 4 }}>{text}</Text>
     </Pressable>
@@ -190,7 +190,7 @@ export function DashboardScreen({ navigation }: any) {
             <Section>
               <Text accessibilityRole="header" style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 22, marginBottom: 6 }}>Nie chcesz „donosić”?</Text>
               <Text style={{ color: ud.muted, marginBottom: 10 }}>Dowiedz się, co jeszcze możesz zrobić.</Text>
-              <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} title="Napisz pismo do polityka" text="W trzy minuty przełóż swoją frustrację w realne działanie." url="/napisz-pismo-do-polityka.html" />
+              <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Napisz pismo do polityka" text="W trzy minuty przełóż swoją frustrację w realne działanie." url="/napisz-pismo-do-polityka.html" />
               <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Miejska Agenda Parkingowa" text="Poznaj zmiany w przepisach, po których Uprzejmie Donoszę nie będzie potrzebne." url="https://agendaparkingowa.pl/" />
               {patron ? (
                 <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Wniosek do RPO" text="Poprzyj mój wniosek do Rzecznika Praw Obywatelskich o równe prawa dla pieszych i kierowców." url="https://www.change.org/Rowne-Prawa-Dla-Pieszych-i-Kierowcow/" />

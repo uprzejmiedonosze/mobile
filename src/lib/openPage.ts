@@ -13,4 +13,7 @@ export const openUdPage = (navigation: { navigate: (r: string, p?: object) => vo
   else Linking.openURL(/^https?:/.test(url) ? url : `${udConfig.base}${url}`).catch(() => {});
 };
 
+// Adres do otwarcia w przeglądarce systemowej: względny („/strona.html”) dostaje domenę backendu, bezwzględny zostaje bez zmian.
+export const externalUrl = (url: string) => (/^https?:/.test(url) ? url : `${udConfig.base}${url.startsWith('/') ? '' : '/'}${url}`);
+
 export const withEmbed = (url: string) => (/[?&]embed(=|&|$)/.test(url) ? url : `${url}${url.includes('?') ? '&' : '?'}embed=1`);
