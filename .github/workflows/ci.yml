@@ -1,0 +1,38 @@
+# Hermetyczne testy na każdy PR i push do main: typecheck + jest (bez sieci, bez sekretów).
+# Testy kontraktowe (prawdziwy backend) i e2e Maestro są poza CI – patrz docs/TESTING.md.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  # Sprawdza zgodność zależności Expo SDK; nie blokuje merge'a (zdarzają się ostrzeżenia zależne od sieci/rejestru).
+  doctor:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx expo-doctor
