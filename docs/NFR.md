@@ -15,7 +15,7 @@ Status: ✅ zrobione · 🟡 częściowo · ⬜ backlog. Każde wymaganie ma spo
 `shadow.uprzejmiedonosze.net`). Profile ustawiają `EXPO_PUBLIC_*`; `.env` to tylko domyślne wartości lokalnego dev.
 
 **Polityka:** zmiana łamiąca kontrakt API = podbicie `SCHEMA` w appce → nowy build w sklepach → dopiero wdrożenie backendu z podbitym `VISION_SCHEMA` (od tej chwili starsze appki są blokowane).
-Każdy build do sklepu podbija `expo.version` w `app.json` (build number rośnie sam, `autoIncrement`). Aktualizacje tylko przez sklep (bez OTA).
+Wersja appki (SemVer) pochodzi z pliku `VERSION` i tagów `vX.Y.Z` (`make release-*`, patrz `docs/RELEASE.md`); build number nadaje EAS (`autoIncrement`). Aktualizacje tylko przez sklep (bez OTA).
 
 ## Niezawodność sieci
 | Wymaganie | Status | Weryfikacja |

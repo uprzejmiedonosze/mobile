@@ -5,6 +5,7 @@ import { registerPasskey } from '../api/passkey';
 import { isPasskeyCancelled, passkeysEnabled } from '../lib/passkey';
 import { googleSignInReady, useAuth } from '../store/useAuth';
 import { udConfig, udEnv } from '../config';
+import { appBuild, appVersion } from '../lib/appVersion';
 import { ud } from '../theme';
 import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
 import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
@@ -22,7 +23,7 @@ export function AccountScreen({ navigation }: any) {
       <UdHeader />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
         {logged ? (
-          <Text style={{ color: ud.muted, fontSize: 12 }}>Środowisko: {udEnv} ({udConfig.base})</Text>
+          <Text style={{ color: ud.muted, fontSize: 12 }}>Wersja {appVersion} ({appBuild}) · Środowisko: {udEnv} ({udConfig.base})</Text>
         ) : (
         <UdCard>
           <Text style={{ color: ud.heading, fontWeight: '800', fontSize: 17 }}>Konto UD</Text>
@@ -32,7 +33,7 @@ export function AccountScreen({ navigation }: any) {
             </Text>
           ) : null}
           <Text style={{ color: ud.muted, marginTop: 4, fontWeight: '700' }}>
-            Środowisko: {udEnv} ({udConfig.base})
+            Wersja {appVersion} ({appBuild}) · Środowisko: {udEnv} ({udConfig.base})
           </Text>
         </UdCard>
         )}

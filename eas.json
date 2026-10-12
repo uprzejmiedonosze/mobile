@@ -35,6 +35,7 @@
     },
     "shadow": {
       "extends": "staging",
+      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_UD_ENV": "prod",
         "EXPO_PUBLIC_UD_BASE": "https://shadow.uprzejmiedonosze.net",
