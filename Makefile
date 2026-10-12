@@ -42,6 +42,7 @@ e2e-staging: ## Maestro na telefonie przeciw stagingowi
 .PHONY: check-git-clean check-branch-main release-check bump-version \
 	release-patch release-minor release-major tag-release \
 	check-on-tag build-ios build-android build-all submit-ios submit-android \
+	build-staging-play submit-staging-play \
 	release-notes log-from-last-tag
 
 check-git-clean:
@@ -129,3 +130,12 @@ log-from-last-tag: ## Commity od ostatniego tagu (pomoc przy pisaniu CHANGELOG-a
 	if [ -z "$$tag" ]; then echo "==> Brak tagów, cała historia"; git log --pretty=format:"%h %ci %s"; \
 	else echo "==> Commity od $$tag"; git log --pretty=format:"%h %ci %s" "$$tag"..HEAD; fi
 	@echo ""
+
+# Staging do testów w Google Play (track internal): AAB z EXPO_PUBLIC_UD_ENV=staging, bez tagu i bez SemVer-owego rytuału release-*.
+# Wersja = VERSION, versionCode z licznika EAS (wspólny z production). Wymaga zacommitowanych zmian (EAS buduje z gita).
+build-staging-play: ## Build AAB (staging) pod Google Play internal testing
+	@test -z "$$(git status --porcelain --untracked-files=no)" || ( echo "Są niezacommitowane zmiany (EAS buduje z gita)." && exit 1 )
+	eas build --profile staging-play --platform android
+
+submit-staging-play: ## Wyślij ostatni build staging-play do Google Play (internal, draft)
+	eas submit --profile staging-play --platform android --latest

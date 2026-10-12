@@ -23,21 +23,38 @@ Po polsku, **dla użytkownika** (nie lista commitów). Na górze zawsze `## RELE
 
 Profile `staging` i `shadow` (wewnętrzne testy) są poza tym procesem – nie tagujemy ich.
 
+## Staging w Google Play (testy wewnętrzne)
+Build z backendem stagingu rozsyłany testerom przez Play (track **internal**, do 100 testerów, bez review Google). Profil EAS `staging-play`
+(AAB, `EXPO_PUBLIC_UD_ENV=staging`, `autoIncrement` – licznik `versionCode` wspólny z `production`), submit `staging-play` (internal, draft).
+1. Zacommituj zmiany (EAS buduje z gita), potem `make build-staging-play` i pobierz `.aab` z linku EAS.
+2. **Pierwszy** upload ręcznie: Play Console → Testing → Internal testing → Create new release → wgraj `.aab` (Play App Signing: zgódź się na podpis Google, kluczem uploadu jest keystore z EAS) → Save → Review → Start rollout.
+   Tester → zakładka Testers: lista e-maili (grupa), skopiuj **link opt-in**; tester musi mieć to konto Google na telefonie.
+3. Kolejne wersje: `make build-staging-play && make submit-staging-play` (wymaga klucza konta usługi Play: Play Console → Setup → API access → konto usługi z uprawnieniem do wydań,
+   JSON wgraj do EAS: `eas credentials -p android` → *Google Service Account Key for Play Store Submissions*; nie commituj go).
+4. **Logowanie Google na stagingu:** po pierwszym uploadzie skopiuj SHA-1 *App signing key certificate* (Play Console → Test and release → App integrity) i dodaj klienta OAuth typu Android
+   (package `net.uprzejmiedonosze.pro` + to SHA-1) w projekcie Google Cloud/Firebase **stagingu** (`uprzejmiedonosze-1494607701827`); dodaj też SHA-1 uploadu (z `eas credentials`),
+   żeby działały buildy instalowane z APK. Bez tego „Zaloguj przez Google” w buildzie z Play zwróci błąd; e-mail-link działa od razu. Passkeye na stagingu są wyłączone (`passkeysAllowed`).
+5. Prod i staging mają ten sam `applicationId`, więc w sklepie to jedna aplikacja: build staging w internal nie przeszkadza w przyszłym production (kolejne `versionCode` rosną), ale **nie promuj** go do closed/open/production.
+
 ## Przed pierwszym wydaniem (nie zrobione w repo – do ustalenia)
+> **Stan: brak konta Apple Developer** – iOS wstrzymany (build, submit, TestFlight, passkeye na iOS, `ascAppId`/`appleTeamId`, plik AASA). Do czasu założenia konta wydawaj tylko Androida: `make build-android`, `make submit-android` (nie `build-all`).
+
 Blokery odrzucenia przez sklepy:
 1. **Konto dla recenzentów.** Logowanie to e-mail-link / Google / passkey – recenzent Apple/Google nie odbierze Twojej poczty. Potrzebna ścieżka demo (konto testowe + sposób zalogowania podany w notatkach dla recenzenta), inaczej odrzucenie.
-2. **Sign in with Apple (wytyczna 4.8).** Appka oferuje Google; potwierdź, że e-mail-link/passkey spełnia wymóg równoważnej, prywatnej opcji, albo dodaj Apple.
-3. **Polityka prywatności (publiczny URL) + Apple Privacy Nutrition Labels + Google Data safety** (zdjęcia z EXIF/GPS, e-mail, lokalizacja, pisma urzędowe). Usuwanie konta w appce jest (`AccountScreen`) – opisz je też w formularzach.
+2. ~~Sign in with Apple (wytyczna 4.8)~~ ✅ Google ukryty na iOS (`AccountScreen`), zostają e-mail-link i passkey – własne logowanie, 4.8 nie obowiązuje. Wrócisz do Google na iOS = trzeba dodać Sign in with Apple.
+3. **Polityka prywatności (publiczny URL) + Apple Privacy Nutrition Labels + Google Data safety** – inwentarz i ściąga do formularzy: `docs/STORE-PRIVACY.md` (+ zgoda na AI ✅ `lib/aiConsent.ts`, luki w polityce do uzupełnienia na www) (zdjęcia z EXIF/GPS, e-mail, lokalizacja, pisma urzędowe). Usuwanie konta w appce jest (`AccountScreen`) – opisz je też w formularzach.
 4. **Google Play – uprawnienia do zdjęć:** `READ_MEDIA_IMAGES` / `ACCESS_MEDIA_LOCATION` wymagają deklaracji (polityka Photo and Video Permissions) albo przejścia wyłącznie na systemowy picker.
 5. **Nowe konto deweloperskie Play (osobiste):** zamknięte testy (12 testerów przez 14 dni) przed produkcją – sprawdź typ konta.
 
 Konfiguracja:
-6. `ITSAppUsesNonExemptEncryption: false` w `ios.infoPlist` (tylko HTTPS – wyłącza pytanie o export compliance przy każdym buildzie; to deklaracja prawna, potwierdź).
-7. `supportsTablet: true` → wymaga zrzutów iPada i testu układu; albo ustaw `false`.
+6. ✅ `ITSAppUsesNonExemptEncryption: false` w `ios.infoPlist` (tylko HTTPS – wyłącza pytanie o export compliance przy każdym buildzie; to deklaracja prawna, potwierdź).
+7. ✅ `supportsTablet: false` (iPad w trybie iPhone'a, bez zrzutów iPada).
 8. `eas.json` → `submit.production.ios` (`ascAppId`, `appleTeamId`) po utworzeniu rekordu w App Store Connect; w backendzie prawdziwy `storeUrl` iOS.
-9. Sentry: DSN i `SENTRY_AUTH_TOKEN` w sekretach EAS, release = `net.uprzejmiedonosze.pro@X.Y.Z+build`, upload source map tylko dla `production` (`docs/NFR.md`).
+9. Sentry (region UE, `https://de.sentry.io`): w EAS (środowisko `production`) muszą być `SENTRY_AUTH_TOKEN` (secret), `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_URL=https://de.sentry.io`
+   i `EXPO_PUBLIC_SENTRY_DSN`; bez nich upload source map wywala build. Ustawianie: `eas env:create --environment production --name SENTRY_ORG --value <org> --visibility plaintext`
+   (analogicznie pozostałe; token z `--visibility secret`), podgląd: `eas env:list production`. Release = `net.uprzejmiedonosze.pro@X.Y.Z+build`.
 10. Klucz Android (`*.jks` w katalogu projektu, ignorowany): przenieś do EAS credentials i zrób kopię poza repo; Play App Signing włączony.
 11. Passkeye: `associatedDomains` i plik AASA na backendzie dla domen prod/shadow.
-12. CI: brak `.github/` – GitHub Actions z typecheck + jest na PR (opcjonalnie kontrakt staging z sekretem service account) i `expo-doctor`.
+12. ✅ CI: `.github/workflows/ci.yml` (typecheck + jest na PR/main, `expo-doctor` nieblokujący). Kontrakt staging i e2e poza CI (sekrety/telefon).
 
 Treści sklepowe (poza repo): nazwa i opisy PL, słowa kluczowe, kategoria, ocena wiekowa, support URL, zrzuty ekranu (telefon, iPad jeśli tablet), feature graphic Play, ikona 1024 bez kanału alfa.

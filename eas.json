@@ -41,10 +41,28 @@
         "EXPO_PUBLIC_UD_BASE": "https://shadow.uprzejmiedonosze.net",
         "EXPO_PUBLIC_SENTRY_ENV": "shadow"
       }
+    },
+    "staging-play": {
+      "autoIncrement": true,
+      "distribution": "store",
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_UD_ENV": "staging",
+        "EXPO_PUBLIC_SENTRY_ENV": "staging",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      }
     }
   },
   "submit": {
     "production": {
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
+    },
+    "staging-play": {
       "android": {
         "track": "internal",
         "releaseStatus": "draft"
