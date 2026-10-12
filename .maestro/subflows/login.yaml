@@ -1,0 +1,15 @@
+# Podwójne uruchomienie: dev client łączy się z Metro, potem deep link wpisuje sesję testową (src/lib/e2eLogin.ts).
+# Zmienne podaje e2e/run.sh: APP_ID, SCHEME, METRO_URL, REFRESH, EMAIL.
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+    stopApp: true
+- openLink: ${SCHEME}://expo-development-client/?url=${METRO_URL}
+- extendedWaitUntil:
+    visible: "Wyślij link logowania"   # ekran logowania = appka załadowana i bez sesji
+    timeout: 90000
+- openLink: ${SCHEME}://e2e-login?refresh=${REFRESH}&email=${EMAIL}
+- extendedWaitUntil:
+    visible: "Nowe zgłoszenie"          # Dashboard = sesja przyjęta, konto zarejestrowane
+    timeout: 30000

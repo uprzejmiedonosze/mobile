@@ -58,6 +58,8 @@ npm run ios             # expo start --ios
 npm test                 # jest (ts-jest, tests live in __tests__/)
 npm test -- __tests__/grouping.test.ts   # run a single test file
 npm run typecheck        # tsc --noEmit
+npm run test:contract:local|staging   # kontrakt API na prawdziwym backendzie (docker / staging), patrz docs/TESTING.md
+npm run e2e:local|staging             # Maestro na telefonie (e2e/run.sh), patrz docs/TESTING.md
 ```
 
 Config lives in `.env` (gitignored, copy from `.env.example`). Key vars: `EXPO_PUBLIC_PHOTO_MAX_WIDTH`,

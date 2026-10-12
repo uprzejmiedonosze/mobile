@@ -61,6 +61,15 @@ export const firebaseConfig = {
   projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || envBlock.projectId,
 } as const;
 
+// Firebase Auth Emulator (backend w dockerze, `make dev` w ../uprzejmiedonosze: :9099). Ustawione → REST Firebase idzie
+// do emulatora zamiast do googleapis (e2e lokalnie, patrz docs/TESTING.md). Z iOS-owego symulatora 127.0.0.1 = Mac,
+// z emulatora Androida trzeba 10.0.2.2. Puste = prawdziwy Firebase (staging/prod).
+export const firebaseEmulatorHost = (process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_HOST || '').replace(/\/$/, '');
+
+// Tryb e2e (Maestro): włącza deep link `udpro://e2e-login` (src/lib/e2eLogin.ts), który wpisuje gotową sesję testową.
+// Ustawiany TYLKO przez e2e/run.sh (Metro) – żaden profil eas.json go nie ustawia, więc nie trafia do release.
+export const e2eEnabled = process.env.EXPO_PUBLIC_E2E === '1';
+
 // Web OAuth client (ten sam co web src/js/lib/firebaseConfig.js getClientId()) – to jest
 // audience tokenu ID Google na obu platformach (@react-native-google-signin/google-signin
 // GoogleSignin.configure({ webClientId })). Android dodatkowo wymaga osobnego klienta OAuth

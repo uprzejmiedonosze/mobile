@@ -23,6 +23,7 @@ import { ToastHost } from './src/components/ToastHost';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { UdLogo } from './src/components/UD';
 import { installGlobalLogHandlers, log } from './src/lib/log';
+import { installE2eLogin } from './src/lib/e2eLogin';
 import { useAuth } from './src/store/useAuth';
 import { useAppUpdate } from './src/store/useAppUpdate';
 import { toast } from './src/store/useToast';
@@ -53,12 +54,16 @@ export default function App() {
     installGlobalLogHandlers();
     log.info('app', `start (dev mode): logi z telefonu lecą też do terminala Metro; środowisko=${udEnv} (${udConfig.base})`);
     hydrate().finally(() => setReady(true));
+    const removeE2e = installE2eLogin(); // no-op poza trybem e2e (EXPO_PUBLIC_E2E=1)
     // Bramka wersji: przy starcie i przy każdym powrocie do apki (throttling w store); błąd sieci nie blokuje.
     checkUpdate(true);
     const sub = AppState.addEventListener('change', (st) => {
       if (st === 'active') checkUpdate();
     });
-    return () => sub.remove();
+    return () => {
+      sub.remove();
+      removeE2e();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

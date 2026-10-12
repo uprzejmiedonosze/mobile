@@ -1,0 +1,10 @@
+# Formularz „Nowe”: bez zdjęć „Dalej” nie przechodzi dalej i pokazuje błąd (walidacja po stronie appki,
+# regresja z commita 66c540d). Nic nie trafia na backend – bezpieczne także na stagingu.
+appId: ${APP_ID}
+---
+- runFlow: subflows/login.yaml
+- tapOn: "Nowe"
+- scrollUntilVisible:
+    element: "Dalej"
+- tapOn: "Dalej"
+- assertVisible: "Dodaj zdjęcie auta z widocznym numerem rejestracyjnym i zdjęcie kontekstu."

@@ -48,7 +48,11 @@
     "typecheck": "tsc --noEmit",
     "build:staging": "eas build --profile staging",
     "build:shadow": "eas build --profile shadow",
-    "build:prod": "eas build --profile production"
+    "build:prod": "eas build --profile production",
+    "test:contract:local": "UD_E2E_ENV=local jest -c jest.contract.config.js",
+    "test:contract:staging": "UD_E2E_ENV=staging jest -c jest.contract.config.js",
+    "e2e:local": "e2e/run.sh local",
+    "e2e:staging": "e2e/run.sh staging"
   },
   "private": true
 }

@@ -1,0 +1,14 @@
+# Smoke: logowanie sesją testową + obejście czterech zakładek. Działa tak samo na local (docker) i staging.
+appId: ${APP_ID}
+---
+- runFlow: subflows/login.yaml
+- assertVisible: "Nowe zgłoszenie"
+- tapOn: "Zgłoszenia"
+- assertVisible: "Zgłoszenia"
+- tapOn: "Konto"
+- assertVisible: "Wyloguj"
+- tapOn: "Nowe"
+- scrollUntilVisible:
+    element: "Dalej"
+- tapOn: "Start"
+- assertVisible: "Nowe zgłoszenie"

@@ -1,0 +1,7 @@
+# Wylogowanie wraca do bramki logowania.
+appId: ${APP_ID}
+---
+- runFlow: subflows/login.yaml
+- tapOn: "Konto"
+- tapOn: "Wyloguj"
+- assertVisible: "Wyślij link logowania"

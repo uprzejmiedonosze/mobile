@@ -7,11 +7,12 @@
 //    Google -> signInWithGoogleIdToken wymienia go na sesję Firebase (accounts:signInWithIdp).
 // Sesja: refreshToken w SecureStore, ID token (1h) odświeżany przez securetoken endpoint.
 import * as SecureStore from 'expo-secure-store';
-import { firebaseConfig, udConfig } from '../config';
+import { firebaseConfig, firebaseEmulatorHost, udConfig } from '../config';
 import { log, logFetch } from '../lib/log';
 
-const IDTK = 'https://identitytoolkit.googleapis.com/v1';
-const SECURE = 'https://securetoken.googleapis.com/v1';
+// Emulator Firebase Auth wystawia te same ścieżki pod własnym hostem (e2e lokalnie, config.firebaseEmulatorHost).
+const IDTK = firebaseEmulatorHost ? `${firebaseEmulatorHost}/identitytoolkit.googleapis.com/v1` : 'https://identitytoolkit.googleapis.com/v1';
+const SECURE = firebaseEmulatorHost ? `${firebaseEmulatorHost}/securetoken.googleapis.com/v1` : 'https://securetoken.googleapis.com/v1';
 
 const K_REFRESH = 'udpro.fb.refresh';
 const K_EMAIL = 'udpro.fb.email';
@@ -185,6 +186,12 @@ export async function refreshIdToken(refreshToken: string): Promise<FbSession> {
   };
   await SecureStore.setItemAsync(K_REFRESH, sess.refreshToken);
   return sess;
+}
+
+// Tylko e2e (src/lib/e2eLogin.ts): zapisuje gotowy refresh token, resztę robi zwykłe useAuth.hydrate().
+export async function storeSession(refreshToken: string, email: string): Promise<void> {
+  await SecureStore.setItemAsync(K_REFRESH, refreshToken);
+  await SecureStore.setItemAsync(K_EMAIL, email.trim().toLowerCase());
 }
 
 export async function storedRefreshToken(): Promise<string | null> {
