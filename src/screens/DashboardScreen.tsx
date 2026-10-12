@@ -196,7 +196,7 @@ export function DashboardScreen({ navigation }: any) {
                 <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Wniosek do RPO" text="Poprzyj mój wniosek do Rzecznika Praw Obywatelskich o równe prawa dla pieszych i kierowców." url="https://www.change.org/Rowne-Prawa-Dla-Pieszych-i-Kierowcow/" />
               ) : (
                 <>
-                  <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} title="Patronite" text="Utrzymanie serwerów kosztuje. Zostań Patronką lub Patronem i pomóż nam działać stabilnie." url="/patronite.html" />
+                  <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} title="Patronite" text={`Utrzymanie serwerów kosztuje. Zostań ${patronem(d.sexStrings)} i pomóż nam działać stabilnie.`} url="/patronite.html" />
                   <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Suppi" text="Nie chcesz subskrypcji? Postaw nam kawę jednorazową, niewielką wpłatą." url="https://suppi.pl/uprzejmiedonosze" />
                 </>
               )}

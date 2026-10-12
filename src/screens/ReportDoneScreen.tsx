@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
+import { fetchProfile } from '../api/user';
 import { openUdPage } from '../lib/openPage';
 import { plural } from '../lib/reports';
+import { PATRONEM_DEFAULT } from '../lib/sex';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import { useNewReport } from '../store/useNewReport';
 import { ud } from '../theme';
@@ -9,6 +12,8 @@ import { ud } from '../theme';
 export function ReportDoneScreen({ navigation }: any) {
   const go = (r: string, params?: object) => navigation.navigate(r, params);
   const results = useNewReport((s) => s.done);
+  const [patron, setPatron] = useState(PATRONEM_DEFAULT); // „Patronem”/„Patronką” wg płci z profilu (sexStrings z backendu)
+  useEffect(() => { fetchProfile().then((p) => setPatron(p.patronem)).catch(() => {}); }, []);
   const done = results ? (['failed', 'manual', 'not_requested', 'sent'] as const).map((m) => results.find((r) => r.sendMode === m)).find(Boolean) ?? results[0] : null; // status wg najgorszego wyniku
 
   if (!done) {
@@ -46,7 +51,7 @@ export function ReportDoneScreen({ navigation }: any) {
         {!isPatron ? (
           <Text style={{ color: ud.text, marginTop: 16 }}>
             Utrzymanie serwisu kosztuje.{' '}
-            <Text style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => openUdPage(navigation, '/patronite.html', 'Wspieraj Uprzejmie Donoszę')}>Zostań Patronką lub Patronem</Text>.
+            <Text style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => openUdPage(navigation, '/patronite.html', 'Wspieraj Uprzejmie Donoszę')}>{`Zostań ${patron}`}</Text>.
           </Text>
         ) : null}
 
