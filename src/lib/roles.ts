@@ -20,12 +20,14 @@ export type Vehicle = { plate: string; score: number; area: number };
 // auta w tle (pole pojazdu w kadrze).
 export const CONFIDENT_SCORE = 0.8;
 
-// Odpowiedź „Oba” na pytanie, którego pojazdu dotyczy zgłoszenie: oba łamią te same przepisy. Tylko przy co najmniej dwóch
-// zdjęciach (jedno zdjęcie nie udokumentuje dwóch pojazdów). listVehicles() zwraca najwyżej dwa pojazdy, więc „Oba” jest
-// zawsze jednoznaczne.
+// Odpowiedź „Oba” na pytanie, którego pojazdu dotyczy zgłoszenie: oba łamią te same przepisy, powstają dwa osobne zgłoszenia, każde z auto +
+// kontekst. Tylko przy co najmniej TRZECH zdjęciach: zdjęcie auta 1, zdjęcie auta 2 i wspólny kontekst (przy dwóch zdjęciach nie ma kontekstu
+// niezależnego od któregoś z aut, a zgłoszenie jednego pojazdu nie może dostać zdjęcia auta drugiego). listVehicles() zwraca najwyżej dwa
+// pojazdy, więc „Oba” jest zawsze jednoznaczne.
 export const BOTH_VEHICLES = 'both';
 export const MAX_VEHICLES = 2;
-export const canChooseBoth = (vehicles: Vehicle[], photoCount: number): boolean => photoCount >= 2 && vehicles.length === MAX_VEHICLES;
+export const MIN_PHOTOS_BOTH = 3;
+export const canChooseBoth = (vehicles: Vehicle[], photoCount: number): boolean => photoCount >= MIN_PHOTOS_BOTH && vehicles.length === MAX_VEHICLES;
 // Drugi pojazd zgłoszenia = pierwszy z wykrytych, który nie jest pojazdem głównym (największym na zdjęciu auta).
 export const secondVehicle = (vehicles: Vehicle[], primaryPlate: string | null): Vehicle | null =>
   (primaryPlate ? vehicles.find((v) => !plateMatches(v.plate, primaryPlate)) : null) ?? null;
@@ -85,24 +87,27 @@ export function splitVehicles(photos: PhotoDetections[]): BothSplit | null {
   return { first: { photo: first.p.id, plate: first.d.text }, second: { photo: second.p.id, plate: second.d.text } };
 }
 
-// Role przy „Oba”: auto = zdjęcie pierwszego pojazdu; kontekst = pozostałe zdjęcie (gdy są trzy), inaczej zdjęcie drugiego
-// pojazdu; przy trzech zdjęciach zdjęcie drugiego pojazdu to „dodatkowe”.
+// Role przy „Oba” – tak, jak są POKAZANE w formularzu (kafelki obu pojazdów): auto = zdjęcie pierwszego pojazdu, kontekst = trzecie zdjęcie
+// (spoza obu pojazdów), „dodatkowe” = zdjęcie drugiego pojazdu. Do szkiców trafia co innego (firstDraftSlots/secondDraftSlots).
+// Wymaga co najmniej trzech zdjęć (canChooseBoth) – zawsze jest wtedy zdjęcie spoza obu pojazdów.
 export function chooseBothRoles(photos: PhotoDetections[], split: BothSplit): RoleChoice {
   const rest = photos.find((p) => p.id !== split.first.photo && p.id !== split.second.photo);
-  const slots: Slots = rest
-    ? { car: split.first.photo, context: rest.id, third: split.second.photo }
-    : { car: split.first.photo, context: split.second.photo, third: null };
+  const slots: Slots = { car: split.first.photo, context: rest?.id ?? null, third: split.second.photo };
   return { slots, crop: false, plate: split.first.plate, vehicleFound: true, note: null };
 }
 
-// „Oba” = dwa osobne zgłoszenia. Sloty szkicu drugiego pojazdu: auto = zdjęcie drugiego pojazdu, a zdjęcie, które leżało w jego
-// slocie (kontekst albo dodatkowe), zajmuje zdjęcie auta pierwszego pojazdu. Reszta bez zmian (to samo zdjęcie może leżeć w wielu szkicach).
-export function secondDraftSlots(slots: Slots, secondPhoto: string): Slots {
+// „Oba” = dwa osobne zgłoszenia, każde z dwoma zdjęciami: auto + wspólny kontekst, bez zdjęcia auta drugiego pojazdu:
+// szkic pierwszego = auto 1 + kontekst, szkic drugiego = auto 2 + ten sam kontekst. `slots` = role pokazane w formularzu (chooseBothRoles),
+// `secondPhoto` = zdjęcie drugiego pojazdu.
+export function firstDraftSlots(slots: Slots, secondPhoto: string): Slots {
   const out: Slots = { ...slots };
-  const from = SLOT_ORDER.find((s) => s !== 'car' && slots[s] === secondPhoto);
-  if (from) out[from] = slots.car;
-  out.car = secondPhoto;
+  for (const s of SLOT_ORDER) if (s !== 'car' && out[s] === secondPhoto) out[s] = null;
   return out;
+}
+
+export function secondDraftSlots(slots: Slots, secondPhoto: string): Slots {
+  const shared = SLOT_ORDER.filter((s) => s !== 'car').map((s) => slots[s]).find((id) => id && id !== secondPhoto) ?? null;
+  return { car: secondPhoto, context: shared, third: null };
 }
 
 // `opts.plate` = pojazd wskazany przez użytkownika (gdy wykryto kilka): auto = zdjęcie, na którym JEGO pojazd jest największy.

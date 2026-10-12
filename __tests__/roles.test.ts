@@ -1,4 +1,4 @@
-import { canChooseBoth, chooseBothRoles, chooseRoles, secondDraftSlots, splitVehicles, listVehicles, NO_PLATE_NOTE, secondVehicle, type Detection, type PhotoDetections } from '../src/lib/roles';
+import { canChooseBoth, chooseBothRoles, chooseRoles, firstDraftSlots, secondDraftSlots, splitVehicles, listVehicles, NO_PLATE_NOTE, secondVehicle, type Detection, type PhotoDetections } from '../src/lib/roles';
 
 // compose.ts (skąd bierzemy plateMatches) importuje expo-file-system – jak w suggest.test.ts
 jest.mock('expo-file-system/legacy', () => ({
@@ -154,21 +154,23 @@ describe('odpowiedź „Oba”', () => {
     photo('b', det('GD99999', 0.25, { winner: true })),
   ]);
 
-  it('„Oba” tylko przy co najmniej dwóch zdjęciach i dwóch pojazdach', () => {
-    expect(canChooseBoth(two(), 2)).toBe(true);
+  it('„Oba” tylko przy co najmniej trzech zdjęciach (dwa pojazdy + wspólny kontekst) i dwóch pojazdach', () => {
     expect(canChooseBoth(two(), 3)).toBe(true);
+    expect(canChooseBoth(two(), 2)).toBe(false); // dwa zdjęcia: nie ma kontekstu niezależnego od aut
     expect(canChooseBoth(two(), 1)).toBe(false); // jedno zdjęcie nie udokumentuje dwóch pojazdów
-    expect(canChooseBoth(two().slice(0, 1), 2)).toBe(false);
+    expect(canChooseBoth(two().slice(0, 1), 3)).toBe(false); // jeden pojazd
   });
 
-  it('przy co najmniej dwóch zdjęciach lista ograniczona do dwóch największych pojazdów – „Oba” zawsze dostępne', () => {
+  it('lista ograniczona do dwóch największych pojazdów – przy trzech zdjęciach „Oba” zawsze dostępne', () => {
     const photos = [
       photo('a', det('ZS12345', 0.4, { winner: true }), det('PO55555', 0.05), det('GD99999', 0.1)),
       photo('b', det('GD99999', 0.25, { winner: true })),
+      photo('c'),
     ];
     const v = listVehicles(photos);
     expect(v.map((x) => x.plate)).toEqual(['ZS12345', 'GD99999']);
     expect(canChooseBoth(v, photos.length)).toBe(true);
+    expect(canChooseBoth(v, 2)).toBe(false);
   });
 
   it('jedno zdjęcie: dwa największe pojazdy do wyboru jednego, bez „Oba”', () => {
@@ -198,10 +200,10 @@ describe('„Oba” – osobne zdjęcie dla każdego pojazdu', () => {
   const carB = photo('b', det('GD99999', 0.35, { winner: true }));
   const wide = photo('w', det('ZS12345', 0.05, { winner: true }), det('GD99999', 0.04));
 
-  it('dwa zdjęcia, po jednym pojeździe: każdy pojazd ma swoje zdjęcie, drugie jest też kontekstem', () => {
+  it('dwa zdjęcia, po jednym pojeździe: wybór pojazdu tak, ale bez „Oba” (to rozstrzyga canChooseBoth)', () => {
     const split = splitVehicles([carA, carB]);
-    expect(split).toEqual({ first: { photo: 'a', plate: 'ZS12345' }, second: { photo: 'b', plate: 'GD99999' } });
-    expect(chooseBothRoles([carA, carB], split!).slots).toEqual({ car: 'a', context: 'b', third: null });
+    expect(split).toEqual({ first: { photo: 'a', plate: 'ZS12345' }, second: { photo: 'b', plate: 'GD99999' } }); // wybór jednego z dwóch pojazdów jest możliwy
+    expect(canChooseBoth(listVehicles([carA, carB]), 2)).toBe(false);
   });
 
   it('trzy zdjęcia: szeroki kadr z obiema tablicami to kontekst, zdjęcie drugiego pojazdu – dodatkowe', () => {
@@ -210,6 +212,8 @@ describe('„Oba” – osobne zdjęcie dla każdego pojazdu', () => {
     expect(split.first.photo).toBe('a');
     expect(split.second.photo).toBe('b');
     expect(chooseBothRoles(photos, split).slots).toEqual({ car: 'a', context: 'w', third: 'b' });
+    expect(chooseBothRoles(photos, split).crop).toBe(false);
+    expect(canChooseBoth(listVehicles(photos), photos.length)).toBe(true);
   });
 
   it('dwa pojazdy na jednym zdjęciu nie wystarczą – bez „Oba”', () => {
@@ -236,11 +240,21 @@ describe('wybór pojazdu tylko przy osobnych zdjęciach', () => {
   });
 });
 
-describe('„Oba” = dwa osobne zgłoszenia – sloty drugiego szkicu', () => {
-  it('dwa zdjęcia: auta się zamieniają (kontekst = zdjęcie auta 1)', () => {
-    expect(secondDraftSlots({ car: 'A', context: 'B', third: null }, 'B')).toEqual({ car: 'B', context: 'A', third: null });
+describe('„Oba” = dwa osobne zgłoszenia, każde z auto + kontekst i bez zdjęcia auta drugiego pojazdu', () => {
+  // role pokazane w formularzu: A = auto 1, B = auto 2, W = wspólny kontekst
+  const shown = { car: 'A', context: 'W', third: 'B' };
+
+  it('oba szkice mają wspólny kontekst, a własne auto', () => {
+    expect(firstDraftSlots(shown, 'B')).toEqual({ car: 'A', context: 'W', third: null });
+    expect(secondDraftSlots(shown, 'B')).toEqual({ car: 'B', context: 'W', third: null });
   });
-  it('trzy zdjęcia: kontekst zostaje, „dodatkowe” = zdjęcie auta 1', () => {
-    expect(secondDraftSlots({ car: 'A', context: 'W', third: 'B' }, 'B')).toEqual({ car: 'B', context: 'W', third: 'A' });
+
+  it('żaden szkic nie dostaje zdjęcia auta drugiego pojazdu', () => {
+    expect(Object.values(firstDraftSlots(shown, 'B'))).not.toContain('B'); // szkic auta 1 bez zdjęcia auta 2
+    expect(Object.values(secondDraftSlots(shown, 'B'))).not.toContain('A'); // szkic auta 2 bez zdjęcia auta 1
+  });
+
+  it('gdy zdjęcia drugiego pojazdu nie ma w slotach, sloty pierwszego szkicu zostają bez zmian', () => {
+    expect(firstDraftSlots({ car: 'A', context: 'W', third: null }, 'ZZ')).toEqual({ car: 'A', context: 'W', third: null });
   });
 });

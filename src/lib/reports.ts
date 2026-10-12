@@ -84,6 +84,14 @@ export function exifToIso(s: string | null): string | null {
 export const hasRequiredPhotos = <A extends { contextImage?: { thumb?: string }; carImage?: { thumb?: string } }>(app?: A | null): app is A =>
   !!app?.contextImage?.thumb && !!app?.carImage?.thumb;
 
+// Które pola formularza zgłoszenia są zablokowane (nie do edycji):
+//  - data/godzina i numery rejestracyjne – dopóki nie ma załadowanego zdjęcia auta (dane biorą się z niego; edycja w trakcie przetwarzania
+//    zostałaby nadpisana wynikiem analizy),
+//  - adres – dopóki nie ma punktu (lat/lng z GPS zdjęcia albo z mapy) i ustalonego z niego adresu (reverse geocoding); potem tylko do lekkiej poprawki.
+export function formLocks(s: { hasCarPhoto: boolean; uploading: boolean; hasLocation: boolean; geoBusy: boolean }): { photoFields: boolean; address: boolean } {
+  return { photoFields: !s.hasCarPhoto || s.uploading, address: !s.hasLocation || s.geoBusy };
+}
+
 // Błąd pola formularza znika, gdy użytkownik zajmie się tym polem (albo gdy zrobi to, czego błąd żądał) – inne błędy zostają.
 export const clearFieldError = <E extends { field?: string }>(err: E | null, field: string): E | null => (err?.field === field ? null : err);
 

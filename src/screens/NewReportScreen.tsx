@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { type UdApp, imageUrl } from '../api/apps';
 import { fetchConfig } from '../api/dashboard';
@@ -11,7 +11,7 @@ import {
 import { ApiError, isPhotoQuotaError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { log } from '../lib/log';
-import { commentWarning, dropMatchingExtension, clearFieldError, exifToIso, hasRequiredPhotos, isExtensionDisabled, plural } from '../lib/reports';
+import { commentWarning, dropMatchingExtension, clearFieldError, exifToIso, formLocks, hasRequiredPhotos, isExtensionDisabled, plural } from '../lib/reports';
 import { DateTimeField } from '../components/DateTimeField';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
 import { MapPreview } from '../components/MapPreview';
@@ -81,6 +81,7 @@ const H = ({ children }: { children: string }) => (
 );
 const L = ({ children }: { children: React.ReactNode }) => <Text style={{ color: ud.muted, fontSize: 13, marginTop: 12 }}>{children}</Text>;
 const input = { backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusSm, padding: 10, marginTop: 4, color: ud.text } as const;
+const locked = { backgroundColor: ud.lockedBg, borderColor: ud.lockedBorder, color: ud.muted } as const; // pole jeszcze niedostępne do edycji (patrz formLocks) – widoczne na tle ekranu, ale wyszarzone
 
 function Check({ on, onPress, children, disabled }: { on: boolean; onPress: () => void; children: React.ReactNode; disabled?: boolean }) {
   return (
@@ -250,7 +251,7 @@ export function NewReportScreen({ navigation, route }: any) {
     setGeoBusy((n) => n + 1);
     try {
       const r = await searchAddress(q);
-      if (!r) { setAddrNote('Nie znaleziono adresu – użyj formatu „Ulica 10, Miasto”.'); return; }
+      if (!r) { setAddrNote('Nie znaleziono adresu – wskaż miejsce na mapie.'); return; }
       setAddrNote(null);
       resolvedText.current = q;
       geoFor.current = `${r.lat},${r.lng}`; // współrzędne z wyszukiwania mają już dane adresowe – bez ponownego reverse geocode
@@ -330,6 +331,13 @@ export function NewReportScreen({ navigation, route }: any) {
   const photosOk = hasRequiredPhotos(app);
   useEffect(() => { if (photosOk) setErr((e) => clearFieldError(e, 'images')); }, [photosOk]); // zdjęcia dodane → znika „Dodaj zdjęcie auta…”
   const uploading = batch.busy;
+  // „Zacznij od nowa”: zapominamy bieżący szkic i otwieramy formularz od zera (nowy szkic powstanie przy pierwszym zdjęciu). Zablokowane w trakcie
+  // wysyłania zdjęć – spóźnione żądanie zapisałoby id starego szkicu.
+  const startOver = () => Alert.alert('Zacznij od nowa?', 'Usunę zdjęcia i dane wpisane w tym zgłoszeniu.', [
+    { text: 'Anuluj', style: 'cancel' },
+    { text: 'Zacznij od nowa', style: 'destructive', onPress: () => { setDraftId(null); navigation.replace('NewReport'); } },
+  ]);
+  const lock = formLocks({ hasCarPhoto: !!app?.carImage?.thumb, uploading, hasLocation: form.lat != null && form.lng != null, geoBusy: geoBusy > 0 });
   // Odpowiedź „Oba” (albo wybór jednego pojazdu / nowe zdjęcia) ustawia drugą tablicę; ręczna poprawka zostaje do następnego wyboru.
   const localPhotos = batch.photos.length > 0;
   useEffect(() => { if (localPhotos) setForm((f) => (f.plateId2 === (batch.plate2 ?? '') ? f : { ...f, plateId2: batch.plate2 ?? '' })); }, [batch.plate2, localPhotos]);
@@ -389,7 +397,7 @@ export function NewReportScreen({ navigation, route }: any) {
     setSubmitting(true);
     try {
       const place = await resolvePlace();
-      if (!place) { fail(new ApiError('Nie udało się ustalić miejsca zgłoszenia – wskaż je na mapie albo wpisz adres w formacie „Ulica 10, Miasto”', 422, 'address')); return; }
+      if (!place) { fail(new ApiError('Nie udało się ustalić miejsca zgłoszenia – wskaż je na mapie', 422, 'address')); return; }
       const { geo, lat, lng } = place;
       const body: ReportForm = {
         plateId: form.plateId.trim(), address: form.address.trim(), addressGPS: geo.display,
@@ -420,6 +428,12 @@ export function NewReportScreen({ navigation, route }: any) {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {editId ? <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>{`Edycja${app?.number ? ` ${app.number}` : ''}`}</Text> : null}
 
+        {!editId && tiles.length > 0 ? (
+          <Pressable onPress={startOver} disabled={uploading} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 10, opacity: uploading ? 0.5 : 1 }}>
+            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, textDecorationLine: 'underline' }}>Zacznij od nowa</Text>
+          </Pressable>
+        ) : null}
+
         <PhotoQuotaNotice quota={quota} patronem={patron} onMore={() => navigation.navigate('QuotaInfo')} />
         <PhotosSection
           tiles={tiles}
@@ -442,18 +456,15 @@ export function NewReportScreen({ navigation, route }: any) {
           second={batch.second}
           onVehicle={batch.chooseVehicle}
           onRemove={batch.remove}
+          showRepick={!!editId}
         />
         {batch.failed.length ? (
           <Pressable onPress={batch.retry}><Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, marginTop: 8 }}>Nie wszystkie zdjęcia zostały wysłane – spróbuj ponownie</Text></Pressable>
         ) : null}
         {fieldErr('images')}
 
-        <L>Data i czas zgłoszenia</L>
-        <DateTimeField value={form.datetime} onChange={(iso) => { setForm((f) => ({ ...f, datetime: iso, dtFromPicture: false })); setErr((e) => clearFieldError(e, 'datetime')); }} />
-        {fieldErr('datetime')}
-
         <L>Numer rejestracyjny</L>
-        <TextInput style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }]} value={form.plateId} autoCapitalize="characters" autoCorrect={false} placeholder="np. ZS 060NH" onChangeText={(t) => { edited.current.plate = true; setPlateTouched(true); set('plateId', t); }} />
+        <TextInput style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }, lock.photoFields && locked]} editable={!lock.photoFields} value={form.plateId} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => { edited.current.plate = true; setPlateTouched(true); set('plateId', t); }} />
         {fieldErr('plateId')}
         {weightWarning ? <Text style={{ color: ud.warning, marginTop: 6 }}>{weightWarning}</Text> : null}
         {recydywa && recydywa.appsCnt > 0 ? (
@@ -462,9 +473,8 @@ export function NewReportScreen({ navigation, route }: any) {
 
         {form.plateId2 ? (
           <>
-            <L>Drugi pojazd (to samo wykroczenie) – numer rejestracyjny</L>
-            <TextInput style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }]} value={form.plateId2} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => set('plateId2', t)} />
-            <Text style={{ color: ud.muted, fontSize: 12, marginTop: 4 }}>Wyczyść pole, aby zgłosić tylko pierwszy pojazd.</Text>
+            <L>Drugi pojazd (to samo wykroczenie)</L>
+            <TextInput style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }, lock.photoFields && locked]} editable={!lock.photoFields} value={form.plateId2} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => set('plateId2', t)} />
             {fieldErr('plateId2')}
             {weightWarning2 ? <Text style={{ color: ud.warning, marginTop: 6 }}>{weightWarning2}</Text> : null}
             {recydywa2 && recydywa2.appsCnt > 0 ? (
@@ -473,12 +483,17 @@ export function NewReportScreen({ navigation, route }: any) {
           </>
         ) : null}
 
+        <L>Data i czas zgłoszenia</L>
+        <DateTimeField disabled={lock.photoFields} value={form.datetime} onChange={(iso) => { setForm((f) => ({ ...f, datetime: iso, dtFromPicture: false })); setErr((e) => clearFieldError(e, 'datetime')); }} />
+        {fieldErr('datetime')}
+
+        <MapPreview lat={form.lat} lng={form.lng} onPress={() => setMapOpen(true)} />
+        {form.lat == null ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 4 }}>Brak lokalizacji ze zdjęcia – wskaż miejsce na mapie.</Text> : null}
+
         <L>Adres (z GPS zdjęcia, możesz poprawić)</L>
-        <TextInput style={input} value={form.address} maxLength={70} placeholder="Ulica 10a, Miasto" onChangeText={(t) => { edited.current.address = true; setAddrNote(null); set('address', t); }} onEndEditing={lookupAddress} />
+        <TextInput style={[input, lock.address && locked]} editable={!lock.address} value={form.address} maxLength={70} onChangeText={(t) => { edited.current.address = true; setAddrNote(null); set('address', t); }} onEndEditing={lookupAddress} />
         {addrNote ? <Text style={{ color: ud.warning, marginTop: 4 }}>{addrNote}</Text> : null}
         {fieldErr('address')}
-        <MapPreview lat={form.lat} lng={form.lng} onPress={() => setMapOpen(true)} />
-        {form.lat == null ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 4 }}>Brak lokalizacji ze zdjęcia – wskaż miejsce na mapie albo wpisz adres („Ulica 10, Miasto”).</Text> : null}
 
         <L>Zgłoszenie trafi do</L>
         <Radio on={unit === 'SA'} onPress={() => set('unit', 'SA')} hint={unitHint(form.geo?.sa)}>Policja (sugerowane)</Radio>

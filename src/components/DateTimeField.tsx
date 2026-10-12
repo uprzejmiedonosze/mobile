@@ -5,12 +5,13 @@ import { applyPicked, fromIso, toIso } from '../lib/dateTime';
 import { fmtLongDate } from '../lib/reports';
 import { ud } from '../theme';
 
-type Props = { value: string; onChange: (iso: string) => void };
+type Props = { value: string; onChange: (iso: string) => void; disabled?: boolean };
 
 // Data i godzina zgłoszenia przez systemowy picker. Android: natywne okno daty, po zatwierdzeniu okno godziny (anulowanie godziny zostawia
 // już wybraną datę); iOS: kompaktowy picker „data + godzina” w jednym wierszu. Przyszłość jest zablokowana (max = teraz).
-// `value` = „YYYY-MM-DDTHH:mm:ss” (czas lokalny) albo '' (wtedy formularz ustawi „teraz”); `onChange` dostaje tę samą postać.
-export function DateTimeField({ value, onChange }: Props) {
+// `value` = „YYYY-MM-DDTHH:mm:ss” (czas lokalny) albo '' (pole zostaje puste – bez podpowiedzi; przy wysyłce formularz ustawia „teraz”);
+// `onChange` dostaje tę samą postać.
+export function DateTimeField({ value, onChange, disabled }: Props) {
   const current = fromIso(value);
 
   const openAndroid = useCallback(() => {
@@ -42,6 +43,7 @@ export function DateTimeField({ value, onChange }: Props) {
           locale="pl-PL"
           maximumDate={new Date()}
           accentColor={ud.primary}
+          disabled={disabled}
           onValueChange={(_e, d) => onChange(toIso(d > new Date() ? new Date() : d))}
         />
       </View>
@@ -49,10 +51,10 @@ export function DateTimeField({ value, onChange }: Props) {
   }
 
   return (
-    <Pressable onPress={openAndroid} accessibilityRole="button" accessibilityLabel="Zmień datę i godzinę zgłoszenia"
-      style={{ marginTop: 6, backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusButton, paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-      <Text style={{ color: ud.text, fontFamily: ud.fontBodyBold, flexShrink: 1 }}>{current ? fmtLongDate(value) : 'Teraz (zostanie ustawione przy wysyłce)'}</Text>
-      <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>Zmień</Text>
+    <Pressable onPress={openAndroid} disabled={disabled} accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} accessibilityLabel="Zmień datę i godzinę zgłoszenia"
+      style={{ marginTop: 6, backgroundColor: disabled ? ud.lockedBg : ud.surface, borderWidth: 1, borderColor: disabled ? ud.lockedBorder : ud.hairline, borderRadius: ud.radiusButton, paddingHorizontal: 14, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Text style={{ color: disabled ? ud.muted : ud.text, fontFamily: ud.fontBodyBold, flexShrink: 1 }}>{current ? fmtLongDate(value) : ''}</Text>
+      <Text style={{ color: disabled ? ud.muted : ud.primary, fontFamily: ud.fontBodyBold }}>{current ? 'Zmień' : 'Ustaw'}</Text>
     </Pressable>
   );
 }

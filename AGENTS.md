@@ -18,9 +18,9 @@ the user can swap roles. `POST /app/new` (lazy) → `POST /app/{id}/image` per s
 server runs ALPR and reads date/GPS from the car photo) → form (reverse geocode `/geo/{lat},{lng}/n`, typed address `/geo/search`,
 recydywa `/recydywa/{plate}`, vehicle `/vehicle/{plate}`) → `POST /app/{id}` (server-side validation, 422 + `field`)
 → `POST /app/{id}/finish {send:true}` (confirm + send; same side effects as web `/app/done`) → `ReportDoneScreen`.
-Dwa pojazdy na zdjęciach: pytanie „którego dotyczy zgłoszenie?” ma też odpowiedź **„Oba”** (`BOTH_VEHICLES`, tylko gdy każdy z dwóch pojazdów ma własne zdjęcie):
+Dwa pojazdy na zdjęciach: pytanie „którego dotyczy zgłoszenie?” ma też odpowiedź **„Oba”** (`BOTH_VEHICLES`, tylko przy **trzech zdjęciach**: zdjęcie auta 1, zdjęcie auta 2 i wspólny kontekst – przy dwóch zdjęciach jest wybór jednego pojazdu, ale nie „Oba”):
 UI jak dla jednego zgłoszenia, ale powstają **dwa osobne szkice** (dwa numery spraw i statusy). Pierwszy szkic jak zwykle; drugi tworzy dopiero „Dalej”
-(`ensureDraft2`), dostaje te same zdjęcia z etapu „wip” w zamienionych rolach (`secondDraftSlots`, `usePhotoBatch.assignSecondDraft`) i tę samą treść;
+(`ensureDraft2`), dostaje zdjęcia z etapu „wip” według `firstDraftSlots`/`secondDraftSlots` (`usePhotoBatch.assignSecondDraft`) i tę samą treść – **każdy szkic ma auto + wspólny kontekst i nie dostaje zdjęcia auta drugiego pojazdu**;
 `ReportConfirm` potwierdza oba (`appIds`), `ReportDone` pokazuje oba numery. Marka/model pojazdu jest dopisywana po stronie serwera
 (`carInfo.vehicle`, parkowanie.info) – komentarz należy do użytkownika; `GET /api/rest/vehicle/{plate}` to tylko podgląd (ostrzeżenie o masie). Brak `plateId2`/`carInfo2` w schemacie.
 The draft id is persisted (`useNewReport`, like web `$_SESSION['newAppId']`); "EDYTUJ" on the list opens the same

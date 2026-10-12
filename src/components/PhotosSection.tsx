@@ -50,7 +50,7 @@ export const CROP_TILE_ID = '__car_crop';
 // Pole na 2–3 kafelki (jedno zdjęcie też daje dwa: oryginał + wycinek auta – układ się nie przestawia). Bez podpisów ról; zdjęcie auta
 // wyróżnia miniatura tablicy rejestracyjnej pod nim. Role wynikają z analizy ALPR (lib/roles.ts) i nie są do ręcznej zmiany; jedyny wybór
 // użytkownika to „którego pojazdu dotyczy zgłoszenie”, gdy wykryto kilka pewnych pojazdów.
-export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, cropPreview, pending, plateUri, vehicles, vehicleIdx, canBoth, both, second, carBox, carNatural, onPick, onVehicle, onRemove }: {
+export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, cropPreview, pending, plateUri, vehicles, vehicleIdx, canBoth, both, second, carBox, carNatural, onPick, onVehicle, onRemove, showRepick = true }: {
   tiles: Tile[];
   slots: Slots;
   phase: Phase;
@@ -66,11 +66,12 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
   onPick: () => void;
   vehicles?: Vehicle[]; // ≥2 = wykryto kilka pojazdów o sporej pewności: pytamy, którego dotyczy zgłoszenie
   vehicleIdx?: number;
-  canBoth?: boolean; // czy pokazać „Oba” (≥2 zdjęcia i dokładnie dwa pojazdy – roles.canChooseBoth)
+  canBoth?: boolean; // czy pokazać „Oba” (≥3 zdjęcia: dwa pojazdy + wspólny kontekst, dokładnie dwa pojazdy – roles.canChooseBoth)
   second?: SecondVehicle | null; // „Oba”: ramka i tablica drugiego pojazdu pod JEGO zdjęciem
   both?: boolean; // odpowiedź „Oba” (oba pojazdy łamią te same przepisy)
   onVehicle?: (plate: string) => void; // tablica albo BOTH_VEHICLES
   onRemove: (id: string) => void;
+  showRepick?: boolean; // link „wybierz zdjęcia ponownie” (w nowym zgłoszeniu zastąpiony przez „Zacznij od nowa”)
 }) {
   const analyzing = phase === 'preparing' || phase === 'analyzing';
   const [viewer, setViewer] = useState<number | null>(null); // dotknięcie zdjęcia otwiera galerię (zoom, swipe)
@@ -152,7 +153,7 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
             {phase === 'preparing' ? 'Wysyłam zdjęcia i odczytuję tablice rejestracyjne…' : phase === 'analyzing' ? 'Wybieram zdjęcie auta i kontekst…' : uploading.length ? 'Zapisuję zdjęcia…' : ''}
           </Text>
           {note ? <Text style={{ color: ud.warning, marginTop: 4 }}>{note}</Text> : null}
-          <Pressable onPress={onPick} disabled={analyzing}><Text style={{ color: ud.muted, textDecorationLine: 'underline', marginTop: 8 }}>wybierz zdjęcia ponownie</Text></Pressable>
+          {showRepick ? <Pressable onPress={onPick} disabled={analyzing}><Text style={{ color: ud.muted, textDecorationLine: 'underline', marginTop: 8 }}>wybierz zdjęcia ponownie</Text></Pressable> : null}
         </>
       )}
       <ImageViewer urls={tiles.map((t) => t.full ?? t.uri)} index={viewer} onClose={() => setViewer(null)} />

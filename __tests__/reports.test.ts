@@ -1,4 +1,4 @@
-import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor, hasRequiredPhotos, clearFieldError } from '../src/lib/reports';
+import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor, hasRequiredPhotos, clearFieldError, formLocks } from '../src/lib/reports';
 
 describe('reports helpers', () => {
   it('formats dates like the web list', () => {
@@ -46,5 +46,32 @@ describe('błędy pól formularza zgłoszenia', () => {
     expect(clearFieldError(null, 'images')).toBeNull();
     const general: { field?: string; text: string } = { text: 'Brak połączenia' }; // błąd bez pola (toast) nie jest związany z żadnym polem
     expect(clearFieldError(general, 'images')).toBe(general);
+  });
+});
+
+describe('formLocks (które pola formularza są zablokowane)', () => {
+  const ready = { hasCarPhoto: true, uploading: false, hasLocation: true, geoBusy: false };
+
+  it('na starcie, bez zdjęcia i punktu, wszystko jest zablokowane', () => {
+    expect(formLocks({ hasCarPhoto: false, uploading: false, hasLocation: false, geoBusy: false })).toEqual({ photoFields: true, address: true });
+  });
+
+  it('data, godzina i numery rejestracyjne odblokowują się po załadowaniu zdjęcia auta', () => {
+    expect(formLocks({ ...ready, hasLocation: false }).photoFields).toBe(false);
+    expect(formLocks({ ...ready, hasCarPhoto: false }).photoFields).toBe(true);
+  });
+
+  it('w trakcie przetwarzania zdjęć pola ze zdjęcia są zablokowane (wynik analizy nadpisałby ręczną edycję)', () => {
+    expect(formLocks({ ...ready, uploading: true }).photoFields).toBe(true);
+  });
+
+  it('adres odblokowuje się dopiero po wskazaniu punktu i ustaleniu adresu (reverse geocoding)', () => {
+    expect(formLocks({ ...ready, hasLocation: false }).address).toBe(true); // jest zdjęcie, ale brak lokalizacji → mapa
+    expect(formLocks({ ...ready, geoBusy: true }).address).toBe(true); // punkt jest, adres się jeszcze ustala
+    expect(formLocks(ready).address).toBe(false);
+  });
+
+  it('blokady są niezależne: zdjęcie bez lokalizacji odblokowuje datę i numer, ale nie adres', () => {
+    expect(formLocks({ hasCarPhoto: true, uploading: false, hasLocation: false, geoBusy: false })).toEqual({ photoFields: false, address: true });
   });
 });

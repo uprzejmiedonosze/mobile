@@ -12,7 +12,7 @@ import { pickPhotos } from './gallery';
 import { log } from './log';
 import { downscale, type Scaled } from './resize';
 import { exifToIso } from './reports';
-import { BOTH_VEHICLES, canChooseBoth, chooseBothRoles, chooseRoles, listVehicles, secondDraftSlots, splitVehicles, SLOT_ORDER, type Detection, type PhotoDetections, type Vehicle } from './roles';
+import { BOTH_VEHICLES, canChooseBoth, chooseBothRoles, chooseRoles, firstDraftSlots, listVehicles, MIN_PHOTOS_BOTH, secondDraftSlots, splitVehicles, SLOT_ORDER, type Detection, type PhotoDetections, type Vehicle } from './roles';
 import { plateMatches } from './compose';
 import { defaultSlots, EMPTY_SLOTS, type Slot, type Slots, type Suggestion } from './suggest';
 import type { PhotoItem } from '../types';
@@ -100,7 +100,9 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
         for (const slot of SLOTS) {
           if (myBatch !== batch.current) return;
           if (slot === 'car') await carPrep.current; // wycinki z oryginału (tablica, auto przy jednym zdjęciu) muszą być gotowe
-          const want = slotsRef.current[slot];
+          // „Oba”: szkic pierwszego pojazdu nie dostaje zdjęcia auta drugiego (firstDraftSlots); role w formularzu zostają bez zmian
+          const planned = bothRef.current && secondRef.current ? firstDraftSlots(slotsRef.current, secondRef.current.photoId) : slotsRef.current;
+          const want = planned[slot];
           // auto: o wersji decyduje też wycinek i wskazany pojazd (to samo zdjęcie może trafić do slotu na inny sposób)
           const key = slot === 'car' && want ? `${want}|${cropRef.current ? 1 : 0}|${carCropId.current ?? ''}|${plateRef.current ?? ''}` : want;
           const have = slot === 'car' ? carKey.current : uploaded.current[slot];
@@ -211,7 +213,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
     const dets = detectionsRef.current;
     // „Oba” wymaga osobnych zdjęć obu pojazdów; gdy już ich nie ma (np. po usunięciu zdjęcia), wracamy do jednego pojazdu
     const offer = splitVehicles(dets); // wybór pojazdu tylko, gdy każdy ma własne zdjęcie z tablicą
-    const split = wantBoth ? offer : null;
+    const split = wantBoth && dets.length >= MIN_PHOTOS_BOTH ? offer : null; // „Oba” tylko przy 3+ zdjęciach – po usunięciu zdjęcia wracamy do jednego pojazdu
     const choice = split ? chooseBothRoles(dets, split) : chooseRoles(dets, { plate: offer ? chosenPlate : undefined });
     // jedno zdjęcie: lokalny podgląd wycinka z boxu wskazanego pojazdu
     const carPhoto = choice.crop ? list.find((p) => p.id === choice.slots.car) : undefined;
