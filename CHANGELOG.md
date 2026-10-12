@@ -1,5 +1,9 @@
 ## RELEASE-CANDIDATE
 
+- Przed pierwszym wyborem zdjęć do zgłoszenia lub skanu pisma aplikacja pyta o zgodę na przekazanie ich dostawcom usług AI i rozpoznawania tablic (m.in. OpenAI, Plate Recognizer). Zgodę możesz cofnąć w zakładce Konto.
+- Na iPhonie logujesz się linkiem z e-maila albo kluczem dostępu; przycisk „Zaloguj przez Google” jest dostępny tylko na Androidzie.
+- Aplikacja na iPadzie działa w trybie iPhone'a.
+
 ## v1.0.0 — 2026-10-12
 
 - Pierwsze wydanie aplikacji Uprzejmie Donoszę PRO. Zgłoszenie parkowania tworzysz z 2–3 zdjęć: aplikacja sama rozpoznaje, które jest kontekstem, a które zdjęciem auta z tablicą, odczytuje datę i miejsce ze zdjęcia, proponuje kategorię i uzupełnia dane pojazdu.

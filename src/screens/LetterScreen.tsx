@@ -6,6 +6,7 @@ import { isPhotoQuotaError } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { PhotoQuotaNotice } from '../components/PhotoQuotaNotice';
 import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
+import { ensureAiConsent } from '../lib/aiConsent';
 import { pickPhotos, takePhoto } from '../lib/gallery';
 import {
   buildApplyBody, caseSummary, describeSignals, findCandidate, hasChanges, initialDraft, initialPick, kindNotice, matchHeadline,
@@ -178,6 +179,7 @@ export function LetterScreen({ navigation }: any) {
   const add = useCallback(async (source: 'camera' | 'gallery') => {
     if (running.current) return;
     try {
+      if (!(await ensureAiConsent())) return; // skan idzie do AI (OpenAI) – najpierw zgoda, patrz lib/aiConsent.ts
       const photo = source === 'camera' ? await takePhoto() : (await pickPhotos(1))[0]?.uri ?? null;
       if (photo) void analyze(photo);
     } catch (e: any) {

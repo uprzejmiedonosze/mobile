@@ -8,6 +8,7 @@ import { assignReportPhoto, deleteReportImage, uploadPlateImage, type PictureTyp
 import { bboxToRegion, cropRegion, prepareOriginal, type Original } from './crop';
 import { analyzePhotoAlpr, deleteStagedPhoto, stagePhoto } from '../api/photos';
 import { isPhotoQuotaError } from '../api/udApi';
+import { ensureAiConsent } from './aiConsent';
 import { pickPhotos } from './gallery';
 import { log } from './log';
 import { downscale, type Scaled } from './resize';
@@ -273,6 +274,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
   const pick = useCallback(async () => {
     let my = -1;
     try {
+      if (!(await ensureAiConsent())) return; // zdjęcia idą do AI (OpenAI, Plate Recognizer) – najpierw zgoda, patrz lib/aiConsent.ts
       const picked = (await pickPhotos(MAX_BATCH, MIN_PHOTOS)) as LocalPhoto[];
       if (!picked.length) return;
 

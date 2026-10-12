@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { deleteAccount, fetchPasskeys, fetchProfile, removePasskey, updateUserProfile, type Passkey } from '../api/user';
 import { registerPasskey } from '../api/passkey';
 import { isPasskeyCancelled, passkeysEnabled } from '../lib/passkey';
 import { googleSignInReady, useAuth } from '../store/useAuth';
 import { udConfig, udEnv } from '../config';
 import { appBuild, appVersion } from '../lib/appVersion';
+import { hasAiConsent, revokeAiConsent } from '../lib/aiConsent';
 import { ud } from '../theme';
 import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
 import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
@@ -64,7 +65,8 @@ export function AccountScreen({ navigation }: any) {
           </UdCard>
         )}
 
-        {!logged && googleSignInReady ? (
+        {/* Na iOS bez przycisku Google: wtedy logujemy tylko własnymi metodami (e-mail-link, passkey) i wytyczna Apple 4.8 (Sign in with Apple) nie obowiązuje. */}
+        {!logged && googleSignInReady && Platform.OS !== 'ios' ? (
           <UdCard>
             <Text style={{ color: ud.heading, fontWeight: '700' }}>Google</Text>
             <Text style={{ color: ud.muted, marginTop: 4 }}>
@@ -118,6 +120,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteEmail, setDeleteEmail] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [aiConsent, setAiConsent] = useState(false);
 
   useEffect(() => {
     fetchProfile()
@@ -125,6 +128,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
       .catch((e: any) => setMsg({ ok: false, text: e?.message ?? String(e) }));
   }, []);
 
+  useEffect(() => { hasAiConsent().then(setAiConsent); }, []);
   useEffect(() => { fetchPasskeys().then(setPasskeys).catch(() => setPasskeys([])); }, []);
 
   const addPasskey = async () => {
@@ -213,6 +217,14 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
           </>
         )}
       </View>
+
+      {aiConsent ? (
+        <UdCard>
+          <Text style={{ color: ud.heading, fontWeight: '700' }}>Analiza zdjęć przez AI</Text>
+          <Text style={{ color: ud.muted, marginTop: 4 }}>Zgodziłeś się na wysyłanie zdjęć i skanów pism do dostawców AI. Przy następnym wyborze zdjęć zapytamy ponownie.</Text>
+          <UdButton title="Cofnij zgodę" variant="outline" onPress={() => { revokeAiConsent().then(() => setAiConsent(false)); }} />
+        </UdCard>
+      ) : null}
 
       <View style={{ marginTop: 20 }}>
         <UdButton title="Wyloguj" variant="outline" onPress={onLogout} />
