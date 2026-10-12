@@ -1,14 +1,19 @@
-import { AppState, Platform } from 'react-native';
+import { Alert, AppState, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 // UWAGA: `expo-media-library` (bez /legacy) eksportuje dla getAssetInfoAsync/requestPermissionsAsync
 // same przestarzałe shimy, które w runtime RZUCAJĄ (patrz build/legacyWarnings.d.ts) – trzeba
 // importować z podścieżki /legacy, żeby dostać działającą implementację.
 import * as MediaLibrary from 'expo-media-library/legacy';
+import { pickerAb } from '../config';
 import { log } from './log';
 import { requestPhotos } from '../store/usePhotoPicker';
 import type { ExifMeta, PhotoItem } from '../types';
 
 export const MAX_PHOTOS = 20;
+
+// Diagnostyka (pickerAb): wymusza systemowy picker zamiast własnego. Ustawiane przez przycisk w PhotosSection.
+let forceSystemPicker = false;
+export const setForceSystemPicker = (v: boolean) => { forceSystemPicker = v; };
 
 function dmsToDd(dms: number[], ref: string): number {
   const [d = 0, m = 0, s = 0] = dms;
@@ -72,7 +77,7 @@ export async function pickPhotos(left: number, min = 1): Promise<PhotoItem[]> {
   // release ("unregistered ActivityResultLauncher"); iOS zostaje przy systemowym pickerze.
   // Gdy MediaLibrary jest niedostępne (Expo Go nie dostaje pełnego dostępu do galerii, albo odmowa zgody) –
   // wracamy do systemowego pickera poniżej.
-  if (Platform.OS === 'android') {
+  if (Platform.OS === 'android' && !(pickerAb && forceSystemPicker)) {
     const picked = await requestPhotos(left, min);
     if (picked !== 'unavailable') return picked;
     log.warn('galeria', 'MediaLibrary niedostępne – systemowy ImagePicker');
@@ -123,10 +128,26 @@ export async function pickPhotos(left: number, min = 1): Promise<PhotoItem[]> {
     }),
   );
 
-  return res.assets.map((a, i) => {
+  // Diagnostyka: URI pickera (content://media/picker/…/<id>) kończy się id z MediaStore – sprawdzamy, czy po nim
+  // MediaLibrary zwróci nieredagowany GPS (wtedy da się uratować lokalizację bez własnego pickera).
+  const mediaIdLoc: string[] = pickerAb
+    ? await Promise.all(res.assets.map(async (a) => {
+        const id = a.uri.match(/\/(\d+)(?:[?#].*)?$/)?.[1];
+        if (!id || !mlGranted) return `brak (id ${id ?? '?'}, zgoda ${mlGranted})`;
+        try {
+          const info = await MediaLibrary.getAssetInfoAsync(id);
+          return info.location ? `${info.location.latitude.toFixed(4)},${info.location.longitude.toFixed(4)}` : `asset ${id} bez GPS`;
+        } catch (e: any) {
+          return `błąd: ${String(e?.message ?? e).slice(0, 80)}`;
+        }
+      }))
+    : [];
+  const report: string[] = [];
+  const out = res.assets.map((a, i) => {
     // expo-image-picker zwraca exif natywnie (bez node'owego exifreader -> brak 'https' w bundlu)
     const exif = parsePickerExif((a as any).exif ?? {});
     const loc = locations[i];
+    if (pickerAb) report.push(pickerReport(i, a, exif, loc, mediaIdLoc[i]));
     if (loc && (exif.lat == null || exif.lng == null)) {
       exif.lat = normalizeGeo4(loc.latitude);
       exif.lng = normalizeGeo4(loc.longitude);
@@ -140,6 +161,22 @@ export async function pickPhotos(left: number, min = 1): Promise<PhotoItem[]> {
       exif,
     };
   }) as PhotoItem[] as any;
+  if (pickerAb) {
+    log.info('galeria', `picker-ab:\n${report.join('\n')}`);
+    Alert.alert('Systemowy picker – metadane', report.join('\n\n'));
+  }
+  return out;
+}
+
+// Diagnostyka: co z metadanych dostajemy od systemowego pickera (surowy EXIF vs MediaLibrary po assetId vs po id z URI).
+function pickerReport(i: number, a: ImagePicker.ImagePickerAsset, exif: ExifMeta, loc: { latitude: number; longitude: number } | null, byUriId: string): string {
+  const scheme = a.uri.split(':')[0];
+  return [
+    `#${i + 1} ${scheme}, assetId: ${a.assetId ?? 'brak'}`,
+    `EXIF z pickera: GPS ${exif.lat != null ? `${exif.lat},${exif.lng}` : 'brak'}, data ${exif.datetimeOriginal ?? 'brak'}`,
+    `MediaLibrary po assetId: ${loc ? `${loc.latitude.toFixed(4)},${loc.longitude.toFixed(4)}` : 'brak'}`,
+    `MediaLibrary po id z URI: ${byUriId}`,
+  ].join('\n');
 }
 
 function toNum(v: any): number | null {
