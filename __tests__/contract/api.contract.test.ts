@@ -60,10 +60,12 @@ describe(`kontrakt API [${envName}]`, () => {
   });
 
   test('GET /api/rest/user/apps – lista zgłoszeń', async () => {
+    // 'active' = domyślny filtr ekranu Zgłoszenia (bez archiwum i szkiców), patrz ReportsScreen
     const res = await api.get('/api/rest/user/apps?status=active&limit=5');
     expect(res.status).toBe(200);
     const j = await res.json();
     expect(Array.isArray(j)).toBe(true);
+    expect(j.length).toBeLessThanOrEqual(5);
     for (const a of j) {
       expect(a).toEqual(expect.objectContaining({ id: expect.anything(), status: expect.any(String) }));
       expect(a).toHaveProperty('recipient');
