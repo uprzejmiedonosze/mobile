@@ -3,6 +3,7 @@
 - Przed pierwszym wyborem zdjęć do zgłoszenia lub skanu pisma aplikacja pyta o zgodę na przekazanie ich dostawcom usług AI i rozpoznawania tablic (m.in. OpenAI, Plate Recognizer). Zgodę możesz cofnąć w zakładce Konto.
 - Na iPhonie logujesz się linkiem z e-maila albo kluczem dostępu; przycisk „Zaloguj przez Google” jest dostępny tylko na Androidzie.
 - Aplikacja na iPadzie działa w trybie iPhone'a.
+- Numer sprawy i uwagi na liście zgłoszeń zapisują się także po schowaniu klawiatury albo zwinięciu zgłoszenia – wcześniej trzeba było dotknąć ekranu poza polem.
 
 ## v1.0.0 — 2026-10-12
 

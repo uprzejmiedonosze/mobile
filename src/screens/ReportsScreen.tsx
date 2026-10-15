@@ -59,22 +59,38 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 // Pole zapisywane po wyjściu z niego, tylko gdy się zmieniło (jak .app-field-editable na webie, my-apps.js).
 function EditableField({ label, value, multiline, placeholder, onSave, onFocus }: { label: string; value: string; multiline?: boolean; placeholder?: string; onSave: (v: string) => Promise<void>; onFocus?: () => void }) {
   const [text, setText] = useState(value);
-  const [saved, setSaved] = useState(value); // ostatnia zapisana wartość (web: data-initial-value)
   const [state, setState] = useState<'idle' | 'saving' | 'error'>('idle');
-  useEffect(() => { setText(value); setSaved(value); }, [value]);
+  // Refy, bo zapis odpala też sprzątanie przy odmontowaniu (zwinięcie karty), gdzie stan z domknięcia jest nieaktualny.
+  const textRef = useRef(value);
+  const savedRef = useRef(value); // ostatnia zapisana wartość (web: data-initial-value)
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  const mounted = useRef(true);
+  useEffect(() => { setText(value); textRef.current = value; savedRef.current = value; }, [value]);
 
   const commit = async () => {
-    if (text === saved) return;
-    setState('saving');
-    try { await onSave(text); setSaved(text); setState('idle'); } catch { setState('error'); }
+    const v = textRef.current;
+    const prev = savedRef.current;
+    if (v === prev) return;
+    savedRef.current = v; // od razu, żeby blur + odmontowanie nie zapisały dwa razy
+    if (mounted.current) setState('saving');
+    try {
+      await onSaveRef.current(v);
+      if (mounted.current) setState('idle');
+    } catch {
+      savedRef.current = prev;
+      if (mounted.current) setState('error');
+    }
   };
+  // Zwinięcie karty z niezapisaną zmianą odmontowuje pole bez blur – zapisujemy przy odmontowaniu.
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; void commit(); }; }, []);
 
   return (
     <Row label={label}>
       <TextInput
         value={text}
-        onChangeText={(t) => { setText(t); if (state === 'error') setState('idle'); }}
-        onEndEditing={commit}
+        onChangeText={(t) => { setText(t); textRef.current = t; if (state === 'error') setState('idle'); }}
+        onBlur={commit}
         onFocus={onFocus}
         editable={state !== 'saving'}
         multiline={multiline}
@@ -332,7 +348,11 @@ export function ReportsScreen({ navigation, route }: any) {
   const [kbd, setKbd] = useState(false);
   useEffect(() => {
     const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKbd(true));
-    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKbd(false));
+    // Android: schowanie klawiatury (wstecz/gest) nie zdejmuje fokusu z pola, więc nie byłoby blur i zapisu – zdejmujemy go sami.
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => {
+      setKbd(false);
+      TextInput.State.currentlyFocusedInput()?.blur();
+    });
     return () => { show.remove(); hide.remove(); };
   }, []);
   const onFieldFocus = (id: string) => {
