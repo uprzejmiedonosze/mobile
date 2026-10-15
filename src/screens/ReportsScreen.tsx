@@ -14,6 +14,8 @@ import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import type { Category, RecydywaInfo } from '../types';
 import { useAuth } from '../store/useAuth';
 import { ud } from '../theme';
+import { SvgXml } from 'react-native-svg';
+import { CHEVRON_ICON, DATETIME_ICON, DESCRIPTION_ICON, ENCRYPTED_ICON, INFO_ICON, PIN_ICON } from '../assets/detailIcons';
 
 function StatusDot({ status, label, police }: { status: string; label: string; police?: boolean }) {
   const t = statusColor(status);
@@ -47,17 +49,32 @@ function Photos({ thumbs, onPress }: { thumbs: string[]; onPress: (index: number
   );
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+// Szczegóły rozwiniętego zgłoszenia jak .application-details-list na webie (my-apps.scss): ikona przed każdą pozycją,
+// ~1em odstępu między pozycjami, nagłówki sekcji pogrubione.
+const DETAIL_ICON = 16;
+const Icon = ({ xml }: { xml: string }) => <SvgXml xml={xml.replace('COLOR', ud.text)} width={DETAIL_ICON} height={DETAIL_ICON} />;
+
+function IconLine({ icon, children }: { icon: string; children: React.ReactNode }) {
   return (
-    <View style={{ marginTop: 10 }}>
-      <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, fontSize: 12, letterSpacing: 0.5 }}>{label}</Text>
-      {children}
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+      <View style={{ marginTop: 3 }}><Icon xml={icon} /></View>
+      <View style={{ flex: 1 }}>{children}</View>
+    </View>
+  );
+}
+
+function Row({ label, icon, children }: { label: React.ReactNode; icon?: string; children: React.ReactNode }) {
+  const title = <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, fontSize: 14, letterSpacing: 0.4 }}>{label}</Text>;
+  return (
+    <View style={{ gap: 4 }}>
+      {icon ? <IconLine icon={icon}>{title}</IconLine> : title}
+      <View style={icon ? { paddingLeft: DETAIL_ICON + 8 } : undefined}>{children}</View>
     </View>
   );
 }
 
 // Pole zapisywane po wyjściu z niego, tylko gdy się zmieniło (jak .app-field-editable na webie, my-apps.js).
-function EditableField({ label, value, multiline, placeholder, onSave, onFocus }: { label: string; value: string; multiline?: boolean; placeholder?: string; onSave: (v: string) => Promise<void>; onFocus?: () => void }) {
+function EditableField({ label, value, multiline, placeholder, onSave, onFocus, icon }: { label: React.ReactNode; value: string; multiline?: boolean; placeholder?: string; onSave: (v: string) => Promise<void>; onFocus?: () => void; icon?: string }) {
   const [text, setText] = useState(value);
   const [state, setState] = useState<'idle' | 'saving' | 'error'>('idle');
   // Refy, bo zapis odpala też sprzątanie przy odmontowaniu (zwinięcie karty), gdzie stan z domknięcia jest nieaktualny.
@@ -97,8 +114,10 @@ function EditableField({ label, value, multiline, placeholder, onSave, onFocus }
         placeholder={placeholder}
         placeholderTextColor={ud.muted}
         autoCorrect={false}
-        style={{ marginTop: 4, backgroundColor: ud.surfaceLow, borderWidth: 1, borderColor: state === 'error' ? ud.plateVerified : ud.hairline, borderRadius: ud.radiusSm, padding: 8, color: ud.text, minHeight: multiline ? 64 : undefined, textAlignVertical: multiline ? 'top' : 'center', opacity: state === 'saving' ? 0.6 : 1 }}
+        style={{ marginTop: 2, backgroundColor: ud.surface, borderWidth: 1, borderColor: state === 'error' ? ud.plateVerified : '#999', borderRadius: ud.radiusSm, paddingVertical: 10, paddingLeft: 10, paddingRight: icon ? 34 : 10, fontSize: 15, color: ud.text, minHeight: multiline ? 80 : undefined, textAlignVertical: multiline ? 'top' : 'center', opacity: state === 'saving' ? 0.6 : 1 }}
       />
+      {/* jak na webie: ikona zaszyfrowanego pliku w rogu pola z uwagami */}
+      {icon ? <View pointerEvents="none" style={{ position: 'absolute', right: 10, bottom: 10 }}><SvgXml xml={icon.replace('COLOR', ud.muted)} width={20} height={20} /></View> : null}
       {state === 'error' ? <Text style={{ color: ud.plateVerified, fontSize: 12, marginTop: 2 }}>Nie udało się zapisać – spróbuj ponownie.</Text> : null}
     </Row>
   );
@@ -143,11 +162,12 @@ type CardProps = {
   onEdit: (id: string) => void;
   onFields: (id: string, fields: { externalId?: string; privateComment?: string }) => Promise<void>;
   onFieldFocus: (id: string) => void;
+  onPage: (path: string, title?: string) => void;
   open: boolean;
   onToggle: (id: string) => void;
 };
 
-function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onFieldFocus, open, onToggle }: CardProps) {
+function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onFieldFocus, onPage, open, onToggle }: CardProps) {
   const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState(false);
   const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
@@ -199,7 +219,8 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
           <Text numberOfLines={1} style={{ flex: 1, fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 17 }}>
             {shortAddress(app.address?.address) || 'Brak adresu'}
           </Text>
-          <Text style={{ color: ud.muted, fontSize: 16 }}>{open ? '⌃' : '⌄'}</Text>
+          {/* chevron z webu (.expander): w dół zwinięta, obrócony o 180° po rozwinięciu */}
+          <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }], padding: 2 }}><SvgXml xml={CHEVRON_ICON.replace('COLOR', ud.muted)} width={16} height={16} /></View>
         </View>
         {cat ? <Text numberOfLines={open ? 0 : 1} style={{ color: ud.muted, fontSize: 13, marginTop: 2 }}>{cat.title}</Text> : null}
       </View>
@@ -208,12 +229,16 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
       <ImageViewer urls={fulls} index={viewer} onClose={() => setViewer(null)} />
 
       {open ? (
-        <View style={{ paddingBottom: 12 }}>
+        <View style={{ paddingTop: 4, paddingBottom: 14, gap: 16 }}>
+          <View style={{ gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <StatusDot status={app.status} label={statusName} police={police} />
             {allowed.length ? (
               <Pressable onPress={() => setMenu((m) => !m)} disabled={busy} style={{ borderWidth: 1, borderColor: ud.text, borderRadius: ud.radiusPill, paddingHorizontal: 12, paddingVertical: 4 }}>
-                <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: ud.text }}>{busy ? '…' : 'ZMIEŃ'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: ud.text }}>{busy ? '…' : 'ZMIEŃ'}</Text>
+                  <SvgXml xml={CHEVRON_ICON.replace('COLOR', ud.text)} width={12} height={12} />
+                </View>
               </Pressable>
             ) : null}
           </View>
@@ -227,16 +252,17 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
           />
 
           {statuses[app.status]?.editable ? (
-            <Pressable onPress={() => onEdit(app.id)} style={{ alignSelf: 'flex-start', marginTop: 10, borderWidth: 1, borderColor: ud.text, borderRadius: ud.radiusPill, paddingHorizontal: 12, paddingVertical: 4 }}>
+            <Pressable onPress={() => onEdit(app.id)} style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: ud.text, borderRadius: ud.radiusPill, paddingHorizontal: 12, paddingVertical: 4 }}>
               <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: ud.text }}>EDYTUJ</Text>
             </Pressable>
           ) : null}
-          {app.number ? <Text style={{ marginTop: 10, color: ud.text }}>Zgłoszenie <Text style={{ fontFamily: ud.fontBodyBold }}>{app.number}</Text></Text> : null}
-          <Text style={{ marginTop: 8, fontFamily: ud.fontBodyBold, color: ud.text }}>🕒 {fmtLongDate(app.date)}</Text>
-          <Text style={{ marginTop: 6, color: ud.text }}>📍 {app.address?.address}</Text>
+          {app.number ? <Text style={{ color: ud.text, fontSize: 15 }}>Zgłoszenie <Text style={{ fontFamily: ud.fontBodyBold }}>{app.number}</Text></Text> : null}
+          </View>
+          <IconLine icon={DATETIME_ICON}><Text style={{ fontFamily: ud.fontBodyBold, color: ud.text, fontSize: 15 }}>{fmtLongDate(app.date)}</Text></IconLine>
+          <IconLine icon={PIN_ICON}><Text style={{ color: ud.text, fontSize: 15 }}>{app.address?.address || 'Brak adresu'}</Text></IconLine>
 
           {recCnt > 1 ? (
-            <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={{ backgroundColor: ud.accent, borderRadius: ud.radiusPill, paddingHorizontal: 10, paddingVertical: 3 }}>
                 <Text style={{ fontFamily: ud.fontBodyBold, color: ud.onAccent, fontSize: 12 }}>
                   ❗ {plural(recCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}
@@ -248,19 +274,22 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
             </View>
           ) : null}
 
-          <Row label="TREŚĆ ZGŁOSZENIA">
-            <Text style={{ color: ud.text, marginTop: 2 }}>{reportBody(cat?.formal, app.userComment) || '—'}</Text>
+          <Row label="TREŚĆ ZGŁOSZENIA" icon={DESCRIPTION_ICON}>
+            <Text style={{ color: ud.text, fontSize: 15, lineHeight: 22 }}>{reportBody(cat?.formal, app.userComment) || '—'}</Text>
           </Row>
-          <Row label="INFORMACJE DODATKOWE">
-            <Text style={{ color: ud.text, marginTop: 2 }}>{witnessText(app.statements?.witness)}</Text>
+          <Row label="INFORMACJE DODATKOWE" icon={INFO_ICON}>
+            <Text style={{ color: ud.text, fontSize: 15, lineHeight: 22 }}>{witnessText(app.statements?.witness)}</Text>
             {app.sent?.date ? (
-              <Text style={{ color: ud.text, marginTop: 4 }}>Wysłano do {police ? '👮 ' : ''}{app.recipient?.shortName ? `${app.recipient.shortName} ` : ''}{fmtSent(app.sent.date)}.</Text>
+              <Text style={{ color: ud.text, fontSize: 15, lineHeight: 22, marginTop: 4 }}>Wysłano do {police ? '👮 ' : ''}{app.recipient?.shortName ? `${app.recipient.shortName} ` : ''}{fmtSent(app.sent.date)}.</Text>
             ) : null}
           </Row>
           {wasSent ? (
             <EditableField label="NUMER SPRAWY SM/POLICJI" value={app.externalId ?? ''} placeholder="RSOW 0000/24 / WP 000/24" onSave={(v) => onFields(app.id, { externalId: v })} onFocus={() => onFieldFocus(app.id)} />
           ) : null}
-          <EditableField label="UWAGI (WIDOCZNE TYLKO DLA CIEBIE)" value={app.privateComment ?? ''} multiline onSave={(v) => onFields(app.id, { privateComment: v })} onFocus={() => onFieldFocus(app.id)} />
+          <EditableField
+            label={<>UWAGI (<Text onPress={() => onPage('/bezpieczenstwo.html', 'Bezpieczeństwo')} style={{ color: ud.primary, textDecorationLine: 'underline' }}>widoczne tylko dla Ciebie</Text>)</>}
+            icon={ENCRYPTED_ICON}
+            value={app.privateComment ?? ''} multiline onSave={(v) => onFields(app.id, { privateComment: v })} onFocus={() => onFieldFocus(app.id)} />
         </View>
       ) : null}
     </Pressable>
@@ -459,7 +488,7 @@ export function ReportsScreen({ navigation, route }: any) {
           data={apps}
           keyExtractor={(a) => a.id}
           keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onStatus={onStatus} onFields={onFields} onFieldFocus={onFieldFocus} onEdit={(id) => navigation.navigate('NewReport', { editId: id })} open={openId === item.id} onToggle={(id) => setOpenId((cur) => (cur === id ? null : id))} />}
+          renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onStatus={onStatus} onFields={onFields} onFieldFocus={onFieldFocus} onPage={(path, title) => openUdPage(navigation, path, title)} onEdit={(id) => navigation.navigate('NewReport', { editId: id })} open={openId === item.id} onToggle={(id) => setOpenId((cur) => (cur === id ? null : id))} />}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={ud.primary} />}
           onEndReachedThreshold={0.5}

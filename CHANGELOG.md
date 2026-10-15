@@ -10,6 +10,7 @@
 - Kategorie wykroczenia, wybór odbiorcy (policja/straż miejska) i dodatkowe wykroczenia w formularzu to karty bez kółek i kwadracików – wybrane wyróżnia zielona ramka, jak na stronie. Kategorie mają większe zdjęcie, a punkty karne widać w czerwonej kropce na zdjęciu.
 - Podpowiedź pod wyborem policji/straży miejskiej nie pokazuje już surowego kodu HTML – „Podziel się” jest klikalnym linkiem do wiadomości e-mail.
 - Przy każdej kategorii wykroczenia jest „Więcej…” – otwiera opis kategorii z wysokością mandatu i podstawą prawną, jak na stronie. Pod pełną listą kategorii jest też link do poradnika, gdy nie wiesz, którą wybrać.
+- Szczegóły rozwiniętego zgłoszenia są czytelniejsze: więcej odstępu między sekcjami, większy tekst i ikony jak na stronie (data, adres, treść, informacje dodatkowe), a pola numeru sprawy i uwag wyraźnie odcinają się od tła.
 
 ## v1.0.0 — 2026-10-12
 
