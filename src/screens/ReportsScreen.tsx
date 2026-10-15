@@ -152,8 +152,10 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
   };
 
   return (
-    // Biała karta bez ramki; odróżnia ją pasek w kolorze statusu z lewej.
-    <Pressable onPress={toggle} style={{ backgroundColor: ud.surface, paddingLeft: 12, paddingRight: 12, paddingVertical: 10, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: accent === '#FFFFFF' ? '#C5C5C5' : accent, borderTopRightRadius: ud.radiusSm, borderBottomRightRadius: ud.radiusSm }}>
+    // Biała karta bez ramki; odróżnia ją pasek w kolorze statusu z lewej – osobny widok przycięty zaokrągleniem karty
+    // (borderLeft przy borderRadius zwęża się w rogach).
+    <Pressable onPress={toggle} style={{ backgroundColor: ud.surface, paddingLeft: 16, paddingRight: 12, paddingVertical: 10, marginBottom: 12, borderRadius: ud.radiusSm, overflow: 'hidden' }}>
+      <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: accent === '#FFFFFF' ? '#C5C5C5' : accent }} />
       <View style={{ paddingVertical: 4 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <StatusDot status={app.status} label={statusName} police={police} />
