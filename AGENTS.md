@@ -15,7 +15,7 @@ the domain logic lives in the backend:
 `POST /api/rest/vision/candidate` and `suggestSlots` (`src/lib/suggest.ts`, reusing the batch pipeline's
 `splitByPlate`/`assignRoles`/`compose`) decides which one is context / car / extra and suggests the category;
 the user can swap roles. `POST /app/new` (lazy) → `POST /app/{id}/image` per slot, in the suggested roles (multipart;
-server runs ALPR and reads date/GPS from the car photo) → form (reverse geocode `/geo/{lat},{lng}/n`, typed address `/geo/search`,
+server runs ALPR and reads date/GPS from the car photo) → form (reverse geocode `/geo/{lat},{lng}/m` + `/n` merged like web `latLngToAddress`, typed address `/geo/search`,
 recydywa `/recydywa/{plate}`, vehicle `/vehicle/{plate}`) → `POST /app/{id}` (server-side validation, 422 + `field`)
 → `POST /app/{id}/finish {send:true}` (confirm + send; same side effects as web `/app/done`) → `ReportDoneScreen`.
 Dwa pojazdy na zdjęciach: pytanie „którego dotyczy zgłoszenie?” ma też odpowiedź **„Oba”** (`BOTH_VEHICLES`, tylko przy **trzech zdjęciach**: zdjęcie auta 1, zdjęcie auta 2 i wspólny kontekst – przy dwóch zdjęciach jest wybór jednego pojazdu, ale nie „Oba”):

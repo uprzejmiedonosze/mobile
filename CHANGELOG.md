@@ -4,6 +4,7 @@
 - Na iPhonie logujesz się linkiem z e-maila albo kluczem dostępu; przycisk „Zaloguj przez Google” jest dostępny tylko na Androidzie.
 - Aplikacja na iPadzie działa w trybie iPhone'a.
 - Numer sprawy i uwagi na liście zgłoszeń zapisują się także po schowaniu klawiatury albo zwinięciu zgłoszenia – wcześniej trzeba było dotknąć ekranu poza polem.
+- Adres miejsca wskazanego na mapie lub odczytanego ze zdjęcia zawiera numer domu, tak jak na stronie – wcześniej aplikacja często podawała tylko ulicę i miasto.
 
 ## v1.0.0 — 2026-10-12
 

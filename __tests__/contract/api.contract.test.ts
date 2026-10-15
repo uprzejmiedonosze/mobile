@@ -88,6 +88,13 @@ describe(`kontrakt API [${envName}]`, () => {
     expect(j.address).toEqual(expect.objectContaining({ road: expect.any(String), city: expect.any(String) }));
   });
 
+  test('GET /api/rest/geo/{lat},{lng}/m – reverse geocode MapBox (adres z numerem domu, jak web)', async () => {
+    const res = await api.get('/api/rest/geo/52.2297,21.0122/m');
+    expect(res.status).toBe(200);
+    const j = await res.json();
+    expect(j.address).toEqual(expect.objectContaining({ address: expect.any(String), city: expect.any(String) }));
+  });
+
   test('GET /api/rest/photos/quota – obiekt limitu zdjęć', async () => {
     const res = await api.get('/api/rest/photos/quota');
     expect(res.status).toBe(200);
