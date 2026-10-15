@@ -61,7 +61,7 @@ Natywne logowanie Google na Androidzie wymaga klienta OAuth typu **Android** (pa
 Blokery odrzucenia przez sklepy:
 1. **Konto dla recenzentów.** Logowanie to e-mail-link / Google / passkey – recenzent Apple/Google nie odbierze Twojej poczty. Potrzebna ścieżka demo (konto testowe + sposób zalogowania podany w notatkach dla recenzenta), inaczej odrzucenie.
 2. ~~Sign in with Apple (wytyczna 4.8)~~ ✅ Google ukryty na iOS (`AccountScreen`), zostają e-mail-link i passkey – własne logowanie, 4.8 nie obowiązuje. Wrócisz do Google na iOS = trzeba dodać Sign in with Apple.
-3. **Polityka prywatności (publiczny URL) + Apple Privacy Nutrition Labels + Google Data safety** – inwentarz i ściąga do formularzy: `docs/STORE-PRIVACY.md` (+ zgoda na AI ✅ `lib/aiConsent.ts`, luki w polityce do uzupełnienia na www) (zdjęcia z EXIF/GPS, e-mail, lokalizacja, pisma urzędowe). Usuwanie konta w appce jest (`AccountScreen`) – opisz je też w formularzach.
+3. **Polityka prywatności (publiczny URL) + Apple Privacy Nutrition Labels + Google Data safety** – inwentarz i ściąga do formularzy: `docs/STORE-PRIVACY.md` (przekazanie zdjęć do AI opisane tylko w polityce prywatności – bez okna zgody w appce, decyzja z 2026-10-15; luki w polityce do uzupełnienia na www) (zdjęcia z EXIF/GPS, e-mail, lokalizacja, pisma urzędowe). Usuwanie konta w appce jest (`AccountScreen`) – opisz je też w formularzach.
 4. **Google Play – uprawnienia do zdjęć:** `READ_MEDIA_IMAGES` / `ACCESS_MEDIA_LOCATION` wymagają deklaracji (polityka Photo and Video Permissions) albo przejścia wyłącznie na systemowy picker.
 5. **Nowe konto deweloperskie Play (osobiste):** zamknięte testy (12 testerów przez 14 dni) przed produkcją – sprawdź typ konta.
 

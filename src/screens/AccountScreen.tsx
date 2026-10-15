@@ -6,7 +6,6 @@ import { isPasskeyCancelled, passkeysEnabled } from '../lib/passkey';
 import { googleSignInReady, useAuth } from '../store/useAuth';
 import { udConfig, udEnv } from '../config';
 import { appBuild, appVersion } from '../lib/appVersion';
-import { hasAiConsent, revokeAiConsent } from '../lib/aiConsent';
 import { ud } from '../theme';
 import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
 import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
@@ -120,7 +119,6 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteEmail, setDeleteEmail] = useState('');
   const [deleting, setDeleting] = useState(false);
-  const [aiConsent, setAiConsent] = useState(false);
 
   useEffect(() => {
     fetchProfile()
@@ -128,7 +126,6 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
       .catch((e: any) => setMsg({ ok: false, text: e?.message ?? String(e) }));
   }, []);
 
-  useEffect(() => { hasAiConsent().then(setAiConsent); }, []);
   useEffect(() => { fetchPasskeys().then(setPasskeys).catch(() => setPasskeys([])); }, []);
 
   const addPasskey = async () => {
@@ -217,14 +214,6 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
           </>
         )}
       </View>
-
-      {aiConsent ? (
-        <UdCard>
-          <Text style={{ color: ud.heading, fontWeight: '700' }}>Analiza zdjęć przez AI</Text>
-          <Text style={{ color: ud.muted, marginTop: 4 }}>Zgodziłeś się na wysyłanie zdjęć i skanów pism do dostawców AI. Przy następnym wyborze zdjęć zapytamy ponownie.</Text>
-          <UdButton title="Cofnij zgodę" variant="outline" onPress={() => { revokeAiConsent().then(() => setAiConsent(false)); }} />
-        </UdCard>
-      ) : null}
 
       <View style={{ marginTop: 20 }}>
         <UdButton title="Wyloguj" variant="outline" onPress={onLogout} />

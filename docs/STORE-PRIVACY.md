@@ -36,6 +36,7 @@ Typy danych „collected”; wszystkie **powiązane z tożsamością** (linked t
 Dodatkowo: **Privacy Policy URL** (wymagany) = `https://uprzejmiedonosze.net/polityka-prywatnosci.html`; **User Privacy Choices URL** opcjonalnie.
 
 ⚠ **Wytyczna 5.1.2(i) (zmiana z listopada 2025 – zweryfikuj aktualne brzmienie):** przed przekazaniem danych osobowych **podmiotom trzecim, w tym zewnętrznej AI**, trzeba o tym jasno poinformować i uzyskać wyraźną zgodę. Zdjęcia i skany pism idą do OpenAI → potrzebna **jednorazowa zgoda w appce** przed pierwszą analizą (+ opis w polityce).
+  **Decyzja (2026-10-15): okno zgody usunięte z appki** – informacja o przekazaniu zdjęć do OpenAI/Plate Recognizer jest tylko w polityce prywatności. Przy wydaniu na iOS sprawdź, czy recenzja Apple to akceptuje; w razie odrzucenia przywróć okno (historia gita: `src/lib/aiConsent.ts`).
 
 ## 3. Google Play – Data safety
 
