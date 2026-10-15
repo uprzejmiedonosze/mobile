@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+## v1.1.0 — 2026-10-15
+
 - Na iPhonie logujesz się linkiem z e-maila albo kluczem dostępu; przycisk „Zaloguj przez Google” jest dostępny tylko na Androidzie.
 - Aplikacja na iPadzie działa w trybie iPhone'a.
 - Numer sprawy i uwagi na liście zgłoszeń zapisują się także po schowaniu klawiatury albo zwinięciu zgłoszenia – wcześniej trzeba było dotknąć ekranu poza polem.
