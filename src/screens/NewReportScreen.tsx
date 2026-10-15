@@ -546,17 +546,28 @@ export function NewReportScreen({ navigation, route }: any) {
   );
 }
 
+// Jak #category na webie (radio.scss): bez kółka radia – karta z ramką, wybrana ma ramkę w kolorze głównym, a zwolnione
+// miejsce idzie na większe zdjęcie kategorii (punkty karne w czerwonej kropce na zdjęciu, jak .points-badge).
 function CategoryRow({ c, on, onPress }: { c: Category; on: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 }}>
-      <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: ud.primary, alignItems: 'center', justifyContent: 'center' }}>
-        {on ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: ud.primary }} /> : null}
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: on }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8, padding: 6, backgroundColor: ud.surface, borderWidth: 3, borderColor: on ? ud.primary : '#ede9df', borderRadius: ud.radiusCard }}
+    >
+      <View>
+        <Image source={{ uri: `${udConfig.base}/img/${c.id}.jpg` }} style={{ width: 80, height: 80, borderRadius: ud.radiusButton, backgroundColor: ud.surfaceCream }} />
+        {c.points && c.points > 1 ? (
+          <View style={{ position: 'absolute', top: 3, left: 3, minWidth: 22, height: 22, borderRadius: 11, backgroundColor: 'red', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+            <Text style={{ color: '#fff', fontFamily: ud.fontBodyBold, fontSize: 13 }}>{c.points}</Text>
+          </View>
+        ) : null}
       </View>
-      <Image source={{ uri: `${udConfig.base}/img/${c.id}.jpg` }} style={{ width: 44, height: 44, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream }} />
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontFamily: ud.fontBodyBold, color: ud.text }}>{c.title}{c.points && c.points > 1 ? `  (${c.points} pkt)` : ''}</Text>
-        {c.short ? <Text style={{ color: ud.muted, fontSize: 12 }} numberOfLines={2}>{c.short}</Text> : null}
-        {c.mandate ? <Text style={{ color: ud.muted, fontSize: 12 }}>Mandat {c.mandate > 100 ? '~' : ''}{c.mandate} zł</Text> : null}
+      <View style={{ flex: 1, paddingRight: 4 }}>
+        <Text style={{ fontFamily: ud.fontBodyBold, color: on ? ud.primary : ud.text }}>{c.title}</Text>
+        {c.short ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 2 }} numberOfLines={3}>{c.short}</Text> : null}
+        {c.mandate ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 2 }}>Mandat {c.mandate > 100 ? '~' : ''}{c.mandate} zł</Text> : null}
       </View>
     </Pressable>
   );
