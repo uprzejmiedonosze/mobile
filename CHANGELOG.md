@@ -7,7 +7,7 @@
 - Adres miejsca wskazanego na mapie lub odczytanego ze zdjęcia zawiera numer domu, tak jak na stronie – wcześniej aplikacja często podawała tylko ulicę i miasto.
 - Karty na liście zgłoszeń mają zaokrąglone wszystkie rogi, a kolorowy pasek statusu z lewej strony dopasowuje się do ich kształtu.
 - Zmiana statusu zgłoszenia otwiera okienko z czytelną listą statusów, każdy oznaczony swoim kolorem – zamiast małej listy rozwijanej w karcie.
-- Kategorie wykroczenia w formularzu to karty z większym zdjęciem; wybraną kategorię wyróżnia zielona ramka, jak na stronie. Punkty karne widać w czerwonej kropce na zdjęciu.
+- Kategorie wykroczenia, wybór odbiorcy (policja/straż miejska) i dodatkowe wykroczenia w formularzu to karty bez kółek i kwadracików – wybrane wyróżnia zielona ramka, jak na stronie. Kategorie mają większe zdjęcie, a punkty karne widać w czerwonej kropce na zdjęciu.
 
 ## v1.0.0 — 2026-10-12
 

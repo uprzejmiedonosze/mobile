@@ -83,27 +83,23 @@ const L = ({ children }: { children: React.ReactNode }) => <Text style={{ color:
 const input = { backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusSm, padding: 10, marginTop: 4, color: ud.text } as const;
 const locked = { backgroundColor: ud.lockedBg, borderColor: ud.lockedBorder, color: ud.muted } as const; // pole jeszcze niedostępne do edycji (patrz formLocks) – widoczne na tle ekranu, ale wyszarzone
 
+// Wybór jak na webie (radio.scss): bez kółek i kwadracików – karta z ramką, zaznaczona ma ramkę w kolorze głównym.
+// Wspólne dla kategorii, odbiorcy (SM/Policja) i rozszerzeń.
+const selectCard = (on: boolean) => ({ backgroundColor: ud.surface, borderWidth: 3, borderColor: on ? ud.primary : '#ede9df', borderRadius: ud.radiusCard, marginTop: 8 }) as const;
+
 function Check({ on, onPress, children, disabled }: { on: boolean; onPress: () => void; children: React.ReactNode; disabled?: boolean }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, opacity: disabled ? 0.4 : 1 }}>
-      <View style={{ width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: ud.primary, backgroundColor: on ? ud.primary : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-        {on ? <Text style={{ color: '#fff', fontSize: 14, lineHeight: 16 }}>✓</Text> : null}
-      </View>
-      <Text style={{ flex: 1, color: ud.text }}>{children}</Text>
+    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="checkbox" accessibilityState={{ checked: on, disabled }} style={{ ...selectCard(on), paddingVertical: 10, paddingHorizontal: 14, opacity: disabled ? 0.4 : 1 }}>
+      <Text style={{ color: on ? ud.primary : ud.text }}>{children}</Text>
     </Pressable>
   );
 }
 
 function Radio({ on, onPress, children, disabled, hint }: { on: boolean; onPress: () => void; children: React.ReactNode; disabled?: boolean; hint?: string }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 6, opacity: disabled ? 0.5 : 1 }}>
-      <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: ud.primary, alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
-        {on ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: ud.primary }} /> : null}
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={{ color: ud.text }}>{children}</Text>
-        {hint ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 2 }}>{hint}</Text> : null}
-      </View>
+    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="radio" accessibilityState={{ checked: on, disabled }} style={{ ...selectCard(on), paddingVertical: 10, paddingHorizontal: 14, opacity: disabled ? 0.5 : 1 }}>
+      <Text style={{ color: on ? ud.primary : ud.text, fontFamily: ud.fontBodyBold }}>{children}</Text>
+      {hint ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 2 }}>{hint}</Text> : null}
     </Pressable>
   );
 }
@@ -554,7 +550,7 @@ function CategoryRow({ c, on, onPress }: { c: Category; on: boolean; onPress: ()
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ checked: on }}
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8, padding: 6, backgroundColor: ud.surface, borderWidth: 3, borderColor: on ? ud.primary : '#ede9df', borderRadius: ud.radiusCard }}
+      style={{ ...selectCard(on), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 6 }}
     >
       <View>
         <Image source={{ uri: `${udConfig.base}/img/${c.id}.jpg` }} style={{ width: 80, height: 80, borderRadius: ud.radiusButton, backgroundColor: ud.surfaceCream }} />
