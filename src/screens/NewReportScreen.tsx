@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { type UdApp, imageUrl } from '../api/apps';
 import { fetchConfig } from '../api/dashboard';
@@ -10,6 +10,7 @@ import {
 } from '../api/reports';
 import { ApiError, isPhotoQuotaError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
+import { htmlSegments } from '../lib/html';
 import { log } from '../lib/log';
 import { commentWarning, dropMatchingExtension, clearFieldError, exifToIso, formLocks, hasRequiredPhotos, isExtensionDisabled, plural } from '../lib/reports';
 import { DateTimeField } from '../components/DateTimeField';
@@ -99,7 +100,14 @@ function Radio({ on, onPress, children, disabled, hint }: { on: boolean; onPress
   return (
     <Pressable onPress={onPress} disabled={disabled} accessibilityRole="radio" accessibilityState={{ checked: on, disabled }} style={{ ...selectCard(on), paddingVertical: 10, paddingHorizontal: 14, opacity: disabled ? 0.5 : 1 }}>
       <Text style={{ color: on ? ud.primary : ud.text, fontFamily: ud.fontBodyBold }}>{children}</Text>
-      {hint ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 2 }}>{hint}</Text> : null}
+      {hint ? (
+        // hint przychodzi z sm.json jako HTML (np. generyczne „Podziel się” z mailto) – linki klikalne, reszta tagów usunięta
+        <Text style={{ color: ud.muted, fontSize: 12, marginTop: 2 }}>
+          {htmlSegments(hint).map((seg, i) => seg.href
+            ? <Text key={i} onPress={() => Linking.openURL(seg.href!).catch(() => {})} style={{ color: ud.primary, textDecorationLine: 'underline' }}>{seg.text}</Text>
+            : seg.text)}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }

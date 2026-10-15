@@ -8,6 +8,7 @@
 - Karty na liście zgłoszeń mają zaokrąglone wszystkie rogi, a kolorowy pasek statusu z lewej strony dopasowuje się do ich kształtu.
 - Zmiana statusu zgłoszenia otwiera okienko z czytelną listą statusów, każdy oznaczony swoim kolorem – zamiast małej listy rozwijanej w karcie.
 - Kategorie wykroczenia, wybór odbiorcy (policja/straż miejska) i dodatkowe wykroczenia w formularzu to karty bez kółek i kwadracików – wybrane wyróżnia zielona ramka, jak na stronie. Kategorie mają większe zdjęcie, a punkty karne widać w czerwonej kropce na zdjęciu.
+- Podpowiedź pod wyborem policji/straży miejskiej nie pokazuje już surowego kodu HTML – „Podziel się” jest klikalnym linkiem do wiadomości e-mail.
 
 ## v1.0.0 — 2026-10-12
 
