@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { type UdApp, imageUrl } from '../api/apps';
 import { fetchConfig } from '../api/dashboard';
@@ -10,10 +10,10 @@ import {
 } from '../api/reports';
 import { ApiError, isPhotoQuotaError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
-import { htmlSegments } from '../lib/html';
 import { log } from '../lib/log';
 import { commentWarning, dropMatchingExtension, clearFieldError, exifToIso, formLocks, hasRequiredPhotos, isExtensionDisabled, plural } from '../lib/reports';
 import { DateTimeField } from '../components/DateTimeField';
+import { HtmlText } from '../components/HtmlText';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
 import { MapPreview } from '../components/MapPreview';
 import { CROP_TILE_ID, PhotosSection, type Tile } from '../components/PhotosSection';
@@ -25,6 +25,7 @@ import { usePhotoBatch } from '../lib/usePhotoBatch';
 import { SLOT_ORDER } from '../lib/roles';
 import type { Slot, Suggestion } from '../lib/suggest';
 import { udConfig } from '../config';
+import { openUdPage } from '../lib/openPage';
 import { useNewReport } from '../store/useNewReport';
 import { toast } from '../store/useToast';
 import { ud } from '../theme';
@@ -100,14 +101,8 @@ function Radio({ on, onPress, children, disabled, hint }: { on: boolean; onPress
   return (
     <Pressable onPress={onPress} disabled={disabled} accessibilityRole="radio" accessibilityState={{ checked: on, disabled }} style={{ ...selectCard(on), paddingVertical: 10, paddingHorizontal: 14, opacity: disabled ? 0.5 : 1 }}>
       <Text style={{ color: on ? ud.primary : ud.text, fontFamily: ud.fontBodyBold }}>{children}</Text>
-      {hint ? (
-        // hint przychodzi z sm.json jako HTML (np. generyczne „Podziel się” z mailto) – linki klikalne, reszta tagów usunięta
-        <Text style={{ color: ud.muted, fontSize: 12, marginTop: 2 }}>
-          {htmlSegments(hint).map((seg, i) => seg.href
-            ? <Text key={i} onPress={() => Linking.openURL(seg.href!).catch(() => {})} style={{ color: ud.primary, textDecorationLine: 'underline' }}>{seg.text}</Text>
-            : seg.text)}
-        </Text>
-      ) : null}
+      {/* hint przychodzi z sm.json jako HTML (np. generyczne „Podziel się” z mailto) */}
+      {hint ? <HtmlText html={hint} style={{ color: ud.muted, fontSize: 12, marginTop: 2 }} /> : null}
     </Pressable>
   );
 }
@@ -123,6 +118,7 @@ export function NewReportScreen({ navigation, route }: any) {
   const [groups, setGroups] = useState<Groups>({});
   const [exts, setExts] = useState<Record<string, Extension>>({});
   const [showAllCats, setShowAllCats] = useState(false);
+  const [catInfo, setCatInfo] = useState<Category | null>(null); // okienko „więcej…” przy kategorii
   const [mapOpen, setMapOpen] = useState(false);
   const [mapStart, setMapStart] = useState<{ lat: number; lng: number } | null>(null);
   const [plateTouched, setPlateTouched] = useState(false); // web chowa wycinek tablicy po ręcznej zmianie numeru
@@ -391,7 +387,7 @@ export function NewReportScreen({ navigation, route }: any) {
   const unitHint = (u?: { name: string; hint: string }) => (u ? [u.name, u.hint].filter(Boolean).join(': ') : undefined);
   const topCats = useMemo(() => cats.filter((c) => c.title && c.groups?.includes(0)).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)), [cats]);
   const catGroups = useMemo(() => Object.entries(groups).filter(([id]) => id !== '0').map(([id, g]) => ({
-    name: g.name, items: cats.filter((c) => c.title && c.groups?.includes(Number(id))).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)),
+    id: Number(id), name: g.name, items: cats.filter((c) => c.title && c.groups?.includes(Number(id))).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)),
   })), [cats, groups]);
 
   const submit = async () => {
@@ -505,14 +501,21 @@ export function NewReportScreen({ navigation, route }: any) {
         {forcePolice ? <Text style={{ color: ud.muted, fontSize: 12 }}>Ta kategoria jest zawsze zgłaszana na Policję.</Text> : null}
 
         <H>Wybierz rodzaj wykroczenia</H>
-        {topCats.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} />)}
+        {topCats.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} onMore={setCatInfo} />)}
         {!showAllCats ? (
           <Pressable onPress={() => setShowAllCats(true)}><Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, marginTop: 8 }}>Pokaż wszystkie</Text></Pressable>
         ) : (
           catGroups.map((g) => (
             <View key={g.name}>
               <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, marginTop: 16 }}>{g.name}</Text>
-              {g.items.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} />)}
+              {g.items.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} onMore={setCatInfo} />)}
+              {g.id === 5 ? (
+                // jak .category-hint w nowe-zgloszenie.html.twig
+                <Text style={{ color: ud.muted, fontSize: 13, marginTop: 10 }}>
+                  Masz wątpliwości, którą kategorię wybrać? Przeczytaj{' '}
+                  <Text onPress={() => openUdPage(navigation, '/przepisy.html', 'Przepisy')} style={{ color: ud.primary, textDecorationLine: 'underline' }}>nasz poradnik</Text>.
+                </Text>
+              ) : null}
             </View>
           ))
         )}
@@ -544,6 +547,7 @@ export function NewReportScreen({ navigation, route }: any) {
         </View>
         <Text style={{ color: ud.muted, fontSize: 12, marginTop: 6 }}>Na następnym ekranie sprawdzisz zgłoszenie przed wysłaniem.</Text>
       </ScrollView>
+      <CategoryInfo c={catInfo} onClose={() => setCatInfo(null)} onPageLink={(path) => openUdPage(navigation, path)} />
       <MapPicker visible={mapOpen} initial={form.lat != null && form.lng != null ? { lat: form.lat, lng: form.lng } : null} fallback={mapStart} onConfirm={onMapConfirm} onClose={() => setMapOpen(false)} />
       <UdTabs current="NewReport" navigate={go} />
     </View>
@@ -552,7 +556,7 @@ export function NewReportScreen({ navigation, route }: any) {
 
 // Jak #category na webie (radio.scss): bez kółka radia – karta z ramką, wybrana ma ramkę w kolorze głównym, a zwolnione
 // miejsce idzie na większe zdjęcie kategorii (punkty karne w czerwonej kropce na zdjęciu, jak .points-badge).
-function CategoryRow({ c, on, onPress }: { c: Category; on: boolean; onPress: () => void }) {
+function CategoryRow({ c, on, onPress, onMore }: { c: Category; on: boolean; onPress: () => void; onMore?: (c: Category) => void }) {
   return (
     <Pressable
       onPress={onPress}
@@ -568,11 +572,45 @@ function CategoryRow({ c, on, onPress }: { c: Category; on: boolean; onPress: ()
           </View>
         ) : null}
       </View>
-      <View style={{ flex: 1, paddingRight: 4 }}>
+      {/* dół kolumny zostawia miejsce na zakładkę „WIĘCEJ…”, żeby nie zasłaniała mandatu */}
+      <View style={{ flex: 1, paddingRight: 4, paddingBottom: onMore && (c.desc || c.law) ? 18 : 0 }}>
         <Text style={{ fontFamily: ud.fontBodyBold, color: on ? ud.primary : ud.text }}>{c.title}</Text>
         {c.short ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 2 }} numberOfLines={3}>{c.short}</Text> : null}
         {c.mandate ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 2 }}>Mandat {c.mandate > 100 ? '~' : ''}{c.mandate} zł</Text> : null}
       </View>
+      {onMore && (c.desc || c.law) ? (
+        // jak a.category-popup na webie: zakładka w prawym dolnym rogu karty
+        <Pressable onPress={() => onMore(c)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Więcej o kategorii ${c.title}`} style={{ position: 'absolute', right: 0, bottom: 0, backgroundColor: '#ede9df', paddingHorizontal: 10, paddingVertical: 5, borderTopLeftRadius: ud.radiusCard - 3, borderBottomRightRadius: ud.radiusCard - 3 }}>
+          <Text style={{ fontSize: 11, color: '#333', fontFamily: ud.fontBodyBold }}>WIĘCEJ…</Text>
+        </Pressable>
+      ) : null}
     </Pressable>
+  );
+}
+
+// Szczegóły kategorii (jak dialog #category-popup-{id} na webie): opis, mandat, podstawa prawna.
+function CategoryInfo({ c, onClose, onPageLink }: { c: Category | null; onClose: () => void; onPageLink: (path: string) => void }) {
+  return (
+    <Modal visible={!!c} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        {c ? (
+          <Pressable style={{ backgroundColor: ud.surface, borderRadius: ud.radiusCard, width: '100%', maxWidth: 420, maxHeight: '85%' }}>
+            <ScrollView contentContainerStyle={{ padding: 20 }}>
+              {/* ikona tylko w rozmiarze z karty – źródło ma 100 px, większa byłaby rozmyta */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <Image source={{ uri: `${udConfig.base}/img/${c.id}.jpg` }} style={{ width: 64, height: 64, borderRadius: ud.radiusButton, backgroundColor: ud.surfaceCream }} />
+                <Text style={{ flex: 1, fontFamily: ud.fontDisplay, fontSize: 20, color: ud.heading }}>{c.title}</Text>
+              </View>
+              {c.desc ? <HtmlText html={c.desc} onPageLink={(path) => { onClose(); onPageLink(path); }} style={{ color: ud.text, marginTop: 8, lineHeight: 21 }} /> : null}
+              {c.price ? <Text style={{ color: ud.text, marginTop: 10, fontFamily: ud.fontBodyBold }}>Mandat: {c.price}</Text> : null}
+              {c.law ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 10, lineHeight: 18, fontStyle: 'italic' }}>{c.law}</Text> : null}
+            </ScrollView>
+            <Pressable onPress={onClose} accessibilityRole="button" style={{ borderTopWidth: 1, borderTopColor: ud.hairline, paddingVertical: 14, alignItems: 'center' }}>
+              <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>ZAMKNIJ</Text>
+            </Pressable>
+          </Pressable>
+        ) : null}
+      </Pressable>
+    </Modal>
   );
 }

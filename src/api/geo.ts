@@ -96,6 +96,9 @@ function normalizeCategory(id: string | number, v: any): Category {
     stopAgresjiOnly: !!v?.stopAgresjiOnly,
     contextImageHint: v?.contextImageHint,
     carImageHint: v?.carImageHint,
+    desc: v?.desc ?? undefined,
+    law: v?.law ?? undefined,
+    price: typeof v?.price === 'string' ? v.price : undefined,
   };
 }
 

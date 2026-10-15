@@ -78,6 +78,10 @@ export type Category = {
   stopAgresjiOnly?: boolean; // wymusza Policję
   contextImageHint?: string;
   carImageHint?: string;
+  // okienko „więcej…” przy kategorii (jak #category-popup-{id} na webie)
+  desc?: string; // HTML: <p>, <br>, <a href>
+  law?: string;
+  price?: string; // np. „100 zł (1 pkt)”
 };
 
 // Odpowiedź GET /api/rest/recydywa/{plateId} (patrz src/api/recydywa.ts).

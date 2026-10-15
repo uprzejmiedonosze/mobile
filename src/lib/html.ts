@@ -1,6 +1,6 @@
 // Krótkie fragmenty HTML z backendu (np. hint jednostki w sm.json – tools/sm-parser.js dopisuje generyczne
 // „…? <a href="mailto:…">Podziel się</a>.”) → kawałki tekstu i linków do wyrenderowania w <Text>.
-// Inne tagi są usuwane, encje podstawowe dekodowane.
+// <p>/<br> → nowe linie (opis kategorii w categories.json), inne tagi są usuwane, encje podstawowe dekodowane.
 export type HtmlSegment = { text: string; href?: string };
 
 const decode = (s: string) =>
@@ -10,7 +10,11 @@ const strip = (s: string) => decode(s.replace(/<[^>]*>/g, ''));
 export function htmlSegments(html?: string | null): HtmlSegment[] {
   const out: HtmlSegment[] = [];
   const re = /<a\b[^>]*\bhref\s*=\s*["']([^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi;
-  const src = html ?? '';
+  const src = (html ?? '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>\s*<p\b[^>]*>/gi, '\n\n')
+    .replace(/[ \t]*\n[ \t]*/g, '\n')
+    .trim();
   let last = 0;
   for (let m; (m = re.exec(src)); ) {
     if (m.index > last) out.push({ text: strip(src.slice(last, m.index)) });
