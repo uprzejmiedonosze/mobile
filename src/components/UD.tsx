@@ -63,7 +63,8 @@ export function UdCard({ children }: React.PropsWithChildren) {
 }
 
 type BtnVariant = 'primary' | 'accent' | 'outline';
-export function UdButton({ title, onPress, variant = 'primary', disabled }: { title: string; onPress: () => void; variant?: BtnVariant; disabled?: boolean }) {
+// pill: zaokrąglenie „kapsułki” także dla outline (domyślnie outline ma radiusButton).
+export function UdButton({ title, onPress, variant = 'primary', disabled, pill }: { title: string; onPress: () => void; variant?: BtnVariant; disabled?: boolean; pill?: boolean }) {
   const styles: Record<BtnVariant, { bg: string; fg: string; border?: string }> = {
     primary: { bg: ud.primary, fg: '#fff' },
     accent: { bg: ud.accent, fg: ud.onAccent },
@@ -74,7 +75,7 @@ export function UdButton({ title, onPress, variant = 'primary', disabled }: { ti
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={{ backgroundColor: disabled ? ud.primaryOutline : s.bg, borderRadius: variant === 'primary' || variant === 'accent' ? ud.radiusPill : ud.radiusButton, paddingHorizontal: 20, paddingVertical: 13, alignItems: 'center', borderWidth: s.border ? 2 : 0, borderColor: s.border, opacity: disabled ? 0.6 : 1, marginVertical: 6 }}
+      style={{ backgroundColor: disabled ? ud.primaryOutline : s.bg, borderRadius: pill || variant === 'primary' || variant === 'accent' ? ud.radiusPill : ud.radiusButton, paddingHorizontal: 20, paddingVertical: 13, alignItems: 'center', borderWidth: s.border ? 2 : 0, borderColor: s.border, opacity: disabled ? 0.6 : 1, marginVertical: 6 }}
     >
       <Text style={{ color: disabled ? ud.muted : s.fg, fontFamily: ud.fontDisplay, fontSize: 15 }}>{title}</Text>
     </Pressable>

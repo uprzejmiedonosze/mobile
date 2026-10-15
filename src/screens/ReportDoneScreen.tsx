@@ -56,8 +56,8 @@ export function ReportDoneScreen({ navigation }: any) {
         ) : null}
 
         <View style={{ marginTop: 24, gap: 8 }}>
-          <UdButton title="Zobacz listę zgłoszeń" onPress={() => go('Reports')} />
-          <UdButton title="Dodaj kolejne" variant="outline" onPress={() => go('NewReport')} />
+          <UdButton title="Moje zgłoszenia" variant="outline" pill onPress={() => go('Reports')} />
+          <UdButton title="Jeszcze raz" onPress={() => go('NewReport')} />
         </View>
       </ScrollView>
       <UdTabs current="ReportDone" navigate={go} />
