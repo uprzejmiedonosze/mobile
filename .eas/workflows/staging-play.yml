@@ -1,0 +1,23 @@
+# Staging dla testerów w Google Play (internal): uruchamiany ręcznie – z expo.dev (Workflows → Run) albo
+# `make staging-play` (eas workflow:run --ref main). Nie startuje sam przy każdym pushu, bo plan Free ma
+# 15 buildów Androida w miesiącu. Buduje wskazany commit z gita, bez tagu i bez bumpu wersji.
+name: Staging w Google Play
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build_android:
+    name: Build Android (staging-play)
+    type: build
+    params:
+      platform: android
+      profile: staging-play
+
+  submit_android:
+    name: Google Play (internal, szkic)
+    needs: [build_android]
+    type: submit
+    params:
+      build_id: ${{ needs.build_android.outputs.build_id }}
+      profile: staging-play

@@ -46,3 +46,5 @@ yarn-error.*
 # i wyniki są regenerowalne z tests/*.jpg, nie mają co robić w repo. groundtruth.json i
 # groundtruth.draft.json ZOSTAJĄ śledzone (praca ręczna, nie do odtworzenia z automatu).
 tests/
+
+secrets

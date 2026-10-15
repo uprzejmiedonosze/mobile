@@ -14,14 +14,19 @@ Po polsku, **dla użytkownika** (nie lista commitów). Na górze zawsze `## RELE
 1. Zmiany zmergowane do `main`, drzewo czyste (release z innej gałęzi jest blokowany).
 2. Uzupełnij `## RELEASE-CANDIDATE` w `CHANGELOG.md`, zacommituj.
 3. `make release-patch` | `release-minor` | `release-major` – sprawdza czystość i gałąź, `release-check` (typecheck, brak `EXPO_PUBLIC_E2E` w `eas.json`, **ostrzeżenie o zmianie `SCHEMA`**), `test-staging`, potem bump, commit `chore: release vX.Y.Z`, tag `vX.Y.Z`, push `main` + tagu. Przerwane w połowie? Uruchom ten sam target ponownie – wznowi się bez podwójnego bumpu.
-4. `make build-all` (albo `build-ios` / `build-android`) – tylko na commicie z tagiem bieżącej wersji i czystym drzewie.
-5. Przetestuj artefakt z EAS na prawdziwym urządzeniu (iOS: TestFlight, Android: internal).
-6. `make submit-ios submit-android` (Play: track `internal`, szkic; promocja w konsoli).
-7. `make release-notes` → wklej do „Co nowego".
+4. **Push tagu sam uruchamia EAS Workflow „Wydanie Android”** (`.eas/workflows/release-android.yml`): build `production` (AAB, `versionCode` z EAS) → submit do Google Play, track `internal`, szkic. Postęp: `make workflow-runs` albo expo.dev → Workflows. Workflow nie ruszył (np. repo nie jest podpięte do EAS) albo padł? `make release-android-run` (ten sam workflow na bieżącym tagu). Awaryjnie zostaje ręcznie: `make build-android` + `make submit-android`.
+5. Przetestuj build z Play internal na prawdziwym urządzeniu.
+6. Promocja internal → produkcja ręcznie w Play Console (szkic → wydanie). iOS: po założeniu konta Apple odkomentuj joby iOS w workflow (do tego czasu `make build-ios`/`submit-ios` nie są używane).
+7. `make release-notes` → wklej do „Co nowego" (EAS Submit nie ustawia notatek wydania).
 8. **Po publikacji w sklepach** podbij `latestVersion` (i prawdziwy `storeUrl` iOS) w `../uprzejmiedonosze/src/api/config/app.json` – bez tego miękka zachęta do aktualizacji nigdy się nie pojawi (dziś `1.0.0`, iOS `id0000000000` to placeholder).
 9. Jeśli `release-check` ostrzegał o zmianie `SCHEMA`: dopiero teraz wdrażaj backend z podbitym `VISION_SCHEMA` (od tej chwili starsze appki dostają 426). Kolejność: SCHEMA w appce → build w sklepach → publikacja → backend (zob. `docs/NFR.md`).
 
 Profile `staging` i `shadow` (wewnętrzne testy) są poza tym procesem – nie tagujemy ich.
+
+## EAS Workflows (automatyzacja)
+- Pliki w `.eas/workflows/`; składnia: `make workflow-validate`. Wymaga jednorazowego podpięcia repo `uprzejmiedonosze/mobile` w expo.dev → projekt → Settings → GitHub (bez tego push tagu nic nie uruchamia, a `--ref` nie działa).
+- `release-android.yml` – trigger: push tagu `v*`. `staging-play.yml` – tylko ręcznie (`make staging-play` albo przycisk Run w expo.dev), bo plan **Free** daje 15 buildów Androida w miesiącu (każdy build w workflow się wlicza) i 60 minut workflow. Nie dokładaj triggera na push do `main`, dopóki jesteśmy na Free.
+- Klucz konta usługi Google Play musi być w EAS credentials (patrz „Staging w Google Play”, pkt 3) – z niego korzystają oba joby submit.
 
 ## Staging w Google Play (testy wewnętrzne)
 Build z backendem stagingu rozsyłany testerom przez Play (track **internal**, do 100 testerów, bez review Google). Profil EAS `staging-play`
@@ -29,12 +34,26 @@ Build z backendem stagingu rozsyłany testerom przez Play (track **internal**, d
 1. Zacommituj zmiany (EAS buduje z gita), potem `make build-staging-play` i pobierz `.aab` z linku EAS.
 2. **Pierwszy** upload ręcznie: Play Console → Testing → Internal testing → Create new release → wgraj `.aab` (Play App Signing: zgódź się na podpis Google, kluczem uploadu jest keystore z EAS) → Save → Review → Start rollout.
    Tester → zakładka Testers: lista e-maili (grupa), skopiuj **link opt-in**; tester musi mieć to konto Google na telefonie.
-3. Kolejne wersje: `make build-staging-play && make submit-staging-play` (wymaga klucza konta usługi Play: Play Console → Setup → API access → konto usługi z uprawnieniem do wydań,
+3. Kolejne wersje: `make staging-play` (EAS Workflow: build + submit z `origin/main` – najpierw wypchnij commity) albo lokalnie `make build-staging-play && make submit-staging-play` (wymaga klucza konta usługi Play: Play Console → Setup → API access → konto usługi z uprawnieniem do wydań,
    JSON wgraj do EAS: `eas credentials -p android` → *Google Service Account Key for Play Store Submissions*; nie commituj go).
-4. **Logowanie Google na stagingu:** po pierwszym uploadzie skopiuj SHA-1 *App signing key certificate* (Play Console → Test and release → App integrity) i dodaj klienta OAuth typu Android
-   (package `net.uprzejmiedonosze.pro` + to SHA-1) w projekcie Google Cloud/Firebase **stagingu** (`uprzejmiedonosze-1494607701827`); dodaj też SHA-1 uploadu (z `eas credentials`),
-   żeby działały buildy instalowane z APK. Bez tego „Zaloguj przez Google” w buildzie z Play zwróci błąd; e-mail-link działa od razu. Passkeye na stagingu są wyłączone (`passkeysAllowed`).
+4. **Logowanie Google na stagingu nie działa w buildach `net.uprzejmiedonosze.pro`** (staging APK, `staging-play`) – testerzy logują się e-mail-linkiem. Para package + SHA-1 może być tylko w jednym kliencie OAuth w całym Google Cloud, a obie pary pakietu `.pro` (klucz Play i keystore EAS) są w projekcie **prod** – patrz „Logowanie Google: projekty i klienci OAuth”. Passkeye na stagingu są wyłączone (`passkeysAllowed`).
 5. Prod i staging mają ten sam `applicationId`, więc w sklepie to jedna aplikacja: build staging w internal nie przeszkadza w przyszłym production (kolejne `versionCode` rosną), ale **nie promuj** go do closed/open/production.
+
+## Logowanie Google: projekty i klienci OAuth
+Natywne logowanie Google na Androidzie wymaga klienta OAuth typu **Android** (package + SHA-1 certyfikatu podpisu) w **tym samym** projekcie Google Cloud co web client ID z `src/config.ts`. Google przyjmuje daną parę package + SHA-1 tylko w jednym kliencie w całym Google Cloud – stąd podział:
+
+| Build (profil EAS) | Package | Podpis | Projekt / backend | Google login |
+|---|---|---|---|---|
+| Expo Go (`npm start`) | Expo Go | – | staging | nie (moduł natywny); e-mail-link tak |
+| `development` | `net.uprzejmiedonosze.pro.dev` | keystore EAS (`.dev`) | staging `uprzejmiedonosze-1494607701827` | tak – klient „Uprzejmie Donoszę Pro” w stagingu (`.dev`) |
+| `staging`, `picker-ab`, `staging-play` | `net.uprzejmiedonosze.pro` | keystore EAS / klucz Play | staging | **nie** (pary są w prodzie) |
+| `shadow` | `net.uprzejmiedonosze.pro` | keystore EAS | prod `uprzejmie-donosze` | tak – klient „UD Pro – EAS” |
+| `production` | `net.uprzejmiedonosze.pro` | klucz Play (App signing) | prod `uprzejmie-donosze` | tak – klient „UD Pro – Google Play” |
+
+- SHA-1 klucza Play: Play Console → Protected with Play → Play Store protection → Play app signing → *App signing key certificate* (nie *Upload key*). SHA-1 keystore'a EAS: `eas credentials -p android` → profil.
+- Weryfikacja własności aplikacji przy kliencie Android i ostrzeżenie o limicie 100 logowań dla scope'ów wrażliwych nie dotyczą logowania (używamy tylko `openid`/`email`/`profile`).
+- Dodawanie SHA-1 pakietu `.pro` do projektu stagingu zablokuje (albo zepsuje) logowanie w produkcji – nie rób tego. Potrzeba Google na stagingu w Play → osobny `applicationId` (np. `.pro.staging`) i osobna aplikacja w Play Console.
+- Wysyłka do Play z EAS: konto usługi `eas-play-submit@uprzejmie-donosze.iam.gserviceaccount.com` (projekt prod, Google Play Android Developer API włączone), uprawnienie „Release apps to testing tracks” w Play Console, klucz JSON w EAS credentials (poza repo).
 
 ## Przed pierwszym wydaniem (nie zrobione w repo – do ustalenia)
 > **Stan: brak konta Apple Developer** – iOS wstrzymany (build, submit, TestFlight, passkeye na iOS, `ascAppId`/`appleTeamId`, plik AASA). Do czasu założenia konta wydawaj tylko Androida: `make build-android`, `make submit-android` (nie `build-all`).

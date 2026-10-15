@@ -85,6 +85,8 @@ tag-release:
 	@echo "==> Pushing main + tag"
 	git push origin main
 	git push origin "refs/tags/v$$(tr -d '[:space:]' < VERSION)"
+	@echo "==> Tag uruchamia EAS Workflow „Wydanie Android” (.eas/workflows/release-android.yml): build production → Play internal (szkic)."
+	@echo "    Postęp: make workflow-runs albo expo.dev → Workflows. Nie ruszył? make release-android-run"
 
 release-patch: check-git-clean check-branch-main release-check test-staging ## Wydanie patch (np. 1.0.0 → 1.0.1)
 	@$(MAKE) bump-version BUMP=patch
@@ -143,3 +145,20 @@ build-staging-play: ## Build AAB (staging) pod Google Play internal testing
 
 submit-staging-play: ## Wyślij ostatni build staging-play do Google Play (internal, draft)
 	eas submit --profile staging-play --platform android --latest
+
+# EAS Workflows (.eas/workflows/) – build + submit na serwerach Expo. Tag vX.Y.Z odpala wydanie Androida sam;
+# poniższe targety to ręczne uruchomienie (--ref: EAS bierze stan z GitHuba, nie z lokalnego katalogu).
+# Wersja CLI przypięta: 24.2.0 ma błąd w workflow:validate („reading 'const'”).
+EAS_WF = npx -y eas-cli@24.14.0
+
+staging-play: ## Staging do Google Play internal przez EAS Workflow (build + submit, z origin/main)
+	$(EAS_WF) workflow:run .eas/workflows/staging-play.yml --ref main
+
+release-android-run: ## Ponów wydanie Androida dla bieżącego tagu przez EAS Workflow (gdy push tagu go nie uruchomił)
+	$(EAS_WF) workflow:run .eas/workflows/release-android.yml --ref "v$$(tr -d '[:space:]' < VERSION)"
+
+workflow-runs: ## Ostatnie uruchomienia EAS Workflows
+	$(EAS_WF) workflow:runs
+
+workflow-validate: ## Sprawdź składnię plików .eas/workflows/*.yml
+	@for f in .eas/workflows/*.yml; do $(EAS_WF) workflow:validate $$f || exit 1; done
