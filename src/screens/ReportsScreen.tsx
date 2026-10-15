@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { changeStatus, fetchApps, fetchStatusCounts, fetchStatuses, imageUrl, PAGE_SIZE, setReportFields, type StatusDef, type UdApp } from '../api/apps';
 import { fetchCategories } from '../api/geo';
 import { fetchRecydywa } from '../api/recydywa';
@@ -104,6 +104,37 @@ function EditableField({ label, value, multiline, placeholder, onSave, onFocus }
   );
 }
 
+// Zmiana statusu w okienku (jak odznaki na Start): każda opcja z kropką w kolorze statusu, do którego prowadzi.
+function StatusPicker({ visible, current, currentLabel, options, onPick, onClose }: { visible: boolean; current: string; currentLabel: string; options: { key: string; label: string }[]; onPick: (k: string) => void; onClose: () => void }) {
+  const cur = statusColor(current);
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <Pressable style={{ backgroundColor: ud.surface, borderRadius: ud.radiusCard, paddingVertical: 18, width: '100%', maxWidth: 380 }}>
+          <Text style={{ fontFamily: ud.fontDisplay, fontSize: 18, color: ud.heading, paddingHorizontal: 20 }}>Zmień status</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginTop: 6, marginBottom: 10 }}>
+            <Text style={{ color: ud.muted, fontSize: 13 }}>Teraz: </Text>
+            <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: cur.stroke, backgroundColor: cur.fill, marginRight: 5 }} />
+            <Text style={{ color: ud.muted, fontSize: 13, flexShrink: 1 }}>{currentLabel}</Text>
+          </View>
+          {options.map((o) => {
+            const c = statusColor(o.key);
+            return (
+              <Pressable key={o.key} onPress={() => onPick(o.key)} accessibilityRole="button" style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 14, borderTopWidth: 1, borderTopColor: ud.hairline, backgroundColor: pressed ? ud.surfaceLow : 'transparent' })}>
+                <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 3, borderColor: c.stroke, backgroundColor: c.fill }} />
+                <Text style={{ flex: 1, color: ud.text, fontSize: 16, fontFamily: ud.fontBodyBold }}>{o.label}</Text>
+              </Pressable>
+            );
+          })}
+          <Pressable onPress={onClose} accessibilityRole="button" style={{ borderTopWidth: 1, borderTopColor: ud.hairline, paddingTop: 14, paddingHorizontal: 20, alignItems: 'center' }}>
+            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>ANULUJ</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 type CardProps = {
   app: UdApp;
   statuses: Record<string, StatusDef>;
@@ -182,19 +213,18 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
             <StatusDot status={app.status} label={statusName} police={police} />
             {allowed.length ? (
               <Pressable onPress={() => setMenu((m) => !m)} disabled={busy} style={{ borderWidth: 1, borderColor: ud.text, borderRadius: ud.radiusPill, paddingHorizontal: 12, paddingVertical: 4 }}>
-                <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: ud.text }}>{busy ? '…' : 'ZMIEŃ ⌄'}</Text>
+                <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: ud.text }}>{busy ? '…' : 'ZMIEŃ'}</Text>
               </Pressable>
             ) : null}
           </View>
-          {menu ? (
-            <View style={{ marginTop: 8, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusSm }}>
-              {allowed.map((k) => (
-                <Pressable key={k} onPress={() => pick(k)} style={{ padding: 10, borderBottomWidth: 1, borderBottomColor: ud.hairline }}>
-                  <Text style={{ color: ud.text }}>{(statuses[k] as any).action}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
+          <StatusPicker
+            visible={menu}
+            current={app.status}
+            currentLabel={statusName}
+            options={allowed.map((k) => ({ key: k, label: (statuses[k] as any).action as string }))}
+            onPick={pick}
+            onClose={() => setMenu(false)}
+          />
 
           {statuses[app.status]?.editable ? (
             <Pressable onPress={() => onEdit(app.id)} style={{ alignSelf: 'flex-start', marginTop: 10, borderWidth: 1, borderColor: ud.text, borderRadius: ud.radiusPill, paddingHorizontal: 12, paddingVertical: 4 }}>
