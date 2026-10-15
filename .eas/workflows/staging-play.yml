@@ -1,6 +1,7 @@
 # Staging dla testerów w Google Play (internal): uruchamiany ręcznie – z expo.dev (Workflows → Run) albo
 # `make staging-play` (eas workflow:run --ref main). Nie startuje sam przy każdym pushu, bo plan Free ma
-# 15 buildów Androida w miesiącu. Buduje wskazany commit z gita, bez tagu i bez bumpu wersji.
+# 15 buildów Androida w miesiącu. Buduje wskazany commit z gita, bez tagu i bez bumpu wersji. Submit wydaje build
+# testerom od razu (internal, completed – bez review Google).
 name: Staging w Google Play
 
 on:
@@ -15,9 +16,19 @@ jobs:
       profile: staging-play
 
   submit_android:
-    name: Google Play (internal, szkic)
+    name: Google Play (internal, testerzy)
     needs: [build_android]
     type: submit
     params:
       build_id: ${{ needs.build_android.outputs.build_id }}
       profile: staging-play
+
+  # Nazwa wydania i „Co nowego” z CHANGELOG.md (EAS Submit ich nie ustawia). Klucz: zmienna EAS typu file
+  # PLAY_SERVICE_ACCOUNT_JSON w środowisku production – patrz docs/RELEASE.md, „EAS Workflows”.
+  play_notes:
+    name: Nazwa i „Co nowego” w Play
+    needs: [submit_android]
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - run: node scripts/play-notes.js --track internal --staging

@@ -43,7 +43,8 @@ e2e-staging: ## Maestro na telefonie przeciw stagingowi
 	release-patch release-minor release-major tag-release \
 	check-on-tag build-ios build-android build-all submit-ios submit-android \
 	build-staging-play submit-staging-play build-picker-ab \
-	release-notes log-from-last-tag
+	release-notes log-from-last-tag play-notes play-notes-staging \
+	staging-play release-android-run workflow-runs workflow-validate
 
 check-git-clean:
 	@echo "==> Checking if the repo is clean"
@@ -156,6 +157,14 @@ staging-play: ## Staging do Google Play internal przez EAS Workflow (build + sub
 
 release-android-run: ## Ponów wydanie Androida dla bieżącego tagu przez EAS Workflow (gdy push tagu go nie uruchomił)
 	$(EAS_WF) workflow:run .eas/workflows/release-android.yml --ref "v$$(tr -d '[:space:]' < VERSION)"
+
+# Nazwa wydania + „Co nowego” w Play z CHANGELOG.md (scripts/play-notes.js; klucz z secrets/ albo $$PLAY_SERVICE_ACCOUNT_JSON).
+# Workflowy robią to same po submit – te targety są do poprawek ręcznych. CODE=N wskazuje build (domyślnie najnowszy na torze).
+play-notes: ## Nazwa i „Co nowego” wydania X.Y.Z na testach otwartych (beta) z CHANGELOG-a
+	node scripts/play-notes.js --track beta $(if $(CODE),--version-code $(CODE))
+
+play-notes-staging: ## Nazwa i „Co nowego” stagingu na internal z RELEASE-CANDIDATE (COMPLETE=1 wydaje szkic testerom)
+	node scripts/play-notes.js --track internal --staging $(if $(CODE),--version-code $(CODE)) $(if $(COMPLETE),--complete)
 
 workflow-runs: ## Ostatnie uruchomienia EAS Workflows
 	$(EAS_WF) workflow:runs

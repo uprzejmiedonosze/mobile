@@ -64,14 +64,14 @@
   "submit": {
     "production": {
       "android": {
-        "track": "internal",
+        "track": "beta",
         "releaseStatus": "draft"
       }
     },
     "staging-play": {
       "android": {
         "track": "internal",
-        "releaseStatus": "draft"
+        "releaseStatus": "completed"
       }
     }
   }

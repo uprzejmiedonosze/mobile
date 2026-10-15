@@ -1,6 +1,6 @@
 # Wydanie Android: tag vX.Y.Z (wypychany przez `make release-*`) → build production (AAB, versionCode z EAS) →
-# Google Play, track internal jako szkic (submit.production w eas.json). Promocja do produkcji i „Co nowego”
-# (`make release-notes`) zostają ręcznie w Play Console – patrz docs/RELEASE.md.
+# Google Play, testy otwarte (track beta) jako szkic (submit.production w eas.json) → nazwa i „Co nowego” z CHANGELOG-a.
+# Wypuszczenie szkicu (i później produkcja) zostaje ręcznie w Play Console – patrz docs/RELEASE.md.
 # Plan Free: każdy build zużywa jeden z 15 buildów Androida w miesiącu.
 name: Wydanie Android
 
@@ -17,12 +17,22 @@ jobs:
       profile: production
 
   submit_android:
-    name: Google Play (internal, szkic)
+    name: Google Play (testy otwarte, szkic)
     needs: [build_android]
     type: submit
     params:
       build_id: ${{ needs.build_android.outputs.build_id }}
       profile: production
+
+  # Nazwa wydania i „Co nowego” z CHANGELOG.md (EAS Submit ich nie ustawia). Klucz: zmienna EAS typu file
+  # PLAY_SERVICE_ACCOUNT_JSON w środowisku production – patrz docs/RELEASE.md, „EAS Workflows”.
+  play_notes:
+    name: Nazwa i „Co nowego” w Play
+    needs: [submit_android]
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - run: node scripts/play-notes.js --track beta
 
   # iOS – włączyć po założeniu konta Apple Developer i uzupełnieniu submit.production.ios w eas.json:
   # build_ios:
