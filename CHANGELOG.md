@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+## v1.1.1 — 2026-10-16
+
 - Aplikacja jest mniejsza i szybciej się pobiera.
 
 ## v1.1.0 — 2026-10-15
