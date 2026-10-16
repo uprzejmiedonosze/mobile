@@ -60,8 +60,8 @@ npm test -- __tests__/grouping.test.ts   # run a single test file
 npm run typecheck        # tsc --noEmit
 npm run test:contract:local|staging   # kontrakt API na prawdziwym backendzie (docker / staging), patrz docs/TESTING.md
 npm run e2e:local|staging             # Maestro na telefonie (e2e/run.sh), patrz docs/TESTING.md
-make release-patch|minor|major        # wydanie: CHANGELOG.md + VERSION + tag vX.Y.Z; tag odpala EAS Workflow (build + Play internal), docs/RELEASE.md
-make staging-play                     # staging do Play internal przez EAS Workflow (ręcznie, plan Free)
+make release-patch|minor|major        # wydanie: CHANGELOG.md + VERSION + tag vX.Y.Z; tag odpala GitHub Actions (eas build --local + Play beta), docs/RELEASE.md
+make staging-play                     # staging do Play internal przez GitHub Actions (ręcznie; EAS Workflows tylko jako zapas)
 ```
 
 Config lives in `.env` (gitignored, copy from `.env.example`). Key vars: `EXPO_PUBLIC_PHOTO_MAX_WIDTH`,

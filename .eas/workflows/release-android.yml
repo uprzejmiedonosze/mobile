@@ -1,12 +1,11 @@
-# Wydanie Android: tag vX.Y.Z (wypychany przez `make release-*`) → build production (AAB, versionCode z EAS) →
-# Google Play, testy otwarte (track beta) jako szkic (submit.production w eas.json) → nazwa i „Co nowego” z CHANGELOG-a.
-# Wypuszczenie szkicu (i później produkcja) zostaje ręcznie w Play Console – patrz docs/RELEASE.md.
-# Plan Free: każdy build zużywa jeden z 15 buildów Androida w miesiącu.
-name: Wydanie Android
+# ZAPAS – wydania idą przez GitHub Actions (.github/workflows/release-android.yml, `eas build --local`).
+# Ten workflow uruchamiasz tylko ręcznie (`make release-android-eas`), gdy build na GitHubie nie działa.
+# Build production (AAB, versionCode z EAS) → Google Play, testy otwarte (track beta) jako szkic → nazwa i „Co nowego”.
+# Plan Free: każdy build zużywa jeden z 15 buildów Androida w miesiącu. Nie dokładaj triggera na tag – zbudowałby drugi raz.
+name: Wydanie Android (EAS, zapas)
 
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch: {}
 
 jobs:
   build_android:

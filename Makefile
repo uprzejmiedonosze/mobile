@@ -44,7 +44,8 @@ e2e-staging: ## Maestro na telefonie przeciw stagingowi
 	check-on-tag build-ios build-android build-all submit-ios submit-android \
 	build-staging-play submit-staging-play build-picker-ab \
 	release-notes log-from-last-tag play-notes play-notes-staging \
-	staging-play release-android-run workflow-runs workflow-validate
+	staging-play release-android-run workflow-runs \
+	staging-play-eas release-android-eas eas-workflow-runs workflow-validate
 
 check-git-clean:
 	@echo "==> Checking if the repo is clean"
@@ -86,8 +87,8 @@ tag-release:
 	@echo "==> Pushing main + tag"
 	git push origin main
 	git push origin "refs/tags/v$$(tr -d '[:space:]' < VERSION)"
-	@echo "==> Tag uruchamia EAS Workflow „Wydanie Android” (.eas/workflows/release-android.yml): build production → Play internal (szkic)."
-	@echo "    Postęp: make workflow-runs albo expo.dev → Workflows. Nie ruszył? make release-android-run"
+	@echo "==> Tag uruchamia GitHub Actions „Wydanie Android” (.github/workflows/release-android.yml): eas build --local → Play testy otwarte (beta, szkic) + nazwa i „Co nowego”."
+	@echo "    Postęp: make workflow-runs. Nie ruszył albo padł? make release-android-run (awaryjnie na serwerach EAS: make release-android-eas)"
 
 release-patch: check-git-clean check-branch-main release-check test-staging ## Wydanie patch (np. 1.0.0 → 1.0.1)
 	@$(MAKE) bump-version BUMP=patch
@@ -147,15 +148,28 @@ build-staging-play: ## Build AAB (staging) pod Google Play internal testing
 submit-staging-play: ## Wyślij ostatni build staging-play do Google Play (internal, draft)
 	eas submit --profile staging-play --platform android --latest
 
-# EAS Workflows (.eas/workflows/) – build + submit na serwerach Expo. Tag vX.Y.Z odpala wydanie Androida sam;
-# poniższe targety to ręczne uruchomienie (--ref: EAS bierze stan z GitHuba, nie z lokalnego katalogu).
-# Wersja CLI przypięta: 24.2.0 ma błąd w workflow:validate („reading 'const'”).
+# GitHub Actions (.github/workflows/release-android.yml) – `eas build --local` na runnerze GitHuba, więc bez limitu
+# buildów planu Free EAS; podpis i versionCode dalej z EAS, submit przez EAS Submit. Tag vX.Y.Z odpala wydanie sam;
+# poniższe targety to ręczne uruchomienie (--ref: stan z GitHuba, nie z lokalnego katalogu – najpierw push).
+GH_WF = gh workflow run release-android.yml
+
+staging-play: ## Staging do Google Play internal przez GitHub Actions (build + submit, z origin/main)
+	$(GH_WF) --ref main -f profile=staging-play
+
+release-android-run: ## Ponów wydanie Androida dla bieżącego tagu przez GitHub Actions (gdy push tagu go nie uruchomił)
+	$(GH_WF) --ref "v$$(tr -d '[:space:]' < VERSION)" -f profile=production
+
+workflow-runs: ## Ostatnie uruchomienia wydań w GitHub Actions
+	gh run list --workflow release-android.yml --limit 10
+
+# EAS Workflows (.eas/workflows/) – ZAPAS: build na serwerach Expo, zużywa limit planu Free (15 buildów Androida/mies.).
+# Tylko ręcznie, gdy GitHub Actions nie działa. Wersja CLI przypięta: 24.2.0 ma błąd w workflow:validate („reading 'const'”).
 EAS_WF = npx -y eas-cli@24.14.0
 
-staging-play: ## Staging do Google Play internal przez EAS Workflow (build + submit, z origin/main)
+staging-play-eas: ## [zapas] Staging do Play internal przez EAS Workflow (zużywa build z limitu EAS)
 	$(EAS_WF) workflow:run .eas/workflows/staging-play.yml --ref main
 
-release-android-run: ## Ponów wydanie Androida dla bieżącego tagu przez EAS Workflow (gdy push tagu go nie uruchomił)
+release-android-eas: ## [zapas] Wydanie Androida bieżącego tagu przez EAS Workflow (zużywa build z limitu EAS)
 	$(EAS_WF) workflow:run .eas/workflows/release-android.yml --ref "v$$(tr -d '[:space:]' < VERSION)"
 
 # Nazwa wydania + „Co nowego” w Play z CHANGELOG.md (scripts/play-notes.js; klucz z secrets/ albo $$PLAY_SERVICE_ACCOUNT_JSON).
@@ -166,7 +180,7 @@ play-notes: ## Nazwa i „Co nowego” wydania X.Y.Z na testach otwartych (beta)
 play-notes-staging: ## Nazwa i „Co nowego” stagingu na internal z RELEASE-CANDIDATE (COMPLETE=1 wydaje szkic testerom)
 	node scripts/play-notes.js --track internal --staging $(if $(CODE),--version-code $(CODE)) $(if $(COMPLETE),--complete)
 
-workflow-runs: ## Ostatnie uruchomienia EAS Workflows
+eas-workflow-runs: ## [zapas] Ostatnie uruchomienia EAS Workflows
 	$(EAS_WF) workflow:runs
 
 workflow-validate: ## Sprawdź składnię plików .eas/workflows/*.yml

@@ -14,7 +14,7 @@ Po polsku, **dla użytkownika** (nie lista commitów). Na górze zawsze `## RELE
 1. Zmiany zmergowane do `main`, drzewo czyste (release z innej gałęzi jest blokowany).
 2. Uzupełnij `## RELEASE-CANDIDATE` w `CHANGELOG.md`, zacommituj.
 3. `make release-patch` | `release-minor` | `release-major` – sprawdza czystość i gałąź, `release-check` (typecheck, brak `EXPO_PUBLIC_E2E` w `eas.json`, **ostrzeżenie o zmianie `SCHEMA`**), `test-staging`, potem bump, commit `chore: release vX.Y.Z`, tag `vX.Y.Z`, push `main` + tagu. Przerwane w połowie? Uruchom ten sam target ponownie – wznowi się bez podwójnego bumpu.
-4. **Push tagu sam uruchamia EAS Workflow „Wydanie Android”** (`.eas/workflows/release-android.yml`): build `production` (AAB, `versionCode` z EAS) → submit do Google Play, **testy otwarte** (track `beta`), szkic → job `play_notes` ustawia nazwę „X.Y.Z (versionCode)” i „Co nowego” z sekcji `## vX.Y.Z` CHANGELOG-a. Postęp: `make workflow-runs` albo expo.dev → Workflows. Workflow nie ruszył (np. repo nie jest podpięte do EAS) albo padł? `make release-android-run` (ten sam workflow na bieżącym tagu). Awaryjnie zostaje ręcznie: `make build-android` + `make submit-android`.
+4. **Push tagu sam uruchamia GitHub Actions „Wydanie Android”** (`.github/workflows/release-android.yml`): `eas build --local` profilu `production` na runnerze GitHuba (AAB, `versionCode` z EAS) → submit do Google Play, **testy otwarte** (track `beta`), szkic → nazwa „X.Y.Z (versionCode)” i „Co nowego” z sekcji `## vX.Y.Z` CHANGELOG-a. AAB zostaje też jako artefakt runu (14 dni). Postęp: `make workflow-runs` albo GitHub → Actions. Nie ruszył albo padł? `make release-android-run` (ten sam workflow na bieżącym tagu). Awaryjnie na serwerach EAS (zużywa limit Free): `make release-android-eas` albo ręcznie `make build-android` + `make submit-android`.
 5. Przetestuj build na prawdziwym urządzeniu (np. staging z internal z tego samego commitu albo szkic na testach otwartych po wypuszczeniu).
 6. Wypuszczenie szkicu na testach otwartych i później promocja do produkcji – ręcznie w Play Console. Gdy przejdziemy z testów otwartych na produkcję, zmień `submit.production.android.track` w `eas.json` na `production` i `--track` w jobie `play_notes`. iOS: po założeniu konta Apple odkomentuj joby iOS w workflow (do tego czasu `make build-ios`/`submit-ios` nie są używane).
 7. „Co nowego” ustawia workflow; ręczna poprawka: `make play-notes` (CODE=N dla konkretnego buildu). Limit Play: 500 znaków – skrypt bierze kolejne punkty, ile się zmieści, i dopisuje „…i więcej zmian.”
@@ -23,12 +23,19 @@ Po polsku, **dla użytkownika** (nie lista commitów). Na górze zawsze `## RELE
 
 Profile `staging` i `shadow` (wewnętrzne testy) są poza tym procesem – nie tagujemy ich.
 
-## EAS Workflows (automatyzacja)
-- Pliki w `.eas/workflows/`; składnia: `make workflow-validate`. Wymaga jednorazowego podpięcia repo `uprzejmiedonosze/mobile` w expo.dev → projekt → Settings → GitHub (bez tego push tagu nic nie uruchamia, a `--ref` nie działa).
-- `release-android.yml` – trigger: push tagu `v*`. `staging-play.yml` – tylko ręcznie (`make staging-play` albo przycisk Run w expo.dev), bo plan **Free** daje 15 buildów Androida w miesiącu (każdy build w workflow się wlicza) i 60 minut workflow. Nie dokładaj triggera na push do `main`, dopóki jesteśmy na Free.
-- Klucz konta usługi Google Play musi być w EAS credentials (patrz „Staging w Google Play”, pkt 3) – z niego korzystają oba joby submit.
-- Job `play_notes` (nazwa wydania + „Co nowego”) potrzebuje tego samego klucza jako zmiennej EAS typu file (jednorazowo):
-  `eas env:create --environment production --name PLAY_SERVICE_ACCOUNT_JSON --type file --value secrets/<klucz>.json --visibility secret`. Lokalnie skrypt bierze klucz z `secrets/`.
+## GitHub Actions (automatyzacja wydań)
+Plan **Free** EAS daje 15 buildów Androida w miesiącu i 60 minut EAS Workflows. Dlatego buildy wydań idą przez **`eas build --local` na runnerze GitHuba**: nie wliczają się do limitu, a repo jest publiczne, więc minuty Actions są bez limitu. Z EAS dalej korzystamy przez `EXPO_TOKEN`: keystore uploadu (EAS credentials), licznik `versionCode` (`appVersionSource: remote`), zmienne środowiska `production` i EAS Submit (nie wlicza się do limitu buildów).
+- Plik `.github/workflows/release-android.yml`. Trigger: push tagu `v*` (profil `production` → beta, szkic) albo ręcznie z wyborem profilu (`make staging-play` → `staging-play` z `main` → internal; `make release-android-run` → `production` na tagu). Production spoza tagu bieżącej wersji jest blokowany (jak `check-on-tag`).
+- **Sekrety repo** (GitHub → Settings → Secrets and variables → Actions, jednorazowo):
+  - `EXPO_TOKEN` – token z expo.dev → Account settings → Access tokens (najlepiej robot użytkownika z dostępem do projektu).
+  - `SENTRY_AUTH_TOKEN` – ten sam co w EAS. Zmienne EAS z `--visibility secret` nie są dostępne poza serwerami EAS, więc lokalny build ich nie dostanie. Bez tokenu upload source map wywala build production (staging ma `SENTRY_DISABLE_AUTO_UPLOAD`).
+  - `PLAY_SERVICE_ACCOUNT_JSON` – **treść** klucza konta usługi Play (`gh secret set PLAY_SERVICE_ACCOUNT_JSON < secrets/<klucz>.json`), dla `scripts/play-notes.js`.
+- Klucz konta usługi Google Play musi być też w EAS credentials (patrz „Staging w Google Play”, pkt 3) – korzysta z niego EAS Submit.
+- Nie dokładaj triggera na push do `main` bez potrzeby: każdy staging zużywa `versionCode` i podmienia build testerom.
+
+### EAS Workflows (zapas)
+- `.eas/workflows/*.yml` – ten sam przebieg na serwerach Expo, **tylko ręcznie** (`make release-android-eas`, `make staging-play-eas`, podgląd `make eas-workflow-runs`, składnia `make workflow-validate`). Każdy build zużywa jeden z 15 z limitu Free. Nie dodawaj tam triggera na tag – tag budowałby się dwa razy.
+- Wymaga podpięcia repo `uprzejmiedonosze/mobile` w expo.dev → projekt → Settings → GitHub (bez tego `--ref` nie działa). Job `play_notes` bierze klucz ze zmiennej EAS typu file `PLAY_SERVICE_ACCOUNT_JSON` (środowisko `production`).
 - Tory w Play: **internal** = staging (`staging-play`, wydawany testerom od razu, `releaseStatus: completed`), **beta (testy otwarte)** = wydania z tagu (szkic). Nie mieszaj – production na internal podmieniłby testerom staging.
 
 ## Staging w Google Play (testy wewnętrzne)
@@ -37,7 +44,7 @@ Build z backendem stagingu rozsyłany testerom przez Play (track **internal**, d
 1. Zacommituj zmiany (EAS buduje z gita), potem `make build-staging-play` i pobierz `.aab` z linku EAS.
 2. **Pierwszy** upload ręcznie: Play Console → Testing → Internal testing → Create new release → wgraj `.aab` (Play App Signing: zgódź się na podpis Google, kluczem uploadu jest keystore z EAS) → Save → Review → Start rollout.
    Tester → zakładka Testers: lista e-maili (grupa), skopiuj **link opt-in**; tester musi mieć to konto Google na telefonie.
-3. Kolejne wersje: `make staging-play` (EAS Workflow: build + submit z `origin/main` + nazwa „X.Y.Z (N) staging” i „Co nowego” z RELEASE-CANDIDATE; build trafia do testerów od razu – najpierw wypchnij commity) albo lokalnie `make build-staging-play && make submit-staging-play` (wymaga klucza konta usługi Play: Play Console → Setup → API access → konto usługi z uprawnieniem do wydań,
+3. Kolejne wersje: `make staging-play` (GitHub Actions: build + submit z `origin/main` + nazwa „X.Y.Z (N) staging” i „Co nowego” z RELEASE-CANDIDATE; build trafia do testerów od razu – najpierw wypchnij commity) albo lokalnie `make build-staging-play && make submit-staging-play` (wymaga klucza konta usługi Play: Play Console → Setup → API access → konto usługi z uprawnieniem do wydań,
    JSON wgraj do EAS: `eas credentials -p android` → *Google Service Account Key for Play Store Submissions*; nie commituj go).
 4. **Logowanie Google na stagingu nie działa w buildach `net.uprzejmiedonosze.pro`** (staging APK, `staging-play`) – testerzy logują się e-mail-linkiem. Para package + SHA-1 może być tylko w jednym kliencie OAuth w całym Google Cloud, a obie pary pakietu `.pro` (klucz Play i keystore EAS) są w projekcie **prod** – patrz „Logowanie Google: projekty i klienci OAuth”. Passkeye na stagingu są wyłączone (`passkeysAllowed`).
 5. Prod i staging mają ten sam `applicationId`, więc w sklepie to jedna aplikacja: build staging w internal nie przeszkadza w przyszłym production (kolejne `versionCode` rosną), ale **nie promuj** go do closed/open/production.

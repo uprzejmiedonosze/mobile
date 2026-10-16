@@ -1,8 +1,9 @@
+# ZAPAS – staging idzie przez GitHub Actions (`make staging-play`, .github/workflows/release-android.yml).
 # Staging dla testerów w Google Play (internal): uruchamiany ręcznie – z expo.dev (Workflows → Run) albo
-# `make staging-play` (eas workflow:run --ref main). Nie startuje sam przy każdym pushu, bo plan Free ma
+# `make staging-play-eas` (eas workflow:run --ref main). Nie startuje sam przy każdym pushu, bo plan Free ma
 # 15 buildów Androida w miesiącu. Buduje wskazany commit z gita, bez tagu i bez bumpu wersji. Submit wydaje build
 # testerom od razu (internal, completed – bez review Google).
-name: Staging w Google Play
+name: Staging w Google Play (EAS, zapas)
 
 on:
   workflow_dispatch: {}

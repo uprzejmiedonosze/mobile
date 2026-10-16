@@ -1,0 +1,94 @@
+# Wydanie Android na runnerze GitHuba: `eas build --local` (nie zużywa limitu buildów planu Free EAS) → EAS Submit
+# do Google Play → nazwa i „Co nowego” z CHANGELOG-a (scripts/play-notes.js). Patrz docs/RELEASE.md, „GitHub Actions”.
+#   - push tagu vX.Y.Z (make release-*)       → profil production → testy otwarte (beta), szkic
+#   - ręcznie (make staging-play / Actions → Run) → staging-play z main → internal, od razu u testerów,
+#                                                  albo production na tagu (make release-android-run)
+# Podpis (keystore uploadu) i versionCode (appVersionSource: remote + autoIncrement) nadal biorą się z EAS – przez EXPO_TOKEN.
+# Sekrety repo: EXPO_TOKEN, SENTRY_AUTH_TOKEN (zmienne EAS typu secret nie są dostępne poza serwerami EAS),
+# PLAY_SERVICE_ACCOUNT_JSON (treść klucza konta usługi Play).
+name: Wydanie Android
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Profil EAS
+        type: choice
+        options: [staging-play, production]
+        default: staging-play
+
+concurrency:
+  group: android-${{ github.event_name == 'push' && 'production' || inputs.profile }}
+  cancel-in-progress: false
+
+env:
+  PROFILE: ${{ github.event_name == 'push' && 'production' || inputs.profile }}
+  EAS_VERSION: 24.14.0
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Odpowiednik `make check-on-tag`: production tylko z tagu bieżącej wersji.
+      - name: Production tylko z tagu vVERSION
+        if: env.PROFILE == 'production'
+        run: |
+          version=$(tr -d '[:space:]' < VERSION)
+          test "$(git describe --exact-match --tags HEAD 2>/dev/null)" = "v$version" \
+            || { echo "::error::HEAD nie jest na tagu v$version"; exit 1; }
+
+      # Build RN zajmuje kilkanaście GB – zwalniamy miejsce po narzędziach, których nie używamy.
+      - name: Miejsce na dysku
+        run: sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: ${{ env.EAS_VERSION }}
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      - name: Build (eas build --local)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: eas build --local --non-interactive --platform android --profile "$PROFILE" --output build/app.aab
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-${{ env.PROFILE }}-${{ github.run_number }}
+          path: build/app.aab
+          retention-days: 14
+
+      - name: Google Play (EAS Submit)
+        run: eas submit --non-interactive --platform android --profile "$PROFILE" --path build/app.aab --wait
+
+      - name: Nazwa i „Co nowego” w Play
+        env:
+          KEY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          export PLAY_SERVICE_ACCOUNT_JSON="$RUNNER_TEMP/play-key.json"
+          printf '%s' "$KEY" > "$PLAY_SERVICE_ACCOUNT_JSON"
+          if [ "$PROFILE" = production ]; then
+            node scripts/play-notes.js --track beta
+          else
+            node scripts/play-notes.js --track internal --staging
+          fi
