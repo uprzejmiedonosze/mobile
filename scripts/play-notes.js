@@ -44,11 +44,12 @@ const releaseName = (version, code, staging) => `${version} (${code})${staging ?
 
 // Track z API → track do zapisu: wybrane wydanie z nową nazwą/notatkami. Przy --complete zostaje tylko ono
 // (na torze może być jedno wydanie „completed”; poprzednie Play i tak zastępuje), inaczej reszta bez zmian.
+// Puste notatki (staging bez wpisów w RELEASE-CANDIDATE) – tylko nazwa, „Co nowego” zostaje, jakie było.
 function updateTrack(track, { code, name, notes, lang, complete }) {
   const hit = (r) => (r.versionCodes || []).map(String).includes(String(code));
   const release = (track.releases || []).find(hit);
   if (!release) throw new Error(`Na torze ${track.track} nie ma wydania z versionCode ${code}.`);
-  const updated = { ...release, name, releaseNotes: [{ language: lang, text: notes }], ...(complete ? { status: 'completed' } : {}) };
+  const updated = { ...release, name, ...(notes ? { releaseNotes: [{ language: lang, text: notes }] } : {}), ...(complete ? { status: 'completed' } : {}) };
   return { track: track.track, releases: complete ? [updated] : track.releases.map((r) => (hit(r) ? updated : r)) };
 }
 
@@ -101,7 +102,8 @@ async function main() {
   const version = fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8').trim();
   const md = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
   const notes = fitNotes(changelogSection(md, args.staging ? 'RELEASE-CANDIDATE' : `v${version}`));
-  if (!notes) throw new Error(`Pusta sekcja CHANGELOG-a (${args.staging ? 'RELEASE-CANDIDATE' : `v${version}`}).`);
+  // Wydanie bez notatek to błąd (i tak blokuje je make release-*); staging zaraz po wydaniu ma pusty RELEASE-CANDIDATE.
+  if (!notes && !args.staging) throw new Error(`Pusta sekcja CHANGELOG-a (v${version}).`);
 
   const token = await accessToken(loadKey());
   const base = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE}/edits`;
@@ -119,7 +121,8 @@ async function main() {
   const name = releaseName(version, code, args.staging);
   await call('PUT', `${base}/${edit.id}/tracks/${args.track}`, updateTrack(track, { code, name, notes, lang: args.lang, complete: args.complete }));
   await call('POST', `${base}/${edit.id}:commit`);
-  console.log(`==> Play ${args.track}: „${name}”${args.complete ? ', wydane testerom' : ''}; Co nowego (${notes.length} zn.):\n${notes}`);
+  console.log(`==> Play ${args.track}: „${name}”${args.complete ? ', wydane testerom' : ''}; ` +
+    (notes ? `Co nowego (${notes.length} zn.):\n${notes}` : 'bez „Co nowego” (pusty RELEASE-CANDIDATE).'));
 }
 
 module.exports = { changelogSection, fitNotes, releaseName, updateTrack, parseArgs, PLAY_NOTES_LIMIT };

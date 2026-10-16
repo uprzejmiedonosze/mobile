@@ -40,6 +40,8 @@ describe('play-notes', () => {
     const done = updateTrack(track, { ...upd, complete: true });
     expect(done.releases).toEqual([{ ...draft.releases[1], status: 'completed' }]);
     expect(() => updateTrack(track, { ...upd, code: 9, complete: false })).toThrow(/versionCode 9/);
+    const bare = updateTrack(track, { ...upd, notes: '', complete: false });
+    expect(bare.releases[1]).toEqual({ versionCodes: ['3'], status: 'draft', name: '1.0.0 (3) staging' });
   });
 
   it('argumenty', () => {
