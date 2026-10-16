@@ -18,7 +18,7 @@ Po polsku, **dla użytkownika** (nie lista commitów). Na górze zawsze `## RELE
 5. Przetestuj build na prawdziwym urządzeniu (np. staging z internal z tego samego commitu albo szkic na testach otwartych po wypuszczeniu).
 6. Wypuszczenie szkicu na testach otwartych i później promocja do produkcji – ręcznie w Play Console. Gdy przejdziemy z testów otwartych na produkcję, zmień `submit.production.android.track` w `eas.json` na `production` i `--track` w jobie `play_notes`. iOS: po założeniu konta Apple odkomentuj joby iOS w workflow (do tego czasu `make build-ios`/`submit-ios` nie są używane).
 7. „Co nowego” ustawia workflow; ręczna poprawka: `make play-notes` (CODE=N dla konkretnego buildu). Limit Play: 500 znaków – skrypt bierze kolejne punkty, ile się zmieści, i dopisuje „…i więcej zmian.”
-   Ten sam krok wysyła do Play plik deobfuskacji R8 (`mapping.txt`, `--mapping`; build release ma włączone `enableMinifyInReleaseBuilds` w `app.json`) – jest też w artefakcie joba.
+   Build release ma włączony R8 (`enableMinifyInReleaseBuilds` w `app.json`). Plik deobfuskacji jest w AAB (`BUNDLE-METADATA/…/proguard.map`) i Play bierze go sam – nie wysyłamy go osobno (API odrzuca to dla już wgranego bundla). Kopia `mapping.txt` jest w artefakcie joba.
 8. **Po publikacji w sklepach** podbij `latestVersion` (i prawdziwy `storeUrl` iOS) w `../uprzejmiedonosze/src/api/config/app.json` – bez tego miękka zachęta do aktualizacji nigdy się nie pojawi (dziś `1.0.0`, iOS `id0000000000` to placeholder).
 9. Jeśli `release-check` ostrzegał o zmianie `SCHEMA`: dopiero teraz wdrażaj backend z podbitym `VISION_SCHEMA` (od tej chwili starsze appki dostają 426). Kolejność: SCHEMA w appce → build w sklepach → publikacja → backend (zob. `docs/NFR.md`).
 

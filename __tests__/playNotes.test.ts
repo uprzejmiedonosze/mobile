@@ -46,7 +46,6 @@ describe('play-notes', () => {
 
   it('argumenty', () => {
     expect(parseArgs(['--track', 'beta', '--version-code', '4'])).toMatchObject({ track: 'beta', code: 4, staging: false, complete: false });
-    expect(parseArgs(['--mapping', 'm.txt'])).toMatchObject({ mapping: 'm.txt' });
     expect(() => parseArgs(['--foo'])).toThrow(/Nieznany/);
   });
 });

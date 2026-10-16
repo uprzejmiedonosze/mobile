@@ -67,7 +67,8 @@ jobs:
 
       - run: npm ci
 
-      # Katalog roboczy builda zostaje (SKIP_CLEANUP), żeby wyciągnąć z niego mapping.txt z R8 (enableMinifyInReleaseBuilds).
+      # Katalog roboczy builda zostaje (SKIP_CLEANUP), żeby zachować mapping.txt z R8 w artefakcie joba
+      # (Play bierze plik deobfuskacji sam z AAB: BUNDLE-METADATA/…/proguard.map).
       - name: Build (eas build --local)
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -79,7 +80,7 @@ jobs:
         run: |
           mapping=$(find "$RUNNER_TEMP/eas-build" -path '*/outputs/mapping/release/mapping.txt' -print -quit)
           if [ -n "$mapping" ]; then cp "$mapping" build/mapping.txt
-          else echo "::warning::Brak mapping.txt – Play dostanie build bez pliku deobfuskacji"; fi
+          else echo "::warning::Brak mapping.txt w katalogu roboczym builda"; fi
 
       - uses: actions/upload-artifact@v7
         with:
@@ -92,15 +93,14 @@ jobs:
       - name: Google Play (EAS Submit)
         run: eas submit --non-interactive --platform android --profile "$PROFILE" --path build/app.aab --wait
 
-      - name: Nazwa, „Co nowego” i plik deobfuskacji w Play
+      - name: Nazwa i „Co nowego” w Play
         env:
           KEY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
           export PLAY_SERVICE_ACCOUNT_JSON="$RUNNER_TEMP/play-key.json"
           printf '%s' "$KEY" > "$PLAY_SERVICE_ACCOUNT_JSON"
-          mapping=(); [ -f build/mapping.txt ] && mapping=(--mapping build/mapping.txt)
           if [ "$PROFILE" = production ]; then
-            node scripts/play-notes.js --track beta "${mapping[@]}"
+            node scripts/play-notes.js --track beta
           else
-            node scripts/play-notes.js --track internal --staging "${mapping[@]}"
+            node scripts/play-notes.js --track internal --staging
           fi
