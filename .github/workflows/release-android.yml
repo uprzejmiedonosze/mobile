@@ -67,28 +67,40 @@ jobs:
 
       - run: npm ci
 
+      # Katalog roboczy builda zostaje (SKIP_CLEANUP), żeby wyciągnąć z niego mapping.txt z R8 (enableMinifyInReleaseBuilds).
       - name: Build (eas build --local)
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          EAS_LOCAL_BUILD_WORKINGDIR: ${{ runner.temp }}/eas-build
+          EAS_LOCAL_BUILD_SKIP_CLEANUP: '1'
         run: eas build --local --non-interactive --platform android --profile "$PROFILE" --output build/app.aab
+
+      - name: Plik deobfuskacji (mapping.txt)
+        run: |
+          mapping=$(find "$RUNNER_TEMP/eas-build" -path '*/outputs/mapping/release/mapping.txt' -print -quit)
+          if [ -n "$mapping" ]; then cp "$mapping" build/mapping.txt
+          else echo "::warning::Brak mapping.txt – Play dostanie build bez pliku deobfuskacji"; fi
 
       - uses: actions/upload-artifact@v7
         with:
           name: android-${{ env.PROFILE }}-${{ github.run_number }}
-          path: build/app.aab
+          path: |
+            build/app.aab
+            build/mapping.txt
           retention-days: 14
 
       - name: Google Play (EAS Submit)
         run: eas submit --non-interactive --platform android --profile "$PROFILE" --path build/app.aab --wait
 
-      - name: Nazwa i „Co nowego” w Play
+      - name: Nazwa, „Co nowego” i plik deobfuskacji w Play
         env:
           KEY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         run: |
           export PLAY_SERVICE_ACCOUNT_JSON="$RUNNER_TEMP/play-key.json"
           printf '%s' "$KEY" > "$PLAY_SERVICE_ACCOUNT_JSON"
+          mapping=(); [ -f build/mapping.txt ] && mapping=(--mapping build/mapping.txt)
           if [ "$PROFILE" = production ]; then
-            node scripts/play-notes.js --track beta
+            node scripts/play-notes.js --track beta "${mapping[@]}"
           else
-            node scripts/play-notes.js --track internal --staging
+            node scripts/play-notes.js --track internal --staging "${mapping[@]}"
           fi

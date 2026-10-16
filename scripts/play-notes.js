@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Nazwa wydania i „Co nowego” w Google Play z CHANGELOG.md – EAS Submit tego nie ustawia (docs/RELEASE.md).
 //   node scripts/play-notes.js --track internal --staging [--version-code N] [--complete]
-//   node scripts/play-notes.js --track beta [--version-code N]
+//   node scripts/play-notes.js --track beta [--version-code N] [--mapping PATH]
 // Nazwa: „X.Y.Z (versionCode)” albo „X.Y.Z (versionCode) staging”. Notatki: sekcja `## vX.Y.Z` (wydanie) albo
 // `## RELEASE-CANDIDATE` (staging), przycięte do limitu Play (500 znaków na język). Bez --version-code: najwyższy
-// versionCode na torze. --complete: szkic → wydany testerom (status completed).
+// versionCode na torze. --complete: szkic → wydany testerom (status completed). --mapping: plik deobfuskacji R8
+// (mapping.txt) do tego versionCode – EAS Submit go nie wysyła, a bez niego stack trace'y w Play są zaciemnione.
 // Klucz konta usługi: plik z $PLAY_SERVICE_ACCOUNT_JSON (w EAS: zmienna typu file) albo pierwszy service account
 // w secrets/ (katalog w .gitignore). Tylko wbudowane moduły Node – działa lokalnie i w jobie EAS Workflow.
 const fs = require('fs');
@@ -54,7 +55,7 @@ function updateTrack(track, { code, name, notes, lang, complete }) {
 }
 
 function parseArgs(argv) {
-  const a = { track: 'internal', staging: false, complete: false, lang: 'pl-PL', code: null };
+  const a = { track: 'internal', staging: false, complete: false, lang: 'pl-PL', code: null, mapping: null };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--track') a.track = argv[++i];
@@ -62,6 +63,7 @@ function parseArgs(argv) {
     else if (k === '--complete') a.complete = true;
     else if (k === '--lang') a.lang = argv[++i];
     else if (k === '--version-code') a.code = Number(argv[++i]);
+    else if (k === '--mapping') a.mapping = argv[++i];
     else throw new Error(`Nieznany argument: ${k}`);
   }
   return a;
@@ -120,6 +122,15 @@ async function main() {
   if (!Number.isFinite(code)) throw new Error(`Tor ${args.track} nie ma żadnego wydania.`);
   const name = releaseName(version, code, args.staging);
   await call('PUT', `${base}/${edit.id}/tracks/${args.track}`, updateTrack(track, { code, name, notes, lang: args.lang, complete: args.complete }));
+  if (args.mapping) {
+    const upload = base.replace('/androidpublisher/v3/', '/upload/androidpublisher/v3/');
+    const res = await fetch(`${upload}/${edit.id}/apks/${code}/deobfuscationFiles/proguard?uploadType=media`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/octet-stream' },
+      body: fs.readFileSync(args.mapping),
+    });
+    if (!res.ok) throw new Error(`Plik deobfuskacji: HTTP ${res.status} ${(await res.json().catch(() => ({}))).error?.message || ''}`);
+  }
   await call('POST', `${base}/${edit.id}:commit`);
   console.log(`==> Play ${args.track}: „${name}”${args.complete ? ', wydane testerom' : ''}; ` +
     (notes ? `Co nowego (${notes.length} zn.):\n${notes}` : 'bez „Co nowego” (pusty RELEASE-CANDIDATE).'));
