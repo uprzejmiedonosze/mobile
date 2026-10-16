@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+- Aplikacja jest mniejsza i szybciej się pobiera.
+
 ## v1.1.0 — 2026-10-15
 
 - Na iPhonie logujesz się linkiem z e-maila albo kluczem dostępu; przycisk „Zaloguj przez Google” jest dostępny tylko na Androidzie.
