@@ -3,7 +3,7 @@
 > **TYMCZASOWO (od 2026-10-21): profil `production` buduje na backend STAGINGU** – w testach otwartych Play jest aplikacja maksymalnie zbliżona do produkcji (ten sam pakiet, podpis Play, kanał), ale logująca do projektu staging. Patrz „Testy otwarte na stagingu”.
 
 ## Testy otwarte na stagingu (przed premierą)
-Profil `production` w `eas.json`: `EXPO_PUBLIC_UD_ENV=staging`, `EXPO_PUBLIC_SENTRY_ENV=staging`, `EXPO_PUBLIC_PASSKEYS_STAGING=1`.
+Profil `production` w `eas.json`: `EXPO_PUBLIC_UD_ENV=staging`, `EXPO_PUBLIC_SENTRY_ENV=staging`, `EXPO_PUBLIC_PASSKEYS_STAGING=1`. Ten sam klucz Play podpisuje też `staging-play` (internal, bez review), więc ma tę samą flagę – szybki test przed tagiem: `make staging-play`.
 Build z Play jest podpisany **kluczem Play App Signing** (Play Console → Test and release → App integrity → *App signing key certificate*: SHA-1 i SHA-256), więc:
 - **Google:** klient OAuth typu Android `net.uprzejmiedonosze.pro` + SHA-1 klucza Play App Signing w projekcie **staging** (`uprzejmiedonosze-1494607701827`). Para package + SHA-1 może być tylko w jednym kliencie w całym Google Cloud – jeśli jest w prod, najpierw usuń ją z proda.
 - **Passkey:** backend stagingu – `src/.well-known/assetlinks.json` (`delegate_permission/common.get_login_creds`, `net.uprzejmiedonosze.pro`, SHA-256 klucza Play) i env `PASSKEY_ANDROID_KEY_HASHES` (ten SHA-256 w base64url) na `staging.uprzejmiedonosze.net`.
