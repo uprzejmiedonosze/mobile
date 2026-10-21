@@ -70,6 +70,10 @@ export const firebaseEmulatorHost = (process.env.EXPO_PUBLIC_FIREBASE_EMULATOR_H
 // Ustawiany TYLKO przez e2e/run.sh (Metro) – żaden profil eas.json go nie ustawia, więc nie trafia do release.
 export const e2eEnabled = process.env.EXPO_PUBLIC_E2E === '1';
 
+// Passkeye poza prodem (staging w testach otwartych Play, docs/RELEASE.md). Wymaga assetlinks.json i
+// PASSKEY_ANDROID_KEY_HASHES na hoście stagingu z kluczem, którym podpisany jest build (Play App Signing).
+export const passkeysOnStaging = process.env.EXPO_PUBLIC_PASSKEYS_STAGING === '1';
+
 // Diagnostyka pickera zdjęć (Android): dodatkowy przycisk „systemowy picker” i raport o metadanych (GPS/data) po wyborze.
 // Tylko profil eas.json `picker-ab`; docs/STORE-PRIVACY.md → sekcja 5.
 export const pickerAb = process.env.EXPO_PUBLIC_PICKER_AB === '1';

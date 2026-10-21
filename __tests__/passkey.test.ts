@@ -6,6 +6,11 @@ describe('passkeysAllowed', () => {
     expect(passkeysAllowed('prod', false)).toBe(false);
     expect(passkeysAllowed('staging', true)).toBe(false);
   });
+
+  it('na stagingu tylko z flagą EXPO_PUBLIC_PASSKEYS_STAGING', () => {
+    expect(passkeysAllowed('staging', true, true)).toBe(true);
+    expect(passkeysAllowed('staging', false, true)).toBe(false);
+  });
 });
 
 describe('isPasskeyCancelled', () => {

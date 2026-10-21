@@ -1,4 +1,4 @@
-import { udEnv } from '../config';
+import { passkeysOnStaging, udEnv } from '../config';
 import { log } from './log';
 
 // react-native-passkey czyta natywny moduł przy require (wzorzec jak google-signin w useAuth): w Expo Go / buildzie
@@ -12,12 +12,13 @@ try {
 }
 
 // Passkey jest związany z domeną (RP ID = host backendu) i wymaga assetlinks.json / AASA tylko na hostach prod
-// i shadow – staging i dev client go nie mają, więc funkcja działa wyłącznie przy udEnv === 'prod'.
-export const passkeysAllowed = (env: string, nativeAvailable: boolean): boolean => env === 'prod' && nativeAvailable;
+// i shadow – staging ma je tylko dla buildów z Play (EXPO_PUBLIC_PASSKEYS_STAGING), dev client i APK z EAS nie.
+export const passkeysAllowed = (env: string, nativeAvailable: boolean, onStaging = false): boolean =>
+  (env === 'prod' || (env === 'staging' && onStaging)) && nativeAvailable;
 
 export function passkeysEnabled(): boolean {
   try {
-    return passkeysAllowed(udEnv, !!PasskeyLib && PasskeyLib.isSupported());
+    return passkeysAllowed(udEnv, !!PasskeyLib && PasskeyLib.isSupported(), passkeysOnStaging);
   } catch {
     return false;
   }

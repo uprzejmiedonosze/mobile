@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+- W wersji testowej z Google Play działa logowanie przez Google i kluczem dostępu (passkey) – wcześniej kończyło się błędem.
+
 ## v1.1.1 — 2026-10-16
 
 - Aplikacja jest mniejsza i szybciej się pobiera.

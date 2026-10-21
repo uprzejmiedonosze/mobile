@@ -1,5 +1,19 @@
 # Wydania do App Store i Google Play
 
+> **TYMCZASOWO (od 2026-10-21): profil `production` buduje na backend STAGINGU** – w testach otwartych Play jest aplikacja maksymalnie zbliżona do produkcji (ten sam pakiet, podpis Play, kanał), ale logująca do projektu staging. Patrz „Testy otwarte na stagingu”.
+
+## Testy otwarte na stagingu (przed premierą)
+Profil `production` w `eas.json`: `EXPO_PUBLIC_UD_ENV=staging`, `EXPO_PUBLIC_SENTRY_ENV=staging`, `EXPO_PUBLIC_PASSKEYS_STAGING=1`.
+Build z Play jest podpisany **kluczem Play App Signing** (Play Console → Test and release → App integrity → *App signing key certificate*: SHA-1 i SHA-256), więc:
+- **Google:** klient OAuth typu Android `net.uprzejmiedonosze.pro` + SHA-1 klucza Play App Signing w projekcie **staging** (`uprzejmiedonosze-1494607701827`). Para package + SHA-1 może być tylko w jednym kliencie w całym Google Cloud – jeśli jest w prod, najpierw usuń ją z proda.
+- **Passkey:** backend stagingu – `src/.well-known/assetlinks.json` (`delegate_permission/common.get_login_creds`, `net.uprzejmiedonosze.pro`, SHA-256 klucza Play) i env `PASSKEY_ANDROID_KEY_HASHES` (ten SHA-256 w base64url) na `staging.uprzejmiedonosze.net`.
+
+**Przełączenie na produkcję** (przed pierwszym wydaniem na produkcję):
+1. `eas.json` → `production.env`: `EXPO_PUBLIC_UD_ENV=prod`, `EXPO_PUBLIC_SENTRY_ENV=prod`, usuń `EXPO_PUBLIC_PASSKEYS_STAGING`.
+2. Klient OAuth Android (SHA-1 klucza Play) przenieś ze stagingu do proda (klient „UD Pro – Google Play”). Usunięta para bywa przez jakiś czas zablokowana – zrób to z zapasem.
+3. `assetlinks.json` i `PASSKEY_ANDROID_KEY_HASHES` z kluczem Play na prodzie (staging może je zachować).
+4. Nowy tag i build. Konta testerów ze stagingu nie przechodzą na prod – trzeba zalogować się od nowa.
+
 ## Wersjonowanie
 - **SemVer `X.Y.Z`**, źródłem prawdy o ostatnim wydaniu są **tagi git `vX.Y.Z`** (`scripts/bump-version.sh`). Plik `VERSION` = wersja w przygotowaniu / ostatnio wydana.
 - `VERSION` zasila `app.config.js` (→ `expo.version` = iOS `CFBundleShortVersionString`, Android `versionName`). `package.json`, `package-lock.json` i `app.json` (fallback dla Expo Go) synchronizuje `scripts/apply-version.sh`; test `bumpVersion.test.ts` pilnuje spójności.
@@ -59,7 +73,7 @@ Natywne logowanie Google na Androidzie wymaga klienta OAuth typu **Android** (pa
 | `development` | `net.uprzejmiedonosze.pro.dev` | keystore EAS (`.dev`) | staging `uprzejmiedonosze-1494607701827` | tak – klient „Uprzejmie Donoszę Pro” w stagingu (`.dev`) |
 | `staging`, `picker-ab`, `staging-play` | `net.uprzejmiedonosze.pro` | keystore EAS / klucz Play | staging | **nie** (pary są w prodzie) |
 | `shadow` | `net.uprzejmiedonosze.pro` | keystore EAS | prod `uprzejmie-donosze` | tak – klient „UD Pro – EAS” |
-| `production` | `net.uprzejmiedonosze.pro` | klucz Play (App signing) | prod `uprzejmie-donosze` | tak – klient „UD Pro – Google Play” |
+| `production` | `net.uprzejmiedonosze.pro` | klucz Play (App signing) | prod `uprzejmie-donosze` (**tymczasowo staging** – „Testy otwarte na stagingu”) | tak – klient „UD Pro – Google Play” (tymczasowo w projekcie staging) |
 
 - SHA-1 klucza Play: Play Console → Protected with Play → Play Store protection → Play app signing → *App signing key certificate* (nie *Upload key*). SHA-1 keystore'a EAS: `eas credentials -p android` → profil.
 - Weryfikacja własności aplikacji przy kliencie Android i ostrzeżenie o limicie 100 logowań dla scope'ów wrażliwych nie dotyczą logowania (używamy tylko `openid`/`email`/`profile`).

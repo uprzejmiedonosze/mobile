@@ -18,8 +18,9 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_UD_ENV": "prod",
-        "EXPO_PUBLIC_SENTRY_ENV": "prod"
+        "EXPO_PUBLIC_UD_ENV": "staging",
+        "EXPO_PUBLIC_SENTRY_ENV": "staging",
+        "EXPO_PUBLIC_PASSKEYS_STAGING": "1"
       }
     },
     "staging": {
