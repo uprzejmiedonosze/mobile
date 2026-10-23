@@ -17,7 +17,7 @@ import { downscale } from '../lib/resize';
 import { PATRONEM_DEFAULT } from '../lib/sex';
 import { usePhotoQuota } from '../lib/usePhotoQuota';
 import { toast } from '../store/useToast';
-import { ud, inputColors } from '../theme';
+import { ud, inputColors, switchColors } from '../theme';
 
 const input = { backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusButton, paddingHorizontal: 12, paddingVertical: 9, color: ud.text } as const;
 
@@ -25,7 +25,7 @@ const Row = ({ on, onChange, title, children }: { on: boolean; onChange: (v: boo
   <View style={{ marginTop: 12 }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
       <Text style={{ color: ud.heading, fontFamily: ud.fontBodyBold, flex: 1 }}>{title}</Text>
-      <Switch value={on} onValueChange={onChange} trackColor={{ true: ud.primary }} />
+      <Switch value={on} onValueChange={onChange} {...switchColors} />
     </View>
     {children}
   </View>

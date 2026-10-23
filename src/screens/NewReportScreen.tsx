@@ -28,7 +28,7 @@ import { udConfig } from '../config';
 import { openUdPage } from '../lib/openPage';
 import { useNewReport } from '../store/useNewReport';
 import { toast } from '../store/useToast';
-import { ud, inputColors } from '../theme';
+import { ud, inputColors, switchColors } from '../theme';
 import type { Category, GeoAddress, PhotoItem, RecydywaEntry, RecydywaInfo } from '../types';
 
 type Extension = { title: string; price?: string; disabled?: boolean };
@@ -550,7 +550,7 @@ export function NewReportScreen({ navigation, route }: any) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           {/* jak na www: `bylam` z backendu (sexStrings) – „Byłem/Byłam/Byłam/em świadkiem …” */}
           <Text style={{ flex: 1, color: ud.text }}>{bylam.charAt(0).toUpperCase() + bylam.slice(1)} świadkiem momentu parkowania</Text>
-          <Switch value={form.witness} onValueChange={(v) => set('witness', v)} trackColor={{ true: ud.primary }} />
+          <Switch value={form.witness} onValueChange={(v) => set('witness', v)} {...switchColors} />
         </View>
 
         <View style={{ marginTop: 20 }}>

@@ -7,7 +7,7 @@ import { validIdToken } from '../api/udApi';
 import { vehicleLine } from '../api/vehicle';
 import { log } from '../lib/log';
 import { useSession } from '../store/useSession';
-import { ud, inputColors } from '../theme';
+import { ud, inputColors, switchColors } from '../theme';
 import { UdButton, UdCard, UdHeader, UdPhoto, UdTabs } from '../components/UD';
 import type { Category } from '../types';
 
@@ -101,7 +101,7 @@ export function ProposalsScreen({ navigation }: any) {
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
                 <Text style={{ color: ud.text }}>Byłem świadkiem parkowania</Text>
-                <Switch value={item.witness} onValueChange={(v) => updateProposal(item.id, { witness: v })} trackColor={{ true: ud.primary }} />
+                <Switch value={item.witness} onValueChange={(v) => updateProposal(item.id, { witness: v })} {...switchColors} />
               </View>
               <Text style={{ color: item.status === 'ready' ? ud.primary : ud.warning, fontWeight: '700', marginTop: 6 }}>
                 {item.status === 'ready' ? '● gotowe' : '● do poprawy'}

@@ -6,6 +6,7 @@
 - Gdy zgłaszasz pojazd, który tego samego dnia już zgłosiłeś/aś, formularz wyraźnie ostrzega, że to może być duplikat, i podaje numer wcześniejszego zgłoszenia.
 - Opis wykroczenia, mandat i podstawę prawną w oknie „Więcej” można zaznaczyć i skopiować (przytrzymaj tekst).
 - Pola tekstowe przy ciemnym motywie telefonu nie pokazują już białego tekstu na białym tle – podpowiedzi, kursor i zaznaczenie mają kolory aplikacji.
+- Wyłączony przełącznik (np. „Byłem/am świadkiem”) jest lepiej widoczny – nie zlewa się już z tłem.
 
 ## v1.1.2 — 2026-10-23
 

@@ -42,3 +42,10 @@ export const inputColors = {
   selectionColor: 'rgba(13, 122, 85, 0.3)',
   selectionHandleColor: ud.primary,
 } as const;
+
+// Przełączniki: wyłączony miał domyślny jasnoszary tor i kciuk – zlewał się z tłem. Rozwijane w <Switch {...switchColors}>.
+export const switchColors = {
+  trackColor: { false: ud.muted, true: ud.primary },
+  thumbColor: '#ffffff',
+  ios_backgroundColor: ud.muted,
+} as const;
