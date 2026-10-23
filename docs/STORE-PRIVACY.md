@@ -67,7 +67,7 @@ Polityka dziś mówi o serwisie www, Matomo, Firebase, Sentry, cookies. **Nie ws
 Punkty 1–7 zostały dopisane w `../uprzejmiedonosze/src/templates/polityka-prywatnosci.html.twig` (sekcje VI–VIII) – do przeglądu prawnego i wdrożenia.
 
 ## 5. Uprawnienia Androida (Play)
-Zadeklarowane: `ACCESS_MEDIA_LOCATION`, `READ_MEDIA_IMAGES`, `READ_MEDIA_VISUAL_USER_SELECTED`. Appka używa **własnego pickera** na `MediaLibrary`
+Zadeklarowane: `ACCESS_MEDIA_LOCATION`, `READ_MEDIA_IMAGES`, `READ_MEDIA_VISUAL_USER_SELECTED` (Android 13+) oraz `READ_EXTERNAL_STORAGE` (Android ≤12 – bez niego galeria tam nie działa; `expo-media-library` sam prosi o właściwe uprawnienie wg wersji systemu, biblioteki deklarują je z `maxSdkVersion=32`). Appka używa **własnego pickera** na `MediaLibrary`
 (`PhotoPickerHost.tsx`: systemowy picker w buildzie release nie zwracał potrzebnych danych), więc deklaracja **Photo and Video Permissions** jest
 konieczna: uzasadnienie = *core functionality* – zgłoszenie wymaga wyboru zdjęć z galerii wraz z metadanymi EXIF (data, GPS), których systemowy
 Photo Picker nie dostarcza bez `ACCESS_MEDIA_LOCATION`. Alternatywa: przejść na Photo Picker (bez `READ_MEDIA_IMAGES`) i czytać EXIF z URI – wymaga testów.
