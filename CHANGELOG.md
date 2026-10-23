@@ -3,6 +3,7 @@
 - Lista zgłoszeń przy słabym internecie nie pokazuje już statusów po angielsku i pozwala je zmieniać – słownik statusów pobiera się ponownie przy odświeżeniu listy.
 - Na ekranie nowego zgłoszenia klawiatura nie zasłania już dolnej części formularza – po wpisaniu komentarza od razu zaznaczysz świadka i przejdziesz dalej.
 - Przy ograniczonym dostępie do zdjęć okno wyboru pokazuje przycisk „Wybierz więcej zdjęć”, więc można dobrać kolejne zdjęcia bez zmiany ustawień telefonu; gdy nie ma żadnego zdjęcia, zamiast pustego ekranu widać komunikat.
+- Po pierwszym udzieleniu zgody na dostęp do zdjęć galeria od razu pokazuje zdjęcia – wcześniej trzeba było anulować i otworzyć ją ponownie.
 - Gdy zgłaszasz pojazd, który tego samego dnia już zgłosiłeś/aś, formularz wyraźnie ostrzega, że to może być duplikat, i podaje numer wcześniejszego zgłoszenia.
 - Opis wykroczenia, mandat i podstawę prawną w oknie „Więcej” można zaznaczyć i skopiować (przytrzymaj tekst).
 - Pola tekstowe przy ciemnym motywie telefonu nie pokazują już białego tekstu na białym tle – podpowiedzi, kursor i zaznaczenie mają kolory aplikacji.

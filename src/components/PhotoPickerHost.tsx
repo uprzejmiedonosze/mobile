@@ -32,16 +32,21 @@ export function PhotoPickerHost() {
   const cursor = useRef<{ after?: string; more: boolean }>({ more: true });
   // Android 14+ / iOS: „Zezwól na ograniczony dostęp” – widać tylko zdjęcia wybrane w systemowym oknie; dobieramy kolejne przyciskiem.
   const [limited, setLimited] = useState(false);
+  // Okno pickera pokazujemy dopiero po zgodzie: systemowy dialog uprawnień nad otwartym Modalem zostawiał pustą listę
+  // (dopiero „Anuluj” i ponowne otwarcie pokazywało zdjęcia – zgłoszenie testera).
+  const [ready, setReady] = useState(false);
 
   const loadMore = useCallback(async () => {
     if (loading || !cursor.current.more) return;
     setLoading(true);
+    const query = () => MediaLibrary.getAssetsAsync({ first: PAGE, after: cursor.current.after, mediaType: 'photo', sortBy: [[MediaLibrary.SortBy.creationTime, false]] });
     try {
-      const page = await MediaLibrary.getAssetsAsync({ first: PAGE, after: cursor.current.after, mediaType: 'photo', sortBy: [[MediaLibrary.SortBy.creationTime, false]] });
+      // tuż po nadaniu zgody pierwsze zapytanie potrafi się nie udać – jedna powtórka zamiast pustej listy
+      const page = await query().catch(() => new Promise<void>((ok) => setTimeout(ok, 500)).then(query));
       cursor.current = { after: page.endCursor, more: page.hasNextPage };
       setAssets((a) => [...a, ...page.assets]);
     } catch (e: any) {
-      log.warn('galeria', `getAssetsAsync: ${String(e?.message ?? e).slice(0, 150)}`);
+      log.error('galeria', `getAssetsAsync: ${String(e?.message ?? e).slice(0, 150)}`);
       cursor.current.more = false;
     } finally {
       setLoading(false);
@@ -51,6 +56,7 @@ export function PhotoPickerHost() {
   // przy każdym otwarciu: zgoda → pierwsza strona
   const open = !!request;
   useEffect(() => {
+    setReady(false);
     if (!open) return;
     setAssets([]); setSelected([]); cursor.current = { more: true };
     (async () => {
@@ -58,6 +64,7 @@ export function PhotoPickerHost() {
       if (!perm.granted) perm = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
       if (!perm.granted) { close('unavailable'); return; }
       setLimited(perm.accessPrivileges === 'limited');
+      setReady(true);
       loadMore();
     })().catch((e) => { log.warn('galeria', String(e?.message ?? e)); close('unavailable'); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,7 +109,7 @@ export function PhotoPickerHost() {
     }
   };
 
-  if (!request) return null;
+  if (!request || !ready) return null;
   const ok = selected.length >= request.min;
   return (
     <Modal visible animationType="slide" onRequestClose={() => close([])}>
