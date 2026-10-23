@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+## v1.1.2 — 2026-10-23
+
 - W wersji testowej z Google Play działa logowanie przez Google i kluczem dostępu (passkey) – wcześniej kończyło się błędem.
 - Na telefonach z Androidem 12 i starszym można wybrać zdjęcia z galerii – wcześniej aplikacja kończyła z komunikatem „Brak zgody na galerię”.
 - Zgłoszenie ze zdjęcia zrobionego przed chwilą nie jest już odrzucane jako „data z przyszłości”.
