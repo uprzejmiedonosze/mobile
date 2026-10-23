@@ -30,6 +30,8 @@ export function PhotoPickerHost() {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const cursor = useRef<{ after?: string; more: boolean }>({ more: true });
+  // Android 14+ / iOS: „Zezwól na ograniczony dostęp” – widać tylko zdjęcia wybrane w systemowym oknie; dobieramy kolejne przyciskiem.
+  const [limited, setLimited] = useState(false);
 
   const loadMore = useCallback(async () => {
     if (loading || !cursor.current.more) return;
@@ -55,10 +57,26 @@ export function PhotoPickerHost() {
       let perm = await MediaLibrary.getPermissionsAsync(false, ['photo']);
       if (!perm.granted) perm = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
       if (!perm.granted) { close('unavailable'); return; }
+      setLimited(perm.accessPrivileges === 'limited');
       loadMore();
     })().catch((e) => { log.warn('galeria', String(e?.message ?? e)); close('unavailable'); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Systemowe okno dobrania zdjęć do ograniczonego dostępu, potem lista od nowa (zaznaczenia zostają, jeśli zdjęcia nadal są dostępne).
+  const pickMore = async () => {
+    try {
+      await MediaLibrary.presentPermissionsPickerAsync(['photo']);
+    } catch (e: any) {
+      log.warn('galeria', `presentPermissionsPickerAsync: ${String(e?.message ?? e).slice(0, 150)}`);
+    }
+    const page = await MediaLibrary.getAssetsAsync({ first: PAGE, mediaType: 'photo', sortBy: [[MediaLibrary.SortBy.creationTime, false]] })
+      .catch(() => null);
+    if (!page) return;
+    cursor.current = { after: page.endCursor, more: page.hasNextPage };
+    setAssets(page.assets);
+    setSelected((sel) => sel.filter((id) => page.assets.some((a) => a.id === id)));
+  };
 
   const toggle = (id: string) =>
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : s.length >= (request?.limit ?? 1) ? s : [...s, id]));
@@ -102,6 +120,17 @@ export function PhotoPickerHost() {
             numColumns={COLS}
             onEndReachedThreshold={0.6}
             onEndReached={loadMore}
+            ListHeaderComponent={limited ? (
+              <Pressable onPress={pickMore} style={{ margin: 12, padding: 12, borderRadius: ud.radiusSm, borderWidth: 1, borderColor: ud.primary }}>
+                <Text style={{ color: ud.text }}>Aplikacja widzi tylko zdjęcia, które jej udostępniłeś/aś.</Text>
+                <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, marginTop: 4 }}>Wybierz więcej zdjęć</Text>
+              </Pressable>
+            ) : null}
+            ListEmptyComponent={loading ? null : (
+              <Text style={{ color: ud.muted, textAlign: 'center', margin: 24 }}>
+                {limited ? 'Brak udostępnionych zdjęć – użyj przycisku powyżej.' : 'Brak zdjęć w galerii.'}
+              </Text>
+            )}
             ListFooterComponent={loading ? <ActivityIndicator style={{ margin: 16 }} color={ud.primary} /> : null}
             contentContainerStyle={{ paddingBottom: insets.bottom + 8 }}
             renderItem={({ item }) => {
