@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+- Lista zgłoszeń przy słabym internecie nie pokazuje już statusów po angielsku i pozwala je zmieniać – słownik statusów pobiera się ponownie przy odświeżeniu listy.
+
 ## v1.1.2 — 2026-10-23
 
 - W wersji testowej z Google Play działa logowanie przez Google i kluczem dostępu (passkey) – wcześniej kończyło się błędem.

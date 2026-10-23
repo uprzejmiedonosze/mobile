@@ -329,11 +329,23 @@ export function ReportsScreen({ navigation, route }: any) {
     [],
   );
 
+  // Słownik statusów: przy słabym necie fetchStatuses() zwraca {} – wtedy karty pokazywały surowe klucze (po angielsku)
+  // i nie dało się zmienić statusu. Pusty słownik pobieramy ponownie przy każdym przeładowaniu listy.
+  const statusesLoaded = useRef(false);
+  const loadStatuses = useCallback(() => {
+    if (statusesLoaded.current) return;
+    fetchStatuses().then((s) => {
+      if (!Object.keys(s).length) return;
+      statusesLoaded.current = true;
+      setStatuses(s);
+    });
+  }, []);
+
   useEffect(() => {
-    fetchStatuses().then(setStatuses);
+    loadStatuses();
     refreshCounts();
     fetchCategories().then(setCats);
-  }, [refreshCounts]);
+  }, [refreshCounts, loadStatuses]);
 
   // Debounce wyszukiwarki – backend robi LIKE po całym JSON-ie zgłoszenia.
   useEffect(() => {
@@ -343,7 +355,7 @@ export function ReportsScreen({ navigation, route }: any) {
 
   const load = useCallback(async (reset: boolean) => {
     const id = ++reqId.current;
-    if (reset) refreshCounts();
+    if (reset) { refreshCounts(); loadStatuses(); }
     try {
       const offset = reset ? 0 : apps.length;
       // bez aktywnego chipa = „active” (jak domyślna lista na www: bez archiwum; archiwum po wybraniu chipa)
@@ -359,7 +371,7 @@ export function ReportsScreen({ navigation, route }: any) {
     } finally {
       if (id === reqId.current) { setLoading(false); setRefreshing(false); }
     }
-  }, [filter, query, apps.length, refreshCounts]);
+  }, [filter, query, apps.length, refreshCounts, loadStatuses]);
 
   useEffect(() => {
     setLoading(true);
