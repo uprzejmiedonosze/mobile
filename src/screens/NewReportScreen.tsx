@@ -28,7 +28,7 @@ import { udConfig } from '../config';
 import { openUdPage } from '../lib/openPage';
 import { useNewReport } from '../store/useNewReport';
 import { toast } from '../store/useToast';
-import { ud } from '../theme';
+import { ud, inputColors } from '../theme';
 import type { Category, GeoAddress, PhotoItem, RecydywaEntry, RecydywaInfo } from '../types';
 
 type Extension = { title: string; price?: string; disabled?: boolean };
@@ -473,7 +473,7 @@ export function NewReportScreen({ navigation, route }: any) {
         {fieldErr('images')}
 
         <L>Numer rejestracyjny</L>
-        <TextInput style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }, lock.photoFields && locked]} editable={!lock.photoFields} value={form.plateId} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => { edited.current.plate = true; setPlateTouched(true); set('plateId', t); }} />
+        <TextInput {...inputColors} style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }, lock.photoFields && locked]} editable={!lock.photoFields} value={form.plateId} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => { edited.current.plate = true; setPlateTouched(true); set('plateId', t); }} />
         {fieldErr('plateId')}
         {weightWarning ? <Text style={{ color: ud.warning, marginTop: 6 }}>{weightWarning}</Text> : null}
         <DuplicateWarning r={ownSameDayReport(recydywa, form.datetime, app?.id)} />
@@ -484,7 +484,7 @@ export function NewReportScreen({ navigation, route }: any) {
         {form.plateId2 ? (
           <>
             <L>Drugi pojazd (to samo wykroczenie)</L>
-            <TextInput style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }, lock.photoFields && locked]} editable={!lock.photoFields} value={form.plateId2} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => set('plateId2', t)} />
+            <TextInput {...inputColors} style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }, lock.photoFields && locked]} editable={!lock.photoFields} value={form.plateId2} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => set('plateId2', t)} />
             {fieldErr('plateId2')}
             {weightWarning2 ? <Text style={{ color: ud.warning, marginTop: 6 }}>{weightWarning2}</Text> : null}
             <DuplicateWarning r={ownSameDayReport(recydywa2, form.datetime, app?.id)} />
@@ -502,7 +502,7 @@ export function NewReportScreen({ navigation, route }: any) {
         {form.lat == null ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 4 }}>Brak lokalizacji ze zdjęcia – wskaż miejsce na mapie.</Text> : null}
 
         <L>Adres (z GPS zdjęcia, możesz poprawić)</L>
-        <TextInput style={[input, lock.address && locked]} editable={!lock.address} value={form.address} maxLength={70} onChangeText={(t) => { edited.current.address = true; setAddrNote(null); set('address', t); }} onEndEditing={lookupAddress} />
+        <TextInput {...inputColors} style={[input, lock.address && locked]} editable={!lock.address} value={form.address} maxLength={70} onChangeText={(t) => { edited.current.address = true; setAddrNote(null); set('address', t); }} onEndEditing={lookupAddress} />
         {addrNote ? <Text style={{ color: ud.warning, marginTop: 4 }}>{addrNote}</Text> : null}
         {fieldErr('address')}
 
@@ -533,7 +533,7 @@ export function NewReportScreen({ navigation, route }: any) {
         <CategoryRow c={{ id: 0, title: 'Pozostałe przypadki', short: 'Opisz sytuację w komentarzu.' }} on={form.category === 0} onPress={() => chooseCategory(0)} />
 
         <L>Komentarz{form.category === 0 ? ' (wymagany)' : ''}</L>
-        <TextInput style={[input, { minHeight: 80, textAlignVertical: 'top' }]} multiline value={form.comment} onChangeText={(t) => set('comment', t)} onEndEditing={() => { const w = !form.witness && commentWarning(form.comment); if (w) toast.info(`${w} Sprawdź opcję „świadek momentu parkowania”.`); }} placeholder="Dodatkowy opis wykroczenia" />
+        <TextInput {...inputColors} style={[input, { minHeight: 80, textAlignVertical: 'top' }]} multiline value={form.comment} onChangeText={(t) => set('comment', t)} onEndEditing={() => { const w = !form.witness && commentWarning(form.comment); if (w) toast.info(`${w} Sprawdź opcję „świadek momentu parkowania”.`); }} placeholder="Dodatkowy opis wykroczenia" />
         {fieldErr('comment')}
 
         {Object.keys(exts).length ? (

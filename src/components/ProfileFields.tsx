@@ -1,6 +1,6 @@
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { openUdPage } from '../lib/openPage';
-import { ud } from '../theme';
+import { ud, inputColors } from '../theme';
 import { EMPTY_PROFILE, profileErrors, profileValid, type ProfileDraft } from '../lib/profile';
 
 export { EMPTY_PROFILE, profileValid, type ProfileDraft };
@@ -44,25 +44,25 @@ export function ProfileFields({ value: p, onChange, email, disabled, navigation,
       </Text>
 
       <Text style={label}>Imię i nazwisko, które posłużą SM do identyfikacji autora zgłoszenia</Text>
-      <TextInput style={input} value={p.name} onChangeText={(name) => onChange({ name })} maxLength={30} editable={!disabled} autoCapitalize="words" autoComplete="name" placeholder="(twoje imię i nazwisko)" />
+      <TextInput {...inputColors} style={input} value={p.name} onChangeText={(name) => onChange({ name })} maxLength={30} editable={!disabled} autoCapitalize="words" autoComplete="name" placeholder="(twoje imię i nazwisko)" />
       {fieldErr(err.name)}
 
       {email !== undefined ? (
         <>
           <Text style={label}>E-mail został pobrany automatycznie w trakcie logowania</Text>
-          <TextInput style={[input, { opacity: 0.6 }]} value={email} editable={false} />
+          <TextInput {...inputColors} style={[input, { opacity: 0.6 }]} value={email} editable={false} />
         </>
       ) : null}
 
       <Text style={label}>Adres zamieszkania wraz z numerem lokalu i miastem</Text>
-      <TextInput style={input} value={p.address} onChangeText={(address) => onChange({ address })} maxLength={70} editable={!disabled} autoComplete="street-address" placeholder="(Ulica 10a/7, Miasto)" />
+      <TextInput {...inputColors} style={input} value={p.address} onChangeText={(address) => onChange({ address })} maxLength={70} editable={!disabled} autoComplete="street-address" placeholder="(Ulica 10a/7, Miasto)" />
       {fieldErr(err.address)}
 
       <Text style={label}>Numer kontaktowy (opcjonalny, ale ułatwi SM kontakt z Tobą)</Text>
-      <TextInput style={input} value={p.msisdn} onChangeText={(msisdn) => onChange({ msisdn })} maxLength={12} keyboardType="phone-pad" editable={!disabled} placeholder="666 666 666" />
+      <TextInput {...inputColors} style={input} value={p.msisdn} onChangeText={(msisdn) => onChange({ msisdn })} maxLength={12} keyboardType="phone-pad" editable={!disabled} placeholder="666 666 666" />
 
       <Text style={label}>Adres e-Doręczeń (opcjonalny)</Text>
-      <TextInput style={input} value={p.edelivery} onChangeText={(edelivery) => onChange({ edelivery: edelivery.toUpperCase() })} maxLength={26} autoCapitalize="characters" autoCorrect={false} editable={!disabled} placeholder="AE:PL-00000-00000-AAAAA-00" />
+      <TextInput {...inputColors} style={input} value={p.edelivery} onChangeText={(edelivery) => onChange({ edelivery: edelivery.toUpperCase() })} maxLength={26} autoCapitalize="characters" autoCorrect={false} editable={!disabled} placeholder="AE:PL-00000-00000-AAAAA-00" />
       {fieldErr(err.edelivery)}
 
       <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 22, marginTop: 24 }}>Ustawienia</Text>

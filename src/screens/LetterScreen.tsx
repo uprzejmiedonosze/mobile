@@ -17,7 +17,7 @@ import { downscale } from '../lib/resize';
 import { PATRONEM_DEFAULT } from '../lib/sex';
 import { usePhotoQuota } from '../lib/usePhotoQuota';
 import { toast } from '../store/useToast';
-import { ud } from '../theme';
+import { ud, inputColors } from '../theme';
 
 const input = { backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusButton, paddingHorizontal: 12, paddingVertical: 9, color: ud.text } as const;
 
@@ -108,7 +108,7 @@ function CaseCard({ result, letter, statuses }: { result: LetterCaseResult; lett
 
           {p.set.externalId !== null ? (
             <Row on={draft.useExternalId} onChange={(v) => setDraft({ ...draft, useExternalId: v })} title="Numer sprawy">
-              <TextInput value={draft.externalId} onChangeText={(t) => setDraft({ ...draft, externalId: t })} autoCapitalize="characters" style={{ ...input, marginTop: 6 }} />
+              <TextInput {...inputColors} value={draft.externalId} onChangeText={(t) => setDraft({ ...draft, externalId: t })} autoCapitalize="characters" style={{ ...input, marginTop: 6 }} />
             </Row>
           ) : null}
           {conflict ? (
@@ -119,7 +119,7 @@ function CaseCard({ result, letter, statuses }: { result: LetterCaseResult; lett
 
           {p.append.privateComment !== null ? (
             <Row on={draft.useNote} onChange={(v) => setDraft({ ...draft, useNote: v })} title="Dopisz do uwag (widocznych tylko dla Ciebie)">
-              <TextInput value={draft.note} onChangeText={(t) => setDraft({ ...draft, note: t })} multiline style={{ ...input, marginTop: 6, minHeight: 64, textAlignVertical: 'top' }} />
+              <TextInput {...inputColors} value={draft.note} onChangeText={(t) => setDraft({ ...draft, note: t })} multiline style={{ ...input, marginTop: 6, minHeight: 64, textAlignVertical: 'top' }} />
             </Row>
           ) : null}
 

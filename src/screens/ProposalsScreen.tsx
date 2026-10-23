@@ -7,7 +7,7 @@ import { validIdToken } from '../api/udApi';
 import { vehicleLine } from '../api/vehicle';
 import { log } from '../lib/log';
 import { useSession } from '../store/useSession';
-import { ud } from '../theme';
+import { ud, inputColors } from '../theme';
 import { UdButton, UdCard, UdHeader, UdPhoto, UdTabs } from '../components/UD';
 import type { Category } from '../types';
 
@@ -70,7 +70,7 @@ export function ProposalsScreen({ navigation }: any) {
                 <Text key={r} style={{ color: ud.warning }}>• {r}</Text>
               ))}
               <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>Numer rejestracyjny</Text>
-              <TextInput value={item.plateId ?? ''} onChangeText={(t) => updateProposal(item.id, { plateId: t || null })} placeholder="np. ZS 060NH" autoCapitalize="characters" style={{ borderWidth: 2, borderColor: ud.primary, borderRadius: ud.radiusSm, padding: 10, marginTop: 6, fontFamily: 'monospace', fontWeight: '700' }} />
+              <TextInput {...inputColors} value={item.plateId ?? ''} onChangeText={(t) => updateProposal(item.id, { plateId: t || null })} placeholder="np. ZS 060NH" autoCapitalize="characters" style={{ borderWidth: 2, borderColor: ud.primary, borderRadius: ud.radiusSm, padding: 10, marginTop: 6, fontFamily: 'monospace', fontWeight: '700' }} />
               <Text style={{ color: ud.muted, marginTop: 4 }}>{vehicleLine(item.vehicleInfo)}</Text>
               {item.recydywa && item.recydywa.appsCnt > 0 ? (
                 <View style={{ backgroundColor: ud.primaryContainer, borderRadius: ud.radiusSm, padding: 10, marginTop: 6 }}>
@@ -87,7 +87,7 @@ export function ProposalsScreen({ navigation }: any) {
                 </View>
               ) : null}
               <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>Adres (z GPS, popraw)</Text>
-              <TextInput value={item.addressText} onChangeText={(t) => updateProposal(item.id, { addressText: t })} placeholder="ulica nr, miasto" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusSm, padding: 10, marginTop: 6 }} />
+              <TextInput {...inputColors} value={item.addressText} onChangeText={(t) => updateProposal(item.id, { addressText: t })} placeholder="ulica nr, miasto" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusSm, padding: 10, marginTop: 6 }} />
               <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>Kategoria: {item.categoryId ?? '—'}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
                 {cats.slice(0, 27).map((c) => {

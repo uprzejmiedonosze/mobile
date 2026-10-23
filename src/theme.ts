@@ -33,3 +33,12 @@ export const ud = {
   fontBody: 'PublicSans_400Regular',
   fontBodyBold: 'PublicSans_700Bold',
 } as const;
+
+// Kolory pól tekstowych: bez nich Android bierze kolor podpowiedzi i kursora z motywu systemu – przy ciemnym motywie
+// jasny tekst na naszym jasnym tle (np. niewidoczny placeholder). Rozwijane w każdym <TextInput {...inputColors}>.
+export const inputColors = {
+  placeholderTextColor: ud.muted,
+  cursorColor: ud.primary,
+  selectionColor: 'rgba(13, 122, 85, 0.3)',
+  selectionHandleColor: ud.primary,
+} as const;

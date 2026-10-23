@@ -6,7 +6,7 @@ import { isPasskeyCancelled, passkeysEnabled } from '../lib/passkey';
 import { googleSignInReady, useAuth } from '../store/useAuth';
 import { udConfig, udEnv } from '../config';
 import { appBuild, appVersion } from '../lib/appVersion';
-import { ud } from '../theme';
+import { ud, inputColors } from '../theme';
 import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
 import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
 
@@ -43,7 +43,7 @@ export function AccountScreen({ navigation }: any) {
         ) : (
           <UdCard>
             <Text style={{ color: ud.heading, fontWeight: '700' }}>1. Podaj e-mail</Text>
-            <TextInput value={a.email} onChangeText={a.setEmail} placeholder="ty@przyklad.pl" autoCapitalize="none" keyboardType="email-address" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6 }} />
+            <TextInput {...inputColors} value={a.email} onChangeText={a.setEmail} placeholder="ty@przyklad.pl" autoCapitalize="none" keyboardType="email-address" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
             <UdButton
               title={a.status === 'link-sending' ? 'Wysyłam…' : 'Wyślij link logowania'}
               variant="primary"
@@ -52,7 +52,7 @@ export function AccountScreen({ navigation }: any) {
             />
             <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>2. Wklej kod z maila</Text>
             <Text style={{ color: ud.muted, marginTop: 2 }}>W mailu jest link – linku NIE klikaj (kod jest jednorazowy), tylko skopiuj z niego parametr oobCode i wklej tu całość lub sam kod.</Text>
-            <TextInput value={code} onChangeText={setCode} placeholder="oobCode… lub cały link" autoCapitalize="none" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6 }} />
+            <TextInput {...inputColors} value={code} onChangeText={setCode} placeholder="oobCode… lub cały link" autoCapitalize="none" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
             <UdButton
               title={a.status === 'verifying' ? 'Weryfikuję…' : 'Zaloguj'}
               variant="accent"
@@ -209,7 +209,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
         ) : (
           <>
             <Text style={label}>Aby potwierdzić, wpisz swój adres e-mail: {email}</Text>
-            <TextInput style={input} value={deleteEmail} onChangeText={setDeleteEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" />
+            <TextInput {...inputColors} style={input} value={deleteEmail} onChangeText={setDeleteEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" />
             <UdButton title={deleting ? 'Kasuję…' : 'Skasuj konto'} variant="outline" onPress={removeAccount} disabled={deleting || deleteEmail.trim().toLowerCase() !== email.toLowerCase()} />
           </>
         )}

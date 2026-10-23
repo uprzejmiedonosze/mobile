@@ -13,7 +13,7 @@ import { openUdPage } from '../lib/openPage';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import type { Category, RecydywaInfo } from '../types';
 import { useAuth } from '../store/useAuth';
-import { ud } from '../theme';
+import { ud, inputColors } from '../theme';
 import { SvgXml } from 'react-native-svg';
 import { CHEVRON_ICON, DATETIME_ICON, DESCRIPTION_ICON, ENCRYPTED_ICON, INFO_ICON, PIN_ICON } from '../assets/detailIcons';
 
@@ -104,7 +104,7 @@ function EditableField({ label, value, multiline, placeholder, onSave, onFocus, 
 
   return (
     <Row label={label}>
-      <TextInput
+      <TextInput {...inputColors}
         value={text}
         onChangeText={(t) => { setText(t); textRef.current = t; if (state === 'error') setState('idle'); }}
         onBlur={commit}
@@ -466,7 +466,7 @@ export function ReportsScreen({ navigation, route }: any) {
         <Pressable onPress={() => { const e = letterEntry(isPatron); navigation.navigate(e.route, e.params); }} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 8 }}>
           <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, textDecorationLine: 'underline' }}>{LETTER_LINK_LABEL}</Text>
         </Pressable>
-        <TextInput
+        <TextInput {...inputColors}
           value={search}
           onChangeText={setSearch}
           placeholder="Adres, numer rej. lub zgłoszenia, komentarz"
