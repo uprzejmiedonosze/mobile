@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+## v1.1.3 — 2026-10-23
+
 - Lista zgłoszeń przy słabym internecie nie pokazuje już statusów po angielsku i pozwala je zmieniać – słownik statusów pobiera się ponownie przy odświeżeniu listy.
 - Na ekranie nowego zgłoszenia klawiatura nie zasłania już dolnej części formularza – po wpisaniu komentarza od razu zaznaczysz świadka i przejdziesz dalej.
 - Przy ograniczonym dostępie do zdjęć okno wyboru pokazuje przycisk „Wybierz więcej zdjęć”, więc można dobrać kolejne zdjęcia bez zmiany ustawień telefonu; gdy nie ma żadnego zdjęcia, zamiast pustego ekranu widać komunikat.
