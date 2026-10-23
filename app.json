@@ -43,7 +43,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Wybierz 1–3 zdjęcia pojazdu do zgłoszenia.",
+          "photosPermission": "Wybór zdjęć pojazdu do zgłoszenia i odczyt z nich daty oraz miejsca wykonania.",
           "cameraPermission": "Zrób zdjęcie pisma z policji lub straży miejskiej, żeby przypisać je do zgłoszenia.",
           "microphonePermission": false
         }
@@ -51,7 +51,7 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Odczyt daty i lokalizacji ze zdjęć wybranych do zgłoszenia.",
+          "photosPermission": "Wybór zdjęć pojazdu do zgłoszenia i odczyt z nich daty oraz miejsca wykonania.",
           "savePhotosPermission": false,
           "isAccessMediaLocationEnabled": true
         }
@@ -59,10 +59,18 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Pokazanie Twojej lokalizacji na mapie przy wskazywaniu miejsca wykroczenia."
+          "locationWhenInUsePermission": "Pokazanie Twojej lokalizacji na mapie przy wskazywaniu miejsca wykroczenia.",
+          "locationAlwaysAndWhenInUsePermission": false,
+          "locationAlwaysPermission": false,
+          "motionUsagePermission": false
         }
       ],
-      "expo-secure-store",
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "@react-native-google-signin/google-signin",
       "expo-font",
       [

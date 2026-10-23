@@ -1,3 +1,5 @@
+jest.mock('react-native', () => ({ Platform: { OS: 'android' } }));
+
 import { passkeysAllowed, isPasskeyCancelled } from '../src/lib/passkey';
 
 describe('passkeysAllowed', () => {

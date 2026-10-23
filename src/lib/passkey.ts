@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { passkeysOnStaging, udEnv } from '../config';
 import { log } from './log';
 
@@ -18,7 +19,8 @@ export const passkeysAllowed = (env: string, nativeAvailable: boolean, onStaging
 
 export function passkeysEnabled(): boolean {
   try {
-    return passkeysAllowed(udEnv, !!PasskeyLib && PasskeyLib.isSupported(), passkeysOnStaging);
+    // Staging ma tylko assetlinks.json (Android); iOS bez webcredentials:staging… w associatedDomains (app.config.js).
+    return passkeysAllowed(udEnv, !!PasskeyLib && PasskeyLib.isSupported(), passkeysOnStaging && Platform.OS === 'android');
   } catch {
     return false;
   }

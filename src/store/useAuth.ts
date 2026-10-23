@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { log } from '../lib/log';
 import {
@@ -32,7 +33,8 @@ try {
   GoogleSignin = mod.GoogleSignin;
   statusCodes = mod.statusCodes;
   isErrorWithCode = mod.isErrorWithCode;
-  GoogleSignin.configure({ webClientId: googleConfig.webClientId });
+  // iOS: logowanie Google ukryte (AccountScreen, wytyczna 4.8), a bez iosClientId natywny configure() odrzuca i loguje błąd.
+  if (Platform.OS !== 'ios') GoogleSignin.configure({ webClientId: googleConfig.webClientId });
 } catch (e: any) {
   googleSignInReady = false;
   log.warn('auth', `Google Sign-In niedostępny (Expo Go / brak natywnego modułu) – logowanie e-mail-link działa normalnie: ${String(e?.message ?? e).slice(0, 150)}`);
