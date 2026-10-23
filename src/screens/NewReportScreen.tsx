@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { type UdApp, imageUrl } from '../api/apps';
 import { fetchConfig } from '../api/dashboard';
@@ -419,11 +419,20 @@ export function NewReportScreen({ navigation, route }: any) {
     } catch (e) { fail(e); } finally { setSubmitting(false); }
   };
 
+  // Klawiatura (jak ReportsScreen): formularz kurczy się nad nią, a pasek zakładek znika – bez tego dolna część formularza
+  // (świadek, „Dalej”) była niedostępna, dopóki nie schowało się klawiatury gestem wstecz.
+  const [kbd, setKbd] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKbd(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKbd(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
   const fieldErr = (f: string) => (err?.field === f ? <Text style={{ color: ud.plateVerified, marginTop: 4 }}>{err.text}</Text> : null);
   if (loading) return <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}><UdHeader /><ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} /></View>;
 
   return (
-    <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       <UdHeader />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {editId ? <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>{`Edycja${app?.number ? ` ${app.number}` : ''}`}</Text> : null}
@@ -549,8 +558,8 @@ export function NewReportScreen({ navigation, route }: any) {
       </ScrollView>
       <CategoryInfo c={catInfo} onClose={() => setCatInfo(null)} onPageLink={(path) => openUdPage(navigation, path)} />
       <MapPicker visible={mapOpen} initial={form.lat != null && form.lng != null ? { lat: form.lat, lng: form.lng } : null} fallback={mapStart} onConfirm={onMapConfirm} onClose={() => setMapOpen(false)} />
-      <UdTabs current="NewReport" navigate={go} />
-    </View>
+      {kbd ? null : <UdTabs current="NewReport" navigate={go} />}
+    </KeyboardAvoidingView>
   );
 }
 

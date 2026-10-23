@@ -1,6 +1,7 @@
 ## RELEASE-CANDIDATE
 
 - Lista zgłoszeń przy słabym internecie nie pokazuje już statusów po angielsku i pozwala je zmieniać – słownik statusów pobiera się ponownie przy odświeżeniu listy.
+- Na ekranie nowego zgłoszenia klawiatura nie zasłania już dolnej części formularza – po wpisaniu komentarza od razu zaznaczysz świadka i przejdziesz dalej.
 
 ## v1.1.2 — 2026-10-23
 
