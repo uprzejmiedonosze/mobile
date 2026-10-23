@@ -1,4 +1,4 @@
-import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor, hasRequiredPhotos, clearFieldError, formLocks } from '../src/lib/reports';
+import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor, hasRequiredPhotos, clearFieldError, formLocks, ownSameDayReport } from '../src/lib/reports';
 
 describe('reports helpers', () => {
   it('formats dates like the web list', () => {
@@ -73,5 +73,21 @@ describe('formLocks (które pola formularza są zablokowane)', () => {
 
   it('blokady są niezależne: zdjęcie bez lokalizacji odblokowuje datę i numer, ale nie adres', () => {
     expect(formLocks({ hasCarPhoto: true, uploading: false, hasLocation: false, geoBusy: false })).toEqual({ photoFields: false, address: true });
+  });
+});
+
+describe('ownSameDayReport', () => {
+  const entry = (o: object) => ({ date: '2026-10-23T10:00:00', status: 'confirmed-waiting', statusLabel: '', recipient: { name: '', shortName: '', isPolice: false }, isOwn: true, reportId: 'a1', ...o });
+  const info = (reports: object[]) => ({ plateId: 'WE12345', appsCnt: reports.length, usersCnt: 1, sharedHistory: false, reports: reports as any });
+
+  it('własne zgłoszenie z tego samego dnia = duplikat', () => {
+    expect(ownSameDayReport(info([entry({})]), '2026-10-23T18:30:00')?.reportId).toBe('a1');
+  });
+  it('inny dzień, cudze zgłoszenie albo edytowane zgłoszenie – nie', () => {
+    expect(ownSameDayReport(info([entry({})]), '2026-10-22T18:30:00')).toBeNull();
+    expect(ownSameDayReport(info([entry({ isOwn: false })]), '2026-10-23T18:30:00')).toBeNull();
+    expect(ownSameDayReport(info([entry({})]), '2026-10-23T18:30:00', 'a1')).toBeNull();
+    expect(ownSameDayReport(null, '2026-10-23T18:30:00')).toBeNull();
+    expect(ownSameDayReport(info([entry({})]), '')).toBeNull();
   });
 });

@@ -1,4 +1,6 @@
 // Czyste helpery prezentacji listy zgłoszeń (testowalne bez RN).
+import type { RecydywaEntry, RecydywaInfo } from '../types';
+
 const WD = ['niedz.', 'pon.', 'wt.', 'śr.', 'czw.', 'pt.', 'sob.'];
 const MONTHS_GEN = ['stycznia', 'lutego', 'marca', 'kwietnia', 'maja', 'czerwca', 'lipca', 'sierpnia', 'września', 'października', 'listopada', 'grudnia'];
 const p2 = (n: number) => String(n).padStart(2, '0');
@@ -124,4 +126,12 @@ export function commentWarning(comment: string): string | null {
   if (/(?:^|[^A-Za-z0-9_])[sś]wiadk\w*/i.test(comment)) msg = 'Używasz słowa „świadek” w komentarzu.';
   if (/(?:^|[^A-Za-z0-9_])pani?/i.test(comment)) msg = 'Używasz słowa „pan/i” w komentarzu.';
   return msg;
+}
+
+// Prawdopodobny duplikat: własne zgłoszenie tego pojazdu z tego samego dnia co bieżące (pomijając edytowane zgłoszenie).
+// Recydywa nie zwraca szkiców ani zgłoszeń w trakcie wysyłki, więc to ostrzeżenie, nie blokada.
+export function ownSameDayReport(info: RecydywaInfo | null, datetime: string, currentId?: string): RecydywaEntry | null {
+  const day = datetime.slice(0, 10);
+  if (!info || !day) return null;
+  return info.reports.find((r) => r.isOwn && r.reportId !== currentId && (r.date ?? '').slice(0, 10) === day) ?? null;
 }

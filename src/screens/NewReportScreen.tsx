@@ -11,7 +11,7 @@ import {
 import { ApiError, isPhotoQuotaError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { log } from '../lib/log';
-import { commentWarning, dropMatchingExtension, clearFieldError, exifToIso, formLocks, hasRequiredPhotos, isExtensionDisabled, plural } from '../lib/reports';
+import { commentWarning, dropMatchingExtension, clearFieldError, exifToIso, fmtLongDate, formLocks, hasRequiredPhotos, isExtensionDisabled, ownSameDayReport, plural } from '../lib/reports';
 import { DateTimeField } from '../components/DateTimeField';
 import { HtmlText } from '../components/HtmlText';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
@@ -29,7 +29,7 @@ import { openUdPage } from '../lib/openPage';
 import { useNewReport } from '../store/useNewReport';
 import { toast } from '../store/useToast';
 import { ud } from '../theme';
-import type { Category, GeoAddress, PhotoItem, RecydywaInfo } from '../types';
+import type { Category, GeoAddress, PhotoItem, RecydywaEntry, RecydywaInfo } from '../types';
 
 type Extension = { title: string; price?: string; disabled?: boolean };
 type Groups = Record<string, { name: string }>;
@@ -476,6 +476,7 @@ export function NewReportScreen({ navigation, route }: any) {
         <TextInput style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }, lock.photoFields && locked]} editable={!lock.photoFields} value={form.plateId} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => { edited.current.plate = true; setPlateTouched(true); set('plateId', t); }} />
         {fieldErr('plateId')}
         {weightWarning ? <Text style={{ color: ud.warning, marginTop: 6 }}>{weightWarning}</Text> : null}
+        <DuplicateWarning r={ownSameDayReport(recydywa, form.datetime, app?.id)} />
         {recydywa && recydywa.appsCnt > 0 ? (
           <Text style={{ color: ud.text, marginTop: 6 }}>❗ Ten pojazd był już zgłaszany: {plural(recydywa.appsCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}.</Text>
         ) : null}
@@ -486,6 +487,7 @@ export function NewReportScreen({ navigation, route }: any) {
             <TextInput style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }, lock.photoFields && locked]} editable={!lock.photoFields} value={form.plateId2} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => set('plateId2', t)} />
             {fieldErr('plateId2')}
             {weightWarning2 ? <Text style={{ color: ud.warning, marginTop: 6 }}>{weightWarning2}</Text> : null}
+            <DuplicateWarning r={ownSameDayReport(recydywa2, form.datetime, app?.id)} />
             {recydywa2 && recydywa2.appsCnt > 0 ? (
               <Text style={{ color: ud.text, marginTop: 6 }}>❗ Drugi pojazd był już zgłaszany: {plural(recydywa2.appsCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}.</Text>
             ) : null}
@@ -594,6 +596,16 @@ function CategoryRow({ c, on, onPress, onMore }: { c: Category; on: boolean; onP
         </Pressable>
       ) : null}
     </Pressable>
+  );
+}
+
+// Własne zgłoszenie tego pojazdu z tego samego dnia – wyraźniej niż zwykła informacja o recydywie.
+function DuplicateWarning({ r }: { r: RecydywaEntry | null }) {
+  if (!r) return null;
+  return (
+    <Text style={{ color: ud.warning, fontFamily: ud.fontBodyBold, marginTop: 6 }}>
+      ⚠️ To może być duplikat – masz już zgłoszenie tego pojazdu z tego dnia ({[r.number, fmtLongDate(r.date ?? undefined)].filter(Boolean).join(', ')}).
+    </Text>
   );
 }
 
