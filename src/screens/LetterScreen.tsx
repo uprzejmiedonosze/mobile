@@ -53,7 +53,7 @@ function CaseCard({ result, letter, statuses }: { result: LetterCaseResult; lett
       await applyLetter(cand.appId, body);
       setDone(true);
     } catch (e: any) {
-      log.error('pismo', e?.message ?? String(e));
+      log.fail('pismo', e);
       setErr(e?.message ?? 'Nie udało się zapisać zmian.');
     } finally {
       setSaving(false);
@@ -166,7 +166,7 @@ export function LetterScreen({ navigation }: any) {
     } catch (e: any) {
       const isQuota = isPhotoQuotaError(e);
       if (isQuota && e.quota) setQuota(e.quota);
-      log.error('pismo', e?.message ?? String(e));
+      log.fail('pismo', e);
       setError({ text: e?.message ? String(e.message) : 'Nie udało się odczytać pisma.', quota: isQuota });
     } finally {
       running.current = false;

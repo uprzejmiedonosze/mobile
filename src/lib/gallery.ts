@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 // importować z podścieżki /legacy, żeby dostać działającą implementację.
 import * as MediaLibrary from 'expo-media-library/legacy';
 import { pickerAb } from '../config';
-import { log } from './log';
+import { log, UserError } from './log';
 import { requestPhotos } from '../store/usePhotoPicker';
 import type { ExifMeta, PhotoItem } from '../types';
 
@@ -58,8 +58,8 @@ export async function takePhoto(): Promise<string | null> {
   let perm = await ImagePicker.getCameraPermissionsAsync();
   if (!perm.granted) perm = await ImagePicker.requestCameraPermissionsAsync();
   if (!perm.granted) {
-    log.error('aparat', 'brak zgody na aparat');
-    throw new Error('Brak zgody na aparat. Możesz wybrać zdjęcie z galerii.');
+    log.warn('aparat', 'brak zgody na aparat');
+    throw new UserError('Brak zgody na aparat. Możesz wybrać zdjęcie z galerii.');
   }
   const res = await launchCamera({ mediaTypes: ['images'], quality: 1 });
   return res.canceled || !res.assets[0] ? null : res.assets[0].uri;
@@ -87,8 +87,8 @@ export async function pickPhotos(left: number, min = 1): Promise<PhotoItem[]> {
   let perm = await ImagePicker.getMediaLibraryPermissionsAsync();
   if (!perm.granted) perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) {
-    log.error('galeria', 'brak zgody na galerię');
-    throw new Error('Brak zgody na galerię');
+    log.warn('galeria', 'brak zgody na galerię');
+    throw new UserError('Brak zgody na galerię');
   }
 
   const res = await launchLibrary({

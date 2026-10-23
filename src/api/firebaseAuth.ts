@@ -8,7 +8,7 @@
 // Sesja: refreshToken w SecureStore, ID token (1h) odświeżany przez securetoken endpoint.
 import * as SecureStore from 'expo-secure-store';
 import { firebaseConfig, firebaseEmulatorHost, udConfig } from '../config';
-import { log, logFetch } from '../lib/log';
+import { log, logFetch, UserError } from '../lib/log';
 
 // Emulator Firebase Auth wystawia te same ścieżki pod własnym hostem (e2e lokalnie, config.firebaseEmulatorHost).
 const IDTK = firebaseEmulatorHost ? `${firebaseEmulatorHost}/identitytoolkit.googleapis.com/v1` : 'https://identitytoolkit.googleapis.com/v1';
@@ -47,7 +47,7 @@ function fbFriendly(msg: string): string {
 // na whiteliscie Authorized Domains projektu Firebase (konsola, poza repo).
 export async function sendEmailLink(email: string): Promise<void> {
   const clean = email.trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new Error('Zły adres e-mail.');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new UserError('Zły adres e-mail.');
   log.info('auth', `wysyłam link na ${clean}`);
   const res = await logFetch('auth', `${IDTK}/accounts:sendOobCode?key=${firebaseConfig.apiKey}`, {
     method: 'POST',

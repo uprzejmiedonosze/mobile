@@ -142,7 +142,7 @@ export function NewReportScreen({ navigation, route }: any) {
   const { quota, setQuota, refresh: refreshQuota } = usePhotoQuota();
   const fail = useCallback((e: any) => {
     const m = e?.message ?? String(e);
-    log.error('nowe', m);
+    log.fail('nowe', e);
     const field = e instanceof ApiError ? e.field : undefined;
     if (isPhotoQuotaError(e) && e.quota) setQuota(e.quota); // serwer odmówił – licznik z błędu, bez dodatkowego żądania
     if (field) setErr({ field, text: m });

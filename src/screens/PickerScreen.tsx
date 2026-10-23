@@ -36,7 +36,7 @@ export function PickerScreen({ navigation }: any) {
     } catch (e: any) {
       const m = e?.message ?? String(e);
       setErr(m);
-      log.error('galeria', m);
+      log.fail('galeria', e);
     } finally {
       setBusy(false);
     }

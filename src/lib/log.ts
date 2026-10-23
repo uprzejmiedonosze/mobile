@@ -41,11 +41,21 @@ function emit(level: LogLevel, tag: string, msg: string) {
   });
 }
 
+// Błąd po stronie użytkownika (odmowa uprawnień, zły e-mail…): komunikat dla niego, nie usterka do Sentry.
+export class UserError extends Error {}
+
+// Oczekiwane błędy: UserError oraz odpowiedzi API z walidacją (422) albo limitem zdjęć (402) – duck typing po `status`,
+// żeby log.ts nie importował api/udApi (cykl importów).
+export const isExpectedError = (e: unknown): boolean =>
+  e instanceof UserError || [402, 422].includes((e as { status?: unknown } | null)?.status as number);
+
 export const log = {
   debug: (tag: string, msg: string) => emit('debug', tag, msg),
   info: (tag: string, msg: string) => emit('info', tag, msg),
   warn: (tag: string, msg: string) => emit('warn', tag, msg),
   error: (tag: string, msg: string) => emit('error', tag, msg),
+  // Wyjątek złapany w UI: oczekiwany → warn (tylko konsola), pozostałe → error (konsola + Sentry).
+  fail: (tag: string, e: unknown) => emit(isExpectedError(e) ? 'warn' : 'error', tag, (e as Error | null)?.message ?? String(e)),
 };
 
 // Klucze, których wartości nigdy nie lądują w logu w całości (tokeny sesji) – Metro
