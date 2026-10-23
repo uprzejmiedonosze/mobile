@@ -28,7 +28,7 @@ import { udConfig } from '../config';
 import { openUdPage } from '../lib/openPage';
 import { useNewReport } from '../store/useNewReport';
 import { toast } from '../store/useToast';
-import { ud, inputColors, switchColors } from '../theme';
+import { ud, inputColors, ripple, switchColors } from '../theme';
 import type { Category, GeoAddress, PhotoItem, RecydywaEntry, RecydywaInfo } from '../types';
 
 type Extension = { title: string; price?: string; disabled?: boolean };
@@ -91,7 +91,7 @@ const selectCard = (on: boolean) => ({ backgroundColor: ud.surface, borderWidth:
 
 function Check({ on, onPress, children, disabled }: { on: boolean; onPress: () => void; children: React.ReactNode; disabled?: boolean }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="checkbox" accessibilityState={{ checked: on, disabled }} style={{ ...selectCard(on), paddingVertical: 10, paddingHorizontal: 14, opacity: disabled ? 0.4 : 1 }}>
+    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="checkbox" accessibilityState={{ checked: on, disabled }} android_ripple={ripple} style={{ ...selectCard(on), overflow: 'hidden', paddingVertical: 10, paddingHorizontal: 14, opacity: disabled ? 0.4 : 1 }}>
       <Text style={{ color: on ? ud.primary : ud.text }}>{children}</Text>
     </Pressable>
   );
@@ -99,7 +99,7 @@ function Check({ on, onPress, children, disabled }: { on: boolean; onPress: () =
 
 function Radio({ on, onPress, children, disabled, hint }: { on: boolean; onPress: () => void; children: React.ReactNode; disabled?: boolean; hint?: string }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="radio" accessibilityState={{ checked: on, disabled }} style={{ ...selectCard(on), paddingVertical: 10, paddingHorizontal: 14, opacity: disabled ? 0.5 : 1 }}>
+    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="radio" accessibilityState={{ checked: on, disabled }} android_ripple={ripple} style={{ ...selectCard(on), overflow: 'hidden', paddingVertical: 10, paddingHorizontal: 14, opacity: disabled ? 0.5 : 1 }}>
       <Text style={{ color: on ? ud.primary : ud.text, fontFamily: ud.fontBodyBold }}>{children}</Text>
       {/* hint przychodzi z sm.json jako HTML (np. generyczne „Podziel się” z mailto) */}
       {hint ? <HtmlText html={hint} style={{ color: ud.muted, fontSize: 12, marginTop: 2 }} /> : null}
@@ -573,7 +573,8 @@ function CategoryRow({ c, on, onPress, onMore }: { c: Category; on: boolean; onP
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ checked: on }}
-      style={{ ...selectCard(on), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 6 }}
+      android_ripple={ripple}
+      style={{ ...selectCard(on), overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, padding: 6 }}
     >
       <View>
         <Image source={{ uri: `${udConfig.base}/img/${c.id}.jpg` }} style={{ width: 80, height: 80, borderRadius: ud.radiusButton, backgroundColor: ud.surfaceCream }} />

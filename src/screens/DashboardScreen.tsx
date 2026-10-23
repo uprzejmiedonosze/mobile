@@ -9,7 +9,7 @@ import { plural } from '../lib/reports';
 import type { PhotoQuota } from '../api/udApi';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
-import { ud } from '../theme';
+import { ripple, rippleOnDark, ud } from '../theme';
 
 const Eyebrow = ({ children }: { children: string }) => (
   <Text style={{ fontFamily: ud.fontBodyBold, color: ud.muted, fontSize: 12, letterSpacing: 1, marginBottom: 10 }}>{children.toUpperCase()}</Text>
@@ -57,7 +57,9 @@ function Stat({ value, label, onPress, highlight }: { value: string; label: stri
     <Pressable
       onPress={onPress}
       disabled={!onPress}
+      android_ripple={highlight ? rippleOnDark : ripple}
       style={{
+        overflow: 'hidden',
         width: highlight ? '100%' : '48.5%',
         backgroundColor: highlight ? ud.primary : ud.surface,
         borderRadius: 22,

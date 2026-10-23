@@ -5,7 +5,7 @@ import { SvgXml } from 'react-native-svg';
 import { TAB_ICONS } from '../assets/tabIcons';
 import { UD_LOGO_ASPECT, UD_LOGO_COLOR, UD_LOGO_SVG } from '../assets/udLogoSvg';
 import { useAuth } from '../store/useAuth';
-import { ud } from '../theme';
+import { ripple, rippleBorderless, rippleOnDark, ud } from '../theme';
 import type { BBox } from '../types';
 
 // Pełne oficjalne logo UD (ikona + napis), zamiast tekstu "UD".
@@ -28,7 +28,7 @@ export function UdHeader({ title, onBack, onNext, nextLabel = 'Dalej', backIcon 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: insets.top + 12, paddingBottom: 12, backgroundColor: ud.primary }}>
       {onBack ? (
-        <Pressable onPress={onBack} hitSlop={12} style={{ minWidth: 70 }}>
+        <Pressable onPress={onBack} hitSlop={12} android_ripple={{ ...rippleOnDark, borderless: true }} style={{ minWidth: 70 }}>
           <SvgXml xml={backIcon === 'edit' ? EDIT_ICON : BACK_ICON} width={24} height={24} />
         </Pressable>
       ) : (
@@ -44,7 +44,7 @@ export function UdHeader({ title, onBack, onNext, nextLabel = 'Dalej', backIcon 
         </View>
       )}
       {onNext ? (
-        <Pressable onPress={onNext} style={{ backgroundColor: ud.accent, borderRadius: ud.radiusPill, paddingHorizontal: 20, paddingVertical: 10 }}>
+        <Pressable onPress={onNext} android_ripple={ripple} style={{ backgroundColor: ud.accent, borderRadius: ud.radiusPill, paddingHorizontal: 20, paddingVertical: 10, overflow: 'hidden' }}>
           <Text style={{ color: ud.onAccent, fontFamily: ud.fontDisplay, fontSize: 15 }}>{nextLabel}</Text>
         </Pressable>
       ) : (
@@ -75,7 +75,8 @@ export function UdButton({ title, onPress, variant = 'primary', disabled, pill }
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={{ backgroundColor: disabled ? ud.primaryOutline : s.bg, borderRadius: pill || variant === 'primary' || variant === 'accent' ? ud.radiusPill : ud.radiusButton, paddingHorizontal: 20, paddingVertical: 13, alignItems: 'center', borderWidth: s.border ? 2 : 0, borderColor: s.border, opacity: disabled ? 0.6 : 1, marginVertical: 6 }}
+      android_ripple={variant === 'primary' ? rippleOnDark : ripple}
+      style={{ overflow: 'hidden', backgroundColor: disabled ? ud.primaryOutline : s.bg, borderRadius: pill || variant === 'primary' || variant === 'accent' ? ud.radiusPill : ud.radiusButton, paddingHorizontal: 20, paddingVertical: 13, alignItems: 'center', borderWidth: s.border ? 2 : 0, borderColor: s.border, opacity: disabled ? 0.6 : 1, marginVertical: 6 }}
     >
       <Text style={{ color: disabled ? ud.muted : s.fg, fontFamily: ud.fontDisplay, fontSize: 15 }}>{title}</Text>
     </Pressable>
@@ -208,7 +209,7 @@ export function UdTabs({ current, navigate }: { current: string; navigate: (r: s
         const active = t.screens.includes(current);
         const color = active ? ud.primary : ud.tabInactive;
         return (
-          <Pressable key={t.key} onPress={() => navigate(t.route)} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+          <Pressable key={t.key} onPress={() => navigate(t.route)} android_ripple={rippleBorderless} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
             <SvgXml xml={t.icon.replace('COLOR', color)} width={22} height={22} />
             <Text style={{ fontSize: 10.5, color, fontFamily: ud.fontBodyBold }}>{t.key}</Text>
           </Pressable>

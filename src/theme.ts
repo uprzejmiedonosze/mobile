@@ -49,3 +49,9 @@ export const switchColors = {
   thumbColor: '#ffffff',
   ios_backgroundColor: ud.muted,
 } as const;
+
+// Efekt dotknięcia (Android, Material ripple) – Pressable go nie ma domyślnie. Na zaokrąglonych elementach razem z
+// overflow: 'hidden', inaczej fala wychodzi poza rogi; `rippleBorderless` dla ikon i zakładek bez tła.
+export const ripple = { color: 'rgba(13, 122, 85, 0.15)' } as const;
+export const rippleOnDark = { color: 'rgba(255, 255, 255, 0.3)' } as const;
+export const rippleBorderless = { color: 'rgba(13, 122, 85, 0.2)', borderless: true } as const;

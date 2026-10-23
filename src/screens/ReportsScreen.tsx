@@ -13,7 +13,7 @@ import { openUdPage } from '../lib/openPage';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import type { Category, RecydywaInfo } from '../types';
 import { useAuth } from '../store/useAuth';
-import { ud, inputColors } from '../theme';
+import { ud, inputColors, ripple, rippleBorderless } from '../theme';
 import { SvgXml } from 'react-native-svg';
 import { CHEVRON_ICON, DATETIME_ICON, DESCRIPTION_ICON, ENCRYPTED_ICON, INFO_ICON, PIN_ICON } from '../assets/detailIcons';
 
@@ -205,7 +205,7 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
   return (
     // Biała karta bez ramki; odróżnia ją pasek w kolorze statusu z lewej – osobny widok przycięty zaokrągleniem karty
     // (borderLeft przy borderRadius zwęża się w rogach).
-    <Pressable onPress={toggle} style={{ backgroundColor: ud.surface, paddingLeft: 16, paddingRight: 12, paddingVertical: 10, marginBottom: 12, borderRadius: ud.radiusSm, overflow: 'hidden' }}>
+    <Pressable onPress={toggle} android_ripple={ripple} style={{ backgroundColor: ud.surface, paddingLeft: 16, paddingRight: 12, paddingVertical: 10, marginBottom: 12, borderRadius: ud.radiusSm, overflow: 'hidden' }}>
       <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: accent === '#FFFFFF' ? '#C5C5C5' : accent }} />
       <View style={{ paddingVertical: 4 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -480,7 +480,7 @@ export function ReportsScreen({ navigation, route }: any) {
             const col = statusColor(c.key);
             return (
               // Jak na webie: ponowne dotknięcie aktywnego filtra zdejmuje go (wszystkie zgłoszenia).
-              <Pressable key={c.key} onPress={() => setFilter(on ? 'all' : c.key)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Pressable key={c.key} onPress={() => setFilter(on ? 'all' : c.key)} android_ripple={rippleBorderless} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 13, color: on ? ud.primary : '#666', textDecorationLine: on ? 'underline' : 'none' }}>{c.label.toUpperCase()}</Text>
                 <View style={{ backgroundColor: col.fill, borderColor: col.stroke, borderWidth: 2, borderRadius: 20, paddingHorizontal: 7, minWidth: 22, alignItems: 'center' }}>
                   <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: col.text }}>{c.count}</Text>
