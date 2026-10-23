@@ -620,11 +620,11 @@ function CategoryInfo({ c, onClose, onPageLink }: { c: Category | null; onClose:
               {/* ikona tylko w rozmiarze z karty – źródło ma 100 px, większa byłaby rozmyta */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                 <Image source={{ uri: `${udConfig.base}/img/${c.id}.jpg` }} style={{ width: 64, height: 64, borderRadius: ud.radiusButton, backgroundColor: ud.surfaceCream }} />
-                <Text style={{ flex: 1, fontFamily: ud.fontDisplay, fontSize: 20, color: ud.heading }}>{c.title}</Text>
+                <Text selectable style={{ flex: 1, fontFamily: ud.fontDisplay, fontSize: 20, color: ud.heading }}>{c.title}</Text>
               </View>
-              {c.desc ? <HtmlText html={c.desc} onPageLink={(path) => { onClose(); onPageLink(path); }} style={{ color: ud.text, marginTop: 8, lineHeight: 21 }} /> : null}
-              {c.price ? <Text style={{ color: ud.text, marginTop: 10, fontFamily: ud.fontBodyBold }}>Mandat: {c.price}</Text> : null}
-              {c.law ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 10, lineHeight: 18, fontStyle: 'italic' }}>{c.law}</Text> : null}
+              {c.desc ? <HtmlText selectable html={c.desc} onPageLink={(path) => { onClose(); onPageLink(path); }} style={{ color: ud.text, marginTop: 8, lineHeight: 21 }} /> : null}
+              {c.price ? <Text selectable style={{ color: ud.text, marginTop: 10, fontFamily: ud.fontBodyBold }}>Mandat: {c.price}</Text> : null}
+              {c.law ? <Text selectable style={{ color: ud.muted, fontSize: 12, marginTop: 10, lineHeight: 18, fontStyle: 'italic' }}>{c.law}</Text> : null}
             </ScrollView>
             <Pressable onPress={onClose} accessibilityRole="button" style={{ borderTopWidth: 1, borderTopColor: ud.hairline, paddingVertical: 14, alignItems: 'center' }}>
               <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>ZAMKNIJ</Text>

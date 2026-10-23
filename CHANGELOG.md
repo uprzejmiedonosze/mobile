@@ -4,6 +4,7 @@
 - Na ekranie nowego zgłoszenia klawiatura nie zasłania już dolnej części formularza – po wpisaniu komentarza od razu zaznaczysz świadka i przejdziesz dalej.
 - Przy ograniczonym dostępie do zdjęć okno wyboru pokazuje przycisk „Wybierz więcej zdjęć”, więc można dobrać kolejne zdjęcia bez zmiany ustawień telefonu; gdy nie ma żadnego zdjęcia, zamiast pustego ekranu widać komunikat.
 - Gdy zgłaszasz pojazd, który tego samego dnia już zgłosiłeś/aś, formularz wyraźnie ostrzega, że to może być duplikat, i podaje numer wcześniejszego zgłoszenia.
+- Opis wykroczenia, mandat i podstawę prawną w oknie „Więcej” można zaznaczyć i skopiować (przytrzymaj tekst).
 
 ## v1.1.2 — 2026-10-23
 
