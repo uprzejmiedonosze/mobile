@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+## v1.1.4 — 2026-10-24
+
 - Na telefonach z Androidem 12 i starszym galeria pokazuje zdjęcia do wyboru – poprzednia poprawka była niepełna i lista zostawała pusta.
 
 ## v1.1.3 — 2026-10-23
