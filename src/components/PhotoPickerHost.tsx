@@ -48,6 +48,8 @@ export function PhotoPickerHost() {
     } catch (e: any) {
       log.error('galeria', `getAssetsAsync: ${String(e?.message ?? e).slice(0, 150)}`);
       cursor.current.more = false;
+      // pierwsza strona się nie wczytała → systemowy picker (pickPhotos w lib/gallery.ts) zamiast pustej listy
+      if (!cursor.current.after) close('unavailable');
     } finally {
       setLoading(false);
     }

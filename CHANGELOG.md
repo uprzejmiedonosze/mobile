@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+- Na telefonach z Androidem 12 i starszym galeria pokazuje zdjęcia do wyboru – poprzednia poprawka była niepełna i lista zostawała pusta.
+
 ## v1.1.3 — 2026-10-23
 
 - Lista zgłoszeń przy słabym internecie nie pokazuje już statusów po angielsku i pozwala je zmieniać – słownik statusów pobiera się ponownie przy odświeżeniu listy.
