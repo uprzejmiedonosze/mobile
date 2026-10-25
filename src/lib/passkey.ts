@@ -1,5 +1,4 @@
-import { Platform } from 'react-native';
-import { passkeysOnStaging, udEnv } from '../config';
+import { udEnv } from '../config';
 import { log } from './log';
 
 // react-native-passkey czyta natywny moduł przy require (wzorzec jak google-signin w useAuth): w Expo Go / buildzie
@@ -12,15 +11,14 @@ try {
   log.warn('auth', `Passkey niedostępny (brak natywnego modułu): ${String(e?.message ?? e).slice(0, 120)}`);
 }
 
-// Passkey jest związany z domeną (RP ID = host backendu) i wymaga assetlinks.json / AASA tylko na hostach prod
-// i shadow – staging ma je tylko dla buildów z Play (EXPO_PUBLIC_PASSKEYS_STAGING), dev client i APK z EAS nie.
-export const passkeysAllowed = (env: string, nativeAvailable: boolean, onStaging = false): boolean =>
-  (env === 'prod' || (env === 'staging' && onStaging)) && nativeAvailable;
+// Passkey jest związany z domeną (RP ID = host backendu) i działa tylko tam, gdzie backend ma assetlinks.json / AASA
+// z kluczem podpisu buildu – na prod (i shadow, ten sam env). Poza prod przycisk jest ukryty: na stagingu logowanie
+// passkeyem kończyło się błędem „An unknown error occurred” (UD-MOBILE-A/E).
+export const passkeysAllowed = (env: string, nativeAvailable: boolean): boolean => env === 'prod' && nativeAvailable;
 
 export function passkeysEnabled(): boolean {
   try {
-    // Staging ma tylko assetlinks.json (Android); iOS bez webcredentials:staging… w associatedDomains (app.config.js).
-    return passkeysAllowed(udEnv, !!PasskeyLib && PasskeyLib.isSupported(), passkeysOnStaging && Platform.OS === 'android');
+    return passkeysAllowed(udEnv, !!PasskeyLib && PasskeyLib.isSupported());
   } catch {
     return false;
   }

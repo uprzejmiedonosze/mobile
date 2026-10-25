@@ -3,13 +3,13 @@
 > **TYMCZASOWO (od 2026-10-21): profil `production` buduje na backend STAGINGU** – w testach otwartych Play jest aplikacja maksymalnie zbliżona do produkcji (ten sam pakiet, podpis Play, kanał), ale logująca do projektu staging. Patrz „Testy otwarte na stagingu”.
 
 ## Testy otwarte na stagingu (przed premierą)
-Profil `production` w `eas.json`: `EXPO_PUBLIC_UD_ENV=staging`, `EXPO_PUBLIC_SENTRY_ENV=staging`, `EXPO_PUBLIC_PASSKEYS_STAGING=1`. Ten sam klucz Play podpisuje też `staging-play` (internal, bez review), więc ma tę samą flagę – szybki test przed tagiem: `make staging-play`.
+Profil `production` w `eas.json`: `EXPO_PUBLIC_UD_ENV=staging`, `EXPO_PUBLIC_SENTRY_ENV=staging`. Ten sam klucz Play podpisuje też `staging-play` (internal, bez review) – szybki test przed tagiem: `make staging-play`. Passkeye są w appce tylko przy `EXPO_PUBLIC_UD_ENV=prod` (`passkeysAllowed`) – na stagingu przycisk jest ukryty.
 Build z Play jest podpisany **kluczem Play App Signing** (Play Console → Test and release → App integrity → *App signing key certificate*: SHA-1 i SHA-256), więc:
 - **Google:** klient OAuth typu Android `net.uprzejmiedonosze.pro` + SHA-1 klucza Play App Signing w projekcie **staging** (`uprzejmiedonosze-1494607701827`). Para package + SHA-1 może być tylko w jednym kliencie w całym Google Cloud – jeśli jest w prod, najpierw usuń ją z proda.
 - **Passkey:** backend stagingu – `src/.well-known/assetlinks.json` (`delegate_permission/common.get_login_creds`, `net.uprzejmiedonosze.pro`, SHA-256 klucza Play) i env `PASSKEY_ANDROID_KEY_HASHES` (ten SHA-256 w base64url) na `staging.uprzejmiedonosze.net`.
 
 **Przełączenie na produkcję** (przed pierwszym wydaniem na produkcję):
-1. `eas.json` → `production.env`: `EXPO_PUBLIC_UD_ENV=prod`, `EXPO_PUBLIC_SENTRY_ENV=prod`, usuń `EXPO_PUBLIC_PASSKEYS_STAGING`.
+1. `eas.json` → `production.env`: `EXPO_PUBLIC_UD_ENV=prod`, `EXPO_PUBLIC_SENTRY_ENV=prod` (to też włącza passkeye).
 2. Klient OAuth Android (SHA-1 klucza Play) przenieś ze stagingu do proda (klient „UD Pro – Google Play”). Usunięta para bywa przez jakiś czas zablokowana – zrób to z zapasem.
 3. `assetlinks.json` i `PASSKEY_ANDROID_KEY_HASHES` z kluczem Play na prodzie (staging może je zachować).
 4. Nowy tag i build. Konta testerów ze stagingu nie przechodzą na prod – trzeba zalogować się od nowa.
@@ -59,7 +59,7 @@ Build z backendem stagingu rozsyłany testerom przez Play (track **internal**, d
    Tester → zakładka Testers: lista e-maili (grupa), skopiuj **link opt-in**; tester musi mieć to konto Google na telefonie.
 3. Kolejne wersje: `make staging-play` (GitHub Actions: build + submit z `origin/main` + nazwa „X.Y.Z (N) staging” i „Co nowego” = streszczenie lokalnego RELEASE-CANDIDATE; build trafia do testerów od razu – najpierw wypchnij commity). EAS Submit wymaga klucza konta usługi Play (Play Console → Setup → API access → konto usługi z uprawnieniem do wydań,
    JSON wgraj do EAS: `eas credentials -p android` → *Google Service Account Key for Play Store Submissions*; nie commituj go).
-4. **Logowanie Google na stagingu nie działa w buildach `net.uprzejmiedonosze.pro`** (staging APK, `staging-play`) – testerzy logują się e-mail-linkiem. Para package + SHA-1 może być tylko w jednym kliencie OAuth w całym Google Cloud, a obie pary pakietu `.pro` (klucz Play i keystore EAS) są w projekcie **prod** – patrz „Logowanie Google: projekty i klienci OAuth”. Passkeye na stagingu są wyłączone (`passkeysAllowed`).
+4. **Logowanie Google na stagingu nie działa w buildach `net.uprzejmiedonosze.pro`** (staging APK, `staging-play`) – testerzy logują się e-mail-linkiem. Para package + SHA-1 może być tylko w jednym kliencie OAuth w całym Google Cloud, a obie pary pakietu `.pro` (klucz Play i keystore EAS) są w projekcie **prod** – patrz „Logowanie Google: projekty i klienci OAuth”. Passkeye poza prod są wyłączone (`passkeysAllowed`).
 5. Prod i staging mają ten sam `applicationId`, więc w sklepie to jedna aplikacja: build staging w internal nie przeszkadza w przyszłym production (kolejne `versionCode` rosną), ale **nie promuj** go do closed/open/production.
 
 ## Logowanie Google: projekty i klienci OAuth
@@ -79,7 +79,7 @@ Natywne logowanie Google na Androidzie wymaga klienta OAuth typu **Android** (pa
 - Wysyłka do Play z EAS: konto usługi `eas-play-submit@uprzejmie-donosze.iam.gserviceaccount.com` (projekt prod, Google Play Android Developer API włączone), uprawnienie „Release apps to testing tracks” w Play Console, klucz JSON w EAS credentials (poza repo).
 
 ## iOS – checklista do pierwszego wydania
-Gotowe w repo: Info.plist bez generycznych angielskich tekstów (wyłączone `NSLocationAlways*`, `NSMotionUsageDescription`, `NSFaceIDUsageDescription` – appka nie używa lokalizacji w tle ani biometrii SecureStore; jeden polski tekst galerii dla `expo-image-picker` i `expo-media-library`), `NSLocalNetworkUsageDescription`/`_expo._tcp` z dev clienta usuwa w buildzie release faza `expo-dev-launcher`, manifesty prywatności (`PrivacyInfo.xcprivacy`) dostarczają pody RN/Expo. Na iOS nie wołamy `GoogleSignin.configure` (brak `iosClientId`, przycisk ukryty), a passkeye na stagingu (`EXPO_PUBLIC_PASSKEYS_STAGING`) działają tylko na Androidzie – iOS ma `webcredentials` wyłącznie dla prod i shadow. Podgląd wynikowego Info.plist: `npx expo prebuild -p ios --no-install` w kopii repo (nie commituj `ios/`).
+Gotowe w repo: Info.plist bez generycznych angielskich tekstów (wyłączone `NSLocationAlways*`, `NSMotionUsageDescription`, `NSFaceIDUsageDescription` – appka nie używa lokalizacji w tle ani biometrii SecureStore; jeden polski tekst galerii dla `expo-image-picker` i `expo-media-library`), `NSLocalNetworkUsageDescription`/`_expo._tcp` z dev clienta usuwa w buildzie release faza `expo-dev-launcher`, manifesty prywatności (`PrivacyInfo.xcprivacy`) dostarczają pody RN/Expo. Na iOS nie wołamy `GoogleSignin.configure` (brak `iosClientId`, przycisk ukryty), a passkeye działają tylko na prod (i shadow) – iOS ma `webcredentials` wyłącznie dla tych domen. Podgląd wynikowego Info.plist: `npx expo prebuild -p ios --no-install` w kopii repo (nie commituj `ios/`).
 
 Po założeniu konta Apple Developer:
 1. **Team ID** (developer.apple.com → Membership). Konto organizacji wymaga D-U-N-S; konto osobiste pokaże w sklepie imię i nazwisko jako sprzedawcę.
