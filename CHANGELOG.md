@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+## v1.1.6 — 2026-10-25
+
 - Na górze listy rodzajów wykroczenia w nowym zgłoszeniu są kategorie, których ostatnio używałeś/aś na tym telefonie – każda nowa wypycha jedną z domyślnych, więc częste przypadki masz od razu pod ręką.
 - Przycisk „Pokaż wszystkie kategorie” jest wyraźnie oddzielony od kafelków kategorii i pokazuje, ile kategorii jeszcze kryje.
 - „Pozostałe przypadki” nie powtarza się już po rozwinięciu listy kategorii – jest tylko na jej końcu, z opisem, wysokością mandatu i „Więcej…” jak inne kategorie.
