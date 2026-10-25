@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+- Zgłoszenie „Oba” (dwa pojazdy) można poprawić po podglądzie przed wysłaniem – powrót do edycji i ponowne „Dalej” nie kończy się już błędem „Nie udało się dodać zdjęć drugiego pojazdu”.
+
 ## v1.1.4 — 2026-10-24
 
 - Na telefonach z Androidem 12 i starszym galeria pokazuje zdjęcia do wyboru – poprzednia poprawka była niepełna i lista zostawała pusta.

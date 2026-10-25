@@ -66,7 +66,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
   const [second, setSecond] = useState<SecondVehicle | null>(null);
   const secondSeq = useRef(0);
   const secondRef = useRef<SecondVehicle | null>(null); secondRef.current = second;
-  const secondSent = useRef(new Map<string, string>()); // szkic → co już w nim leży (zdjęcia + tablica), żeby nie wysyłać drugi raz
+  const secondSent = useRef(new Map<string, { key: string; app: UdApp }>()); // szkic → co już w nim leży (zdjęcia + tablica) i ostatnia odpowiedź serwera, żeby nie wysyłać drugi raz
   const bothRef = useRef(false); // użytkownik odpowiedział „Oba” (obowiązuje, dopóki na zdjęciach są dokładnie dwa pojazdy)
   const detectionsRef = useRef<PhotoDetections[]>([]); // odczyty ALPR zdjęć (lokalne id) – do ponownego wyboru ról
   // Wycinki z ORYGINAŁU (lib/crop.ts) liczone po wyborze auta: tablica (zawsze) i – przy jednym zdjęciu – samo auto.
@@ -244,7 +244,9 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
     if (!sec) throw new Error('Brak drugiego pojazdu');
     const plan = secondDraftSlots(slotsRef.current, sec.photoId);
     const key = JSON.stringify([plan, sec.plate]);
-    if (secondSent.current.get(draft.id) === key) return draft;
+    // Powrót z potwierdzenia: `draft` to szkic świeżo po utworzeniu (bez zdjęć) – oddajemy stan po przydziale, nie ten pusty.
+    const sent = secondSent.current.get(draft.id);
+    if (sent?.key === key) return sent.app;
     let last = draft;
     for (const slot of SLOTS) {
       const id = plan[slot];
@@ -259,7 +261,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
         try { last = await uploadPlateImage(draft.id, sec.plateUri); } catch (e: any) { log.warn('tablica', `wycinek 2: ${String(e?.message ?? e).slice(0, 140)}`); }
       }
     }
-    secondSent.current.set(draft.id, key);
+    secondSent.current.set(draft.id, { key, app: last });
     return last;
   }, []);
 
