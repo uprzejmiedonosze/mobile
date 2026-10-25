@@ -3,6 +3,7 @@
 // kategorii, recydywa) – te dopinamy po stronie klienta ze statycznych słowników.
 import { udConfig } from '../config';
 import { log, logFetch } from '../lib/log';
+import { imageVersion, type PictureKey } from '../lib/reports';
 import { authFetch } from './udApi';
 
 export type AppImage = { thumb?: string; url?: string; width?: number; height?: number };
@@ -42,7 +43,8 @@ export type UdApp = {
   thirdImage?: AppImage;
   statements?: { witness?: boolean };
   sent?: { date?: string; to?: string };
-  statusHistory?: unknown[];
+  statusHistory?: unknown[] | Record<string, unknown>; // PHP: tablica asocjacyjna (klucz = data) → w JSON obiekt
+  wipPhotos?: Partial<Record<PictureKey, string>>; // id zdjęć z etapu „wip” przydzielonych do slotów (do zakończenia zgłoszenia)
 };
 
 export type StatusDef = { name: string; allowed?: string[]; sendable?: boolean; editable?: boolean };
@@ -103,10 +105,10 @@ export async function setReportFields(appId: string, fields: { externalId?: stri
   return { suggestStatusChange: !!j.suggestStatusChange };
 }
 
-// `full` = oryginał (url, ≤1600 px) zamiast miniatury – do powiększania zdjęcia.
-export function imageUrl(img: AppImage | undefined, app: UdApp, full = false): string | null {
+// `full` = oryginał (url, ≤1600 px) zamiast miniatury – do powiększania zdjęcia. `type` = slot zdjęcia (wersja adresu, imageVersion).
+export function imageUrl(img: AppImage | undefined, app: UdApp, full = false, type?: PictureKey): string | null {
   const p = (full && img?.url) || img?.thumb;
   if (!p) return null;
   const abs = /^https?:\/\//.test(p) ? p : `${udConfig.base}/${p.replace(/^\//, '')}`;
-  return `${abs}?v=${app.statusHistory?.length ?? 0}`;
+  return `${abs}?v=${imageVersion(app, type)}`;
 }

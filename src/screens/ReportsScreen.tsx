@@ -184,9 +184,9 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
     validIdToken().then((t) => fetchRecydywa(plate, t)).then(setRecydywa).catch(() => {});
   }, [open, plate, app.status, recydywa]);
 
-  const slots = [app.contextImage, app.carImage, app.thirdImage];
-  const thumbs = slots.map((i) => imageUrl(i, app)).filter(Boolean) as string[];
-  const fulls = slots.map((i) => imageUrl(i, app, true)).filter(Boolean) as string[];
+  const slots = (['contextImage', 'carImage', 'thirdImage'] as const);
+  const thumbs = slots.map((k) => imageUrl(app[k], app, false, k)).filter(Boolean) as string[];
+  const fulls = slots.map((k) => imageUrl(app[k], app, true, k)).filter(Boolean) as string[];
   // Zwinięte zgłoszenie: dotknięcie czegokolwiek (także zdjęcia) rozwija; rozwinięte: zdjęcie się powiększa.
   const toggle = () => onToggle(app.id);
   const accent = statusColor(app.status).stroke;

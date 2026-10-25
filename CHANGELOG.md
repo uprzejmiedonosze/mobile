@@ -2,6 +2,7 @@
 
 - Zgłoszenie „Oba” (dwa pojazdy) można poprawić po podglądzie przed wysłaniem – powrót do edycji i ponowne „Dalej” nie kończy się już błędem „Nie udało się dodać zdjęć drugiego pojazdu”.
 - Poprawienie adresu w nowym zgłoszeniu nie przesuwa już pinezki na mapie – zostaje tam, gdzie wskazał GPS zdjęcia albo Ty na mapie, a zmienia się tylko tekst adresu (jak na stronie www).
+- Podgląd zgłoszenia przed wysłaniem pokazuje aktualne zdjęcia po ich podmianie (np. ponownym wyborze zdjęć albo innego pojazdu) – wcześniej telefon mógł pokazać poprzednie zdjęcie auta z ramką pojazdu z nowego, przez co ramka nie trafiała w auto.
 
 ## v1.1.4 — 2026-10-24
 

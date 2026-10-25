@@ -1,4 +1,4 @@
-import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor, hasRequiredPhotos, clearFieldError, formLocks, ownSameDayReport } from '../src/lib/reports';
+import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor, hasRequiredPhotos, clearFieldError, formLocks, ownSameDayReport, imageVersion } from '../src/lib/reports';
 
 describe('reports helpers', () => {
   it('formats dates like the web list', () => {
@@ -89,5 +89,20 @@ describe('ownSameDayReport', () => {
     expect(ownSameDayReport(info([entry({})]), '2026-10-23T18:30:00', 'a1')).toBeNull();
     expect(ownSameDayReport(null, '2026-10-23T18:30:00')).toBeNull();
     expect(ownSameDayReport(info([entry({})]), '')).toBeNull();
+  });
+});
+
+describe('imageVersion', () => {
+  const history = { '2026-10-25T16:00:00': { old: 'draft', new: 'ready' } }; // PHP zwraca historię statusów jako obiekt
+  it('zmienia wersję adresu przy podmianie zdjęcia w slocie (stała nazwa pliku na serwerze)', () => {
+    const a = imageVersion({ statusHistory: history, wipPhotos: { carImage: 'aaaaaaaaaaaaaaaa' } }, 'carImage');
+    const b = imageVersion({ statusHistory: history, wipPhotos: { carImage: 'bbbbbbbbbbbbbbbb' } }, 'carImage');
+    expect(a).not.toBe(b);
+    expect(imageVersion({ statusHistory: history, wipPhotos: { carImage: 'bbbbbbbbbbbbbbbb' } }, 'contextImage')).toBe('1');
+  });
+  it('bez wip (zakończone zgłoszenie) liczy wpisy historii – także obiektu z PHP', () => {
+    expect(imageVersion({ statusHistory: history })).toBe('1');
+    expect(imageVersion({ statusHistory: [1, 2] }, 'carImage')).toBe('2');
+    expect(imageVersion({})).toBe('0');
   });
 });

@@ -348,15 +348,15 @@ export function NewReportScreen({ navigation, route }: any) {
   // Bez lokalnych zdjęć (edycja / wznowiony szkic) pokazujemy te z serwera, role bez zmian.
   const SERVER: Record<Slot, 'contextImage' | 'carImage' | 'thirdImage'> = { context: 'contextImage', car: 'carImage', third: 'thirdImage' };
   const serverTiles: Tile[] = (SLOT_ORDER).flatMap((slot) => {
-    const uri = app ? imageUrl(app[SERVER[slot]], app) : null;
-    const full = app ? imageUrl(app[SERVER[slot]], app, true) : null;
+    const uri = app ? imageUrl(app[SERVER[slot]], app, false, SERVER[slot]) : null;
+    const full = app ? imageUrl(app[SERVER[slot]], app, true, SERVER[slot]) : null;
     return uri ? [{ id: slot, uri: `${uri}&r=${rev}`, full: `${full ?? uri}&r=${rev}` }] : [];
   });
   const local = batch.photos.length > 0;
   // Jedno zdjęcie też daje DWA kafelki (oryginał + wycinek auta), żeby układ nie skakał: drugi kafelek jest od początku, a wycinek
   // wypełnia się lokalnie zaraz po odczycie tablicy (batch.cropPreview). Do powiększenia: wycinek z serwera, a gdy go brak – oryginał.
   const single = local && batch.photos.length === 1;
-  const cropUri = single && app?.carImage?.thumb ? `${imageUrl(app.carImage, app)}&r=${rev}` : null;
+  const cropUri = single && app?.carImage?.thumb ? `${imageUrl(app.carImage, app, false, 'carImage')}&r=${rev}` : null;
   // kolejność kafelków: auto → kontekst → reszta (jedno zdjęcie: wycinek auta, potem oryginał)
   const roleRank = (id: string) => { const i = SLOT_ORDER.findIndex((s) => batch.slots[s] === id); return i < 0 ? SLOT_ORDER.length : i; };
   const tiles: Tile[] = local

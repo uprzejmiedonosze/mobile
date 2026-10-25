@@ -135,3 +135,15 @@ export function ownSameDayReport(info: RecydywaInfo | null, datetime: string, cu
   if (!info || !day) return null;
   return info.reports.find((r) => r.isOwn && r.reportId !== currentId && (r.date ?? '').slice(0, 10) === day) ?? null;
 }
+
+// Wersja zdjęcia w adresie (`?v=`): serwer trzyma każdy slot pod stałą nazwą pliku (`{id},ca.jpg`), więc podmiana zdjęcia w szkicu
+// (inne auto, „Oba”, ponowny wybór zdjęć) nie zmienia adresu i telefon pokazywał z pamięci podręcznej STARE zdjęcie z NOWĄ ramką
+// pojazdu. Id zdjęcia z etapu „wip” (`wipPhotos`, do zakończenia zgłoszenia) zmienia się przy każdym przydziale; potem zostaje
+// długość historii statusów (zakończenie dopisuje do niej wpis, więc adres i tak się zmienia).
+export type PictureKey = 'contextImage' | 'carImage' | 'thirdImage';
+export function imageVersion(app: { statusHistory?: unknown; wipPhotos?: Partial<Record<PictureKey, string>> }, type?: PictureKey): string {
+  const h = app.statusHistory;
+  const n = Array.isArray(h) ? h.length : h && typeof h === 'object' ? Object.keys(h).length : 0;
+  const wip = type ? app.wipPhotos?.[type] : undefined;
+  return wip ? `${n}-${wip.slice(0, 12)}` : String(n);
+}

@@ -87,9 +87,9 @@ export function ReportConfirmScreen({ navigation, route }: any) {
   const many = items.length > 1;
   const ms = parseMs(first.date);
   const shotsOf = (app: UdApp) => [
-    { key: 'ctx', thumb: imageUrl(app.contextImage, app), full: imageUrl(app.contextImage, app, true), nat: app.contextImage },
-    { key: 'car', thumb: imageUrl(app.carImage, app), full: imageUrl(app.carImage, app, true), nat: app.carImage },
-    { key: 'third', thumb: imageUrl(app.thirdImage, app), full: imageUrl(app.thirdImage, app, true), nat: app.thirdImage },
+    { key: 'ctx', thumb: imageUrl(app.contextImage, app, false, 'contextImage'), full: imageUrl(app.contextImage, app, true, 'contextImage'), nat: app.contextImage },
+    { key: 'car', thumb: imageUrl(app.carImage, app, false, 'carImage'), full: imageUrl(app.carImage, app, true, 'carImage'), nat: app.carImage },
+    { key: 'third', thumb: imageUrl(app.thirdImage, app, false, 'thirdImage'), full: imageUrl(app.thirdImage, app, true, 'thirdImage'), nat: app.thirdImage },
   ].filter((x) => x.thumb);
   const s = firstC.sender;
   const rcpt = firstC.recipient;
