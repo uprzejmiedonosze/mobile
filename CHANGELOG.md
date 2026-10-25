@@ -1,6 +1,7 @@
 ## RELEASE-CANDIDATE
 
 - Zgłoszenie „Oba” (dwa pojazdy) można poprawić po podglądzie przed wysłaniem – powrót do edycji i ponowne „Dalej” nie kończy się już błędem „Nie udało się dodać zdjęć drugiego pojazdu”.
+- Poprawienie adresu w nowym zgłoszeniu nie przesuwa już pinezki na mapie – zostaje tam, gdzie wskazał GPS zdjęcia albo Ty na mapie, a zmienia się tylko tekst adresu (jak na stronie www).
 
 ## v1.1.4 — 2026-10-24
 

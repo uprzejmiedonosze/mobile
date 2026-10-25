@@ -244,9 +244,11 @@ export function NewReportScreen({ navigation, route }: any) {
     return () => clearTimeout(t);
   }, [form.plateId, form.plateId2]);
 
-  // Ręcznie wpisany adres → współrzędne + miasto/województwo (bez nich backend nie ustali SM/Policji).
+  // Ręcznie wpisany adres → współrzędne + miasto/województwo (bez nich backend nie ustali SM/Policji) – tylko gdy pinezki
+  // jeszcze nie ma (zdjęcie bez GPS). Jak na webie: poprawka tekstu przy znanych współrzędnych nie przesuwa pinezki.
   const lookupAddress = async () => {
     const q = form.address.trim();
+    if (form.lat != null && form.lng != null) return;
     if (!edited.current.address || !q || q === resolvedText.current) return;
     setGeoBusy((n) => n + 1);
     try {
@@ -265,7 +267,7 @@ export function NewReportScreen({ navigation, route }: any) {
   const resolvePlace = async (): Promise<{ lat: number; lng: number; geo: GeoAddress } | null> => {
     const q = form.address.trim();
     try {
-      if (edited.current.address && q.length > 3 && q !== resolvedText.current) {
+      if (form.lat == null && edited.current.address && q.length > 3 && q !== resolvedText.current) {
         const r = await searchAddress(q);
         if (r?.geo.city) { resolvedText.current = q; geoFor.current = `${r.lat},${r.lng}`; setForm((f) => ({ ...f, lat: r.lat, lng: r.lng, geo: r.geo })); return r; }
       }
