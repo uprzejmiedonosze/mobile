@@ -22,6 +22,27 @@ test-dev: test-unit ## pełny zestaw na lokalnym dockerze (kontrakt: local)
 test-staging: test-unit ## pełny zestaw na stagingu (kontrakt: staging, e@nieradka.net)
 	npm run test:contract:staging
 
+# Szybki test na telefonie bez budowania APK: Metro + zainstalowany dev client (profil `development`, raz zbudowany),
+# zmiany JS przeładowują się na żywo. Środowisko z .env albo wymuszone zmienną (process env ma pierwszeństwo przed .env;
+# nadpisania pojedynczych pól w .env, np. EXPO_PUBLIC_UD_BASE, nadal wygrywają). -c: EXPO_PUBLIC_* są wkompilowane
+# w bundle, więc po zmianie środowiska trzeba wyczyścić cache Metro.
+# APP_VARIANT=development: konfiguracja wariantu dev (pakiet net.uprzejmiedonosze.pro.dev) – klawisz „a” w Metro
+# otwiera wtedy dev client, a nie appkę ze sklepu o pakiecie net.uprzejmiedonosze.pro.
+# Expo szuka adb w $ANDROID_HOME/platform-tools – bez Android Studio wskazujemy platform-tools z Homebrew
+# (cask android-platform-tools: …/Caskroom/android-platform-tools/<wersja>/platform-tools/adb).
+ANDROID_HOME ?= $(shell adb=$$(command -v adb) && cd "$$(dirname "$$(readlink -f "$$adb")")/.." && pwd)
+export ANDROID_HOME
+
+.PHONY: dev dev-staging dev-prod
+dev: ## Metro z dev clientem, środowisko z .env (zmiany JS na żywo, bez builda)
+	APP_VARIANT=development npx expo start --dev-client -c
+
+dev-staging: ## Metro z dev clientem na backendzie stagingu
+	APP_VARIANT=development EXPO_PUBLIC_UD_ENV=staging npx expo start --dev-client -c
+
+dev-prod: ## Metro z dev clientem na backendzie produkcji (prawdziwe dane!)
+	APP_VARIANT=development EXPO_PUBLIC_UD_ENV=prod npx expo start --dev-client -c
+
 .PHONY: e2e-dev
 e2e-dev: ## Maestro na telefonie przeciw lokalnemu dockerowi
 	npm run e2e:local

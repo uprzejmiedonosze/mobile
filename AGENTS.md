@@ -53,6 +53,7 @@ treści odpowiedzi, crashe idą do Sentry (`EXPO_PUBLIC_SENTRY_DSN`).
 npm i
 npm run start          # expo start — scan QR in Expo Go (same Wi-Fi network)
 npm run start -- -c    # same, but clears Metro cache (needed after editing .env)
+make dev | dev-staging | dev-prod   # Metro + dev client on the phone, live JS reload without an APK build (env from .env or forced)
 npm run android         # expo start --android
 npm run ios             # expo start --ios
 npm test                 # jest (ts-jest, tests live in __tests__/)

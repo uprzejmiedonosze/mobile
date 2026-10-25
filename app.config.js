@@ -21,4 +21,8 @@ module.exports = ({ config }) => ({
     ...(IS_DEV ? {} : { associatedDomains: ['webcredentials:uprzejmiedonosze.net', 'webcredentials:shadow.uprzejmiedonosze.net'] }),
   },
   android: { ...config.android, package: IS_DEV ? 'net.uprzejmiedonosze.pro.dev' : config.android.package },
+  // QR z `expo start --dev-client` otwiera exp+<slug>://, a slug jest wspólny dla wszystkich wariantów. Bez tego
+  // plugin (stosowany automatycznie) dopisywał ten scheme też do buildów staging/prod, więc skan QR otwierał appkę
+  // ze sklepu zamiast dev clienta.
+  plugins: [...(config.plugins ?? []), ['expo-dev-client', { addGeneratedScheme: IS_DEV }]],
 });
