@@ -74,10 +74,6 @@ export const e2eEnabled = process.env.EXPO_PUBLIC_E2E === '1';
 // PASSKEY_ANDROID_KEY_HASHES na hoście stagingu z kluczem, którym podpisany jest build (Play App Signing).
 export const passkeysOnStaging = process.env.EXPO_PUBLIC_PASSKEYS_STAGING === '1';
 
-// Diagnostyka pickera zdjęć (Android): dodatkowy przycisk „systemowy picker” i raport o metadanych (GPS/data) po wyborze.
-// Tylko profil eas.json `picker-ab`; docs/STORE-PRIVACY.md → sekcja 5.
-export const pickerAb = process.env.EXPO_PUBLIC_PICKER_AB === '1';
-
 // Web OAuth client (ten sam co web src/js/lib/firebaseConfig.js getClientId()) – to jest
 // audience tokenu ID Google na obu platformach (@react-native-google-signin/google-signin
 // GoogleSignin.configure({ webClientId })). Android dodatkowo wymaga osobnego klienta OAuth

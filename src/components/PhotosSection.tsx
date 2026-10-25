@@ -4,8 +4,6 @@ import { ImageViewer } from './ImageViewer';
 import type { CropPreview, Phase, SecondVehicle } from '../lib/usePhotoBatch';
 import { BOTH_VEHICLES, SLOT_ORDER, type Vehicle } from '../lib/roles';
 import type { Slot, Slots } from '../lib/suggest';
-import { pickerAb } from '../config';
-import { setForceSystemPicker } from '../lib/gallery';
 import { ud } from '../theme';
 
 export type Tile = { id: string; uri: string; full?: string }; // full = oryginał do powiększenia (domyślnie uri)
@@ -81,16 +79,9 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
   return (
     <View style={{ marginTop: 14 }}>
       {tiles.length === 0 ? (
-        <>
-          <Pressable onPress={() => { setForceSystemPicker(false); onPick(); }} style={{ marginTop: 8, height: 150, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>＋ Dodaj od 1 do 3 zdjęć z galerii</Text>
-          </Pressable>
-          {pickerAb ? (
-            <Pressable onPress={() => { setForceSystemPicker(true); onPick(); }} style={{ marginTop: 8, height: 60, borderRadius: ud.radiusSm, borderWidth: 1, borderColor: ud.primary, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>Test: systemowy picker</Text>
-            </Pressable>
-          ) : null}
-        </>
+        <Pressable onPress={onPick} style={{ marginTop: 8, height: 150, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>＋ Dodaj od 1 do 3 zdjęć z galerii</Text>
+        </Pressable>
       ) : (
         <>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>

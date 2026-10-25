@@ -71,7 +71,7 @@ Natywne logowanie Google na Androidzie wymaga klienta OAuth typu **Android** (pa
 |---|---|---|---|---|
 | Expo Go (`npm start`) | Expo Go | – | staging | nie (moduł natywny); e-mail-link tak |
 | `development` | `net.uprzejmiedonosze.pro.dev` | keystore EAS (`.dev`) | staging `uprzejmiedonosze-1494607701827` | tak – klient „Uprzejmie Donoszę Pro” w stagingu (`.dev`) |
-| `staging`, `picker-ab`, `staging-play` | `net.uprzejmiedonosze.pro` | keystore EAS / klucz Play | staging | **nie** (pary są w prodzie) |
+| `staging`, `staging-play` | `net.uprzejmiedonosze.pro` | keystore EAS / klucz Play | staging | **nie** (pary są w prodzie) |
 | `shadow` | `net.uprzejmiedonosze.pro` | keystore EAS | prod `uprzejmie-donosze` | tak – klient „UD Pro – EAS” |
 | `production` | `net.uprzejmiedonosze.pro` | klucz Play (App signing) | prod `uprzejmie-donosze` (**tymczasowo staging** – „Testy otwarte na stagingu”) | tak – klient „UD Pro – Google Play” (tymczasowo w projekcie staging) |
 

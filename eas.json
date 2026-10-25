@@ -43,12 +43,6 @@
         "EXPO_PUBLIC_SENTRY_ENV": "shadow"
       }
     },
-    "picker-ab": {
-      "extends": "staging",
-      "env": {
-        "EXPO_PUBLIC_PICKER_AB": "1"
-      }
-    },
     "staging-play": {
       "autoIncrement": true,
       "distribution": "store",
