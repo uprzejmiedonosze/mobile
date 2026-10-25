@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Usage: apply-version.sh X.Y.Z
 # Zapisuje wersję w VERSION, package.json, package-lock.json i app.json (fallback dla Expo Go, patrz src/lib/appVersion.ts),
-# zamienia „## RELEASE-CANDIDATE” na „## vX.Y.Z — DATA”, wstawia nowy pusty RELEASE-CANDIDATE na górze i robi commit.
+# zamienia „## RELEASE-CANDIDATE” na „## vX.Y.Z — DATA”, wstawia nowy pusty RELEASE-CANDIDATE na górze, zapisuje „Co nowego”
+# do Play w play-notes/vX.Y.Z.txt (streszczenie LLM, gdy sekcja nie mieści się w limicie – scripts/play-notes.js) i robi commit.
 # Idempotentne: wznowienie przerwanego wydania (ta sama wersja już zacommitowana) nic nie zmienia.
 set -euo pipefail
 version="${1:?Użycie: apply-version.sh X.Y.Z}"
@@ -25,7 +26,11 @@ if head -n1 CHANGELOG.md | grep -qx '## RELEASE-CANDIDATE' && ! grep -q "^## v${
   mv -f CHANGELOG.md.tmp CHANGELOG.md
 fi
 
-git add VERSION CHANGELOG.md package.json app.json
+# Raz na wersję: przy wznowieniu plik już jest (i może być ręcznie poprawiony).
+notes="play-notes/v$version.txt"
+[[ -f "$notes" ]] || node scripts/play-notes.js --summarize --write
+
+git add VERSION CHANGELOG.md package.json app.json "$notes"
 [[ -f package-lock.json ]] && git add package-lock.json
 if git diff --cached --quiet; then
   echo "==> v$version już zacommitowane (wznowienie przerwanego wydania)"

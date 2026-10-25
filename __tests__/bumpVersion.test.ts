@@ -87,6 +87,9 @@ describe('apply-version.sh', () => {
     expect(JSON.parse(read('app.json')).expo.version).toBe('1.0.0');
     expect(read('CHANGELOG.md')).toMatch(/^## RELEASE-CANDIDATE\n\n## v1\.0\.0 — \d{4}-\d{2}-\d{2}\n\n- Pierwsze wydanie\./);
     expect(git('log', '-1', '--format=%s')).toBe('chore: release v1.0.0');
+    // Krótka sekcja mieści się w limicie Play – punkty bez LLM, plik w commicie wydania.
+    expect(read('play-notes/v1.0.0.txt')).toBe('• Pierwsze wydanie.\n');
+    expect(git('show', '--name-only', '--format=', 'HEAD')).toContain('play-notes/v1.0.0.txt');
   });
 
   test('kolejne wydanie dopisuje sekcję nad poprzednią', () => {

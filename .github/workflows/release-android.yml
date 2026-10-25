@@ -18,6 +18,10 @@ on:
         type: choice
         options: [staging-play, production]
         default: staging-play
+      notes:
+        description: „Co nowego” (streszczenie z make staging-play; puste = punkty z CHANGELOG-a, przycięte)
+        type: string
+        required: false
 
 concurrency:
   group: android-${{ github.event_name == 'push' && 'production' || inputs.profile }}
@@ -36,7 +40,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Odpowiednik `make check-on-tag`: production tylko z tagu bieżącej wersji.
+      # Production tylko z tagu bieżącej wersji (tag stawia make release-*).
       - name: Production tylko z tagu vVERSION
         if: env.PROFILE == 'production'
         run: |
@@ -93,14 +97,20 @@ jobs:
       - name: Google Play (EAS Submit)
         run: eas submit --non-interactive --platform android --profile "$PROFILE" --path build/app.aab --wait
 
+      # Production: play-notes/vX.Y.Z.txt z commita wydania (streszczenie LLM robi lokalnie apply-version.sh – na runnerze
+      # nie ma claude). Staging: streszczenie RELEASE-CANDIDATE przekazane z make staging-play jako input `notes`.
       - name: Nazwa i „Co nowego” w Play
         env:
           KEY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          NOTES: ${{ inputs.notes }}
         run: |
           export PLAY_SERVICE_ACCOUNT_JSON="$RUNNER_TEMP/play-key.json"
           printf '%s' "$KEY" > "$PLAY_SERVICE_ACCOUNT_JSON"
           if [ "$PROFILE" = production ]; then
             node scripts/play-notes.js --track beta
+          elif [ -n "$NOTES" ]; then
+            printf '%s\n' "$NOTES" > "$RUNNER_TEMP/notes.txt"
+            node scripts/play-notes.js --track internal --staging --notes-file "$RUNNER_TEMP/notes.txt"
           else
             node scripts/play-notes.js --track internal --staging
           fi

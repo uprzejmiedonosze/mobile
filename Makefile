@@ -32,20 +32,17 @@ e2e-staging: ## Maestro na telefonie przeciw stagingowi
 
 # ── Release do sklepów (docs/RELEASE.md) ─────────────────────────────────────
 #
-# SemVer, źródłem prawdy są tagi `vX.Y.Z` (scripts/bump-version.sh); numer buildu (iOS buildNumber / Android versionCode)
-# nadaje EAS (autoIncrement). Wydajesz z `main`, na czystym drzewie, po uzupełnieniu `## RELEASE-CANDIDATE` w CHANGELOG.md:
-#   make release-patch|release-minor|release-major   → testy, bump, commit „chore: release”, tag, push
-#   make build-all                                    → podpisane buildy produkcyjne iOS + Android (z tagu)
-#   make submit-ios submit-android                    → wysyłka do App Store Connect / Google Play (internal, draft)
+# SemVer, źródłem prawdy są tagi `vX.Y.Z` (scripts/bump-version.sh); versionCode Androida nadaje EAS (autoIncrement).
+# Buildy i wysyłka do Play idą wyłącznie przez GitHub Actions (.github/workflows/release-android.yml, `eas build --local`).
+# Wydajesz z `main`, na czystym drzewie, po uzupełnieniu `## RELEASE-CANDIDATE` w CHANGELOG.md:
+#   make release-patch|release-minor|release-major   → testy, bump, „Co nowego” (play-notes/), commit, tag, push → Actions
+#   make staging-play                                 → staging z origin/main do Play internal
 # Major nigdy nie bumpuje się „przy okazji” – tylko jawnym `make release-major`.
 
 .PHONY: check-git-clean check-branch-main release-check bump-version \
 	release-patch release-minor release-major tag-release \
-	check-on-tag build-ios build-android build-all submit-ios submit-android \
-	build-staging-play submit-staging-play build-picker-ab \
 	release-notes log-from-last-tag play-notes play-notes-staging \
-	staging-play release-android-run workflow-runs \
-	staging-play-eas release-android-eas eas-workflow-runs workflow-validate
+	staging-play release-android-run workflow-runs
 
 check-git-clean:
 	@echo "==> Checking if the repo is clean"
@@ -88,7 +85,7 @@ tag-release:
 	git push origin main
 	git push origin "refs/tags/v$$(tr -d '[:space:]' < VERSION)"
 	@echo "==> Tag uruchamia GitHub Actions „Wydanie Android” (.github/workflows/release-android.yml): eas build --local → Play testy otwarte (beta, szkic) + nazwa i „Co nowego”."
-	@echo "    Postęp: make workflow-runs. Nie ruszył albo padł? make release-android-run (awaryjnie na serwerach EAS: make release-android-eas)"
+	@echo "    Postęp: make workflow-runs. Nie ruszył albo padł? make release-android-run"
 
 release-patch: check-git-clean check-branch-main release-check test-staging ## Wydanie patch (np. 1.0.0 → 1.0.1)
 	@$(MAKE) bump-version BUMP=patch
@@ -102,32 +99,11 @@ release-major: check-git-clean check-branch-main release-check test-staging ## W
 	@$(MAKE) bump-version BUMP=major
 	@$(MAKE) tag-release
 
-# Build tylko z czystego checkoutu dokładnie na tagu bieżącej wersji.
-check-on-tag:
-	@version=$$(tr -d '[:space:]' < VERSION); \
-	test "$$(git describe --exact-match --tags HEAD 2>/dev/null)" = "v$$version" \
-		|| ( echo "HEAD nie jest na tagu v$$version – zrób make release-* i zostań na tym commicie." && exit 1 )
-	@test -z "$$(git status --porcelain)" || ( echo "Są niezacommitowane zmiany." && exit 1 )
-
-build-ios: check-on-tag ## Build produkcyjny iOS (EAS, nadaje buildNumber)
-	eas build --profile production --platform ios
-
-build-android: check-on-tag ## Build produkcyjny Android AAB (EAS, nadaje versionCode)
-	eas build --profile production --platform android
-
-build-all: check-on-tag ## Buildy produkcyjne iOS + Android
-	eas build --profile production --platform all
-
-submit-ios: ## Wyślij ostatni build iOS do App Store Connect (TestFlight)
-	eas submit --profile production --platform ios --latest
-
-submit-android: ## Wyślij ostatni build Android do Google Play (internal, draft)
-	eas submit --profile production --platform android --latest
-
-# Sekcja CHANGELOG-a bieżącej wersji = tekst „Co nowego” w sklepach.
-release-notes: ## Wypisz notatki wydania bieżącej wersji z CHANGELOG.md
-	@version=$$(tr -d '[:space:]' < VERSION); \
-	awk -v h="## v$$version " 'index($$0,h)==1{p=1;next} p&&/^## /{exit} p' CHANGELOG.md | sed '/./,$$!d'
+# „Co nowego” w Play (limit 500 zn.): sekcja CHANGELOG-a w całości, gdy się mieści, inaczej streszczenie przez `claude -p`
+# (scripts/play-notes.js). Przy wydaniu robi to samo apply-version.sh i commituje play-notes/vX.Y.Z.txt – plik można
+# poprawić ręcznie przed pushem tagu. RC=1: sekcja RELEASE-CANDIDATE (podgląd tego, co dostanie staging).
+release-notes: ## Podgląd „Co nowego” bieżącej wersji (RC=1: RELEASE-CANDIDATE), streszczenie LLM gdy > 500 zn.
+	@node scripts/play-notes.js --summarize $(if $(RC),--staging)
 
 log-from-last-tag: ## Commity od ostatniego tagu (pomoc przy pisaniu CHANGELOG-a)
 	@tag=$$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | head -n1); \
@@ -135,26 +111,17 @@ log-from-last-tag: ## Commity od ostatniego tagu (pomoc przy pisaniu CHANGELOG-a
 	else echo "==> Commity od $$tag"; git log --pretty=format:"%h %ci %s" "$$tag"..HEAD; fi
 	@echo ""
 
-# Staging do testów w Google Play (track internal): AAB z EXPO_PUBLIC_UD_ENV=staging, bez tagu i bez SemVer-owego rytuału release-*.
-# Wersja = VERSION, versionCode z licznika EAS (wspólny z production). Wymaga zacommitowanych zmian (EAS buduje z gita).
-build-picker-ab: ## Build APK (staging) z diagnostyką pickera zdjęć – tylko do testów na telefonie, nie do sklepu
-	@test -z "$$(git status --porcelain --untracked-files=no)" || ( echo "Są niezacommitowane zmiany (EAS buduje z gita)." && exit 1 )
-	eas build --profile picker-ab --platform android
-
-build-staging-play: ## Build AAB (staging) pod Google Play internal testing
-	@test -z "$$(git status --porcelain --untracked-files=no)" || ( echo "Są niezacommitowane zmiany (EAS buduje z gita)." && exit 1 )
-	eas build --profile staging-play --platform android
-
-submit-staging-play: ## Wyślij ostatni build staging-play do Google Play (internal, draft)
-	eas submit --profile staging-play --platform android --latest
-
 # GitHub Actions (.github/workflows/release-android.yml) – `eas build --local` na runnerze GitHuba, więc bez limitu
 # buildów planu Free EAS; podpis i versionCode dalej z EAS, submit przez EAS Submit. Tag vX.Y.Z odpala wydanie sam;
 # poniższe targety to ręczne uruchomienie (--ref: stan z GitHuba, nie z lokalnego katalogu – najpierw push).
+# Staging: build z origin/main, VERSION bez zmian, versionCode z licznika EAS (wspólny z production). „Co nowego” =
+# streszczenie lokalnego RELEASE-CANDIDATE (na runnerze nie ma claude), przekazane do workflowu jako input.
 GH_WF = gh workflow run release-android.yml
 
 staging-play: ## Staging do Google Play internal przez GitHub Actions (build + submit, z origin/main)
-	$(GH_WF) --ref main -f profile=staging-play
+	@notes=$$(node scripts/play-notes.js --summarize --staging) || exit 1; \
+	printf '==> Co nowego:\n%s\n' "$$notes"; \
+	$(GH_WF) --ref main -f profile=staging-play -f notes="$$notes"
 
 release-android-run: ## Ponów wydanie Androida dla bieżącego tagu przez GitHub Actions (gdy push tagu go nie uruchomił)
 	$(GH_WF) --ref "v$$(tr -d '[:space:]' < VERSION)" -f profile=production
@@ -162,26 +129,13 @@ release-android-run: ## Ponów wydanie Androida dla bieżącego tagu przez GitHu
 workflow-runs: ## Ostatnie uruchomienia wydań w GitHub Actions
 	gh run list --workflow release-android.yml --limit 10
 
-# EAS Workflows (.eas/workflows/) – ZAPAS: build na serwerach Expo, zużywa limit planu Free (15 buildów Androida/mies.).
-# Tylko ręcznie, gdy GitHub Actions nie działa. Wersja CLI przypięta: 24.2.0 ma błąd w workflow:validate („reading 'const'”).
-EAS_WF = npx -y eas-cli@24.14.0
-
-staging-play-eas: ## [zapas] Staging do Play internal przez EAS Workflow (zużywa build z limitu EAS)
-	$(EAS_WF) workflow:run .eas/workflows/staging-play.yml --ref main
-
-release-android-eas: ## [zapas] Wydanie Androida bieżącego tagu przez EAS Workflow (zużywa build z limitu EAS)
-	$(EAS_WF) workflow:run .eas/workflows/release-android.yml --ref "v$$(tr -d '[:space:]' < VERSION)"
-
-# Nazwa wydania + „Co nowego” w Play z CHANGELOG.md (scripts/play-notes.js; klucz z secrets/ albo $$PLAY_SERVICE_ACCOUNT_JSON).
-# Workflowy robią to same po submit – te targety są do poprawek ręcznych. CODE=N wskazuje build (domyślnie najnowszy na torze).
-play-notes: ## Nazwa i „Co nowego” wydania X.Y.Z na testach otwartych (beta) z CHANGELOG-a
+# Nazwa wydania + „Co nowego” w Play (scripts/play-notes.js; klucz z secrets/ albo $$PLAY_SERVICE_ACCOUNT_JSON).
+# Workflow robi to sam po submit – te targety są do poprawek ręcznych. CODE=N wskazuje build (domyślnie najnowszy na torze).
+play-notes: ## Nazwa i „Co nowego” wydania X.Y.Z na testach otwartych (beta) z play-notes/vX.Y.Z.txt
 	node scripts/play-notes.js --track beta $(if $(CODE),--version-code $(CODE))
 
-play-notes-staging: ## Nazwa i „Co nowego” stagingu na internal z RELEASE-CANDIDATE (COMPLETE=1 wydaje szkic testerom)
-	node scripts/play-notes.js --track internal --staging $(if $(CODE),--version-code $(CODE)) $(if $(COMPLETE),--complete)
-
-eas-workflow-runs: ## [zapas] Ostatnie uruchomienia EAS Workflows
-	$(EAS_WF) workflow:runs
-
-workflow-validate: ## Sprawdź składnię plików .eas/workflows/*.yml
-	@for f in .eas/workflows/*.yml; do $(EAS_WF) workflow:validate $$f || exit 1; done
+play-notes-staging: ## Nazwa i „Co nowego” stagingu na internal ze streszczenia RELEASE-CANDIDATE (COMPLETE=1 wydaje testerom)
+	@notes=$$(mktemp); trap 'rm -f "$$notes"' EXIT; \
+	node scripts/play-notes.js --summarize --staging > "$$notes" || exit 1; \
+	node scripts/play-notes.js --track internal --staging $$(test -s "$$notes" && echo --notes-file "$$notes") \
+		$(if $(CODE),--version-code $(CODE)) $(if $(COMPLETE),--complete)

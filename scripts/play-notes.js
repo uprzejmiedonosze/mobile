@@ -1,20 +1,35 @@
 #!/usr/bin/env node
 // Nazwa wydania i „Co nowego” w Google Play z CHANGELOG.md – EAS Submit tego nie ustawia (docs/RELEASE.md).
 //   node scripts/play-notes.js --track internal --staging [--version-code N] [--complete]
-//   node scripts/play-notes.js --track beta [--version-code N]
+//   node scripts/play-notes.js --track beta [--version-code N] [--notes-file F]
+//   node scripts/play-notes.js --summarize [--staging] [--write]
 // Nazwa: „X.Y.Z (versionCode)” albo „X.Y.Z (versionCode) staging”. Notatki: sekcja `## vX.Y.Z` (wydanie) albo
-// `## RELEASE-CANDIDATE` (staging), przycięte do limitu Play (500 znaków na język). Bez --version-code: najwyższy
+// `## RELEASE-CANDIDATE` (staging), w limicie Play (500 znaków na język). Gdy sekcja się nie mieści, streszcza ją LLM
+// (`claude -p`, tylko lokalnie – na runnerze nie ma CLI): --summarize wypisuje streszczenie, --write zapisuje je
+// w play-notes/vX.Y.Z.txt (apply-version.sh przy wydaniu, plik idzie do commita z tagiem). Wysyłka do Play bierze
+// --notes-file, potem play-notes/vX.Y.Z.txt, a bez nich obcina punkty (fitNotes). Bez --version-code: najwyższy
 // versionCode na torze. --complete: szkic → wydany testerom (status completed).
 // Klucz konta usługi: plik z $PLAY_SERVICE_ACCOUNT_JSON (w EAS: zmienna typu file) albo pierwszy service account
-// w secrets/ (katalog w .gitignore). Tylko wbudowane moduły Node – działa lokalnie i w jobie EAS Workflow.
+// w secrets/ (katalog w .gitignore). Tylko wbudowane moduły Node – działa lokalnie i w GitHub Actions.
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const os = require('os');
+const { spawnSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const PACKAGE = 'net.uprzejmiedonosze.pro';
 const PLAY_NOTES_LIMIT = 500;
 const MORE = '…i więcej zmian.';
+const NOTES_DIR = path.join(ROOT, 'play-notes');
+// Cel dla LLM poniżej limitu – model liczy znaki niedokładnie, twardy limit sprawdza checkSummary.
+const SUMMARY_TARGET = 400;
+const SUMMARY_PROMPT = `Piszesz tekst „Co nowego” dla aplikacji Uprzejmie Donoszę PRO w Google Play.
+Na wejściu dostajesz listę zmian z CHANGELOG-a (po polsku, dla użytkownika). Streść ją po polsku, dla użytkownika:
+- najwyżej ${SUMMARY_TARGET} znaków łącznie (liczą się spacje i nowe linie), to twardy limit;
+- 3–6 punktów, każdy w osobnej linii zaczynającej się od „• ”, krótko i konkretnie;
+- najważniejsze zmiany pierwsze; drobne poprawki możesz połączyć w jeden punkt, ale nie pomijaj istotnych;
+- nie wymyślaj niczego, czego nie ma na wejściu; bez markdownu, bez wstępu i zakończenia – tylko punkty.`;
 
 // Treść sekcji `## <heading>` (do następnego `## `), bez pustych linii na brzegach.
 function changelogSection(md, heading) {
@@ -40,6 +55,49 @@ function fitNotes(section, limit = PLAY_NOTES_LIMIT) {
   return out.join('\n');
 }
 
+// Odpowiedź LLM → notatki albo null, gdy nie nadaje się do Play (pusta, za długa).
+function checkSummary(text, limit = PLAY_NOTES_LIMIT) {
+  const t = String(text || '').trim().replace(/^```[^\n]*\n?|\n?```$/g, '').trim();
+  return t && t.length <= limit ? t : null;
+}
+
+// Notatki do Play z sekcji: mieszczą się w całości → punkty bez zmian; inaczej streszczenie LLM (`ask` = wywołanie
+// modelu, w testach podmieniane; kolejna próba dostaje poprzednią, za długą wersję do skrócenia), a gdy się nie uda –
+// obcięte punkty z ostrzeżeniem.
+function summarize(section, { ask = askClaude, attempts = 3, warn = (m) => console.error(m) } = {}) {
+  const fitted = fitNotes(section);
+  if (!fitted.endsWith(MORE)) return fitted;
+  let out = null;
+  for (let i = 1; i <= attempts; i++) {
+    const prev = String(out || '').trim();
+    const input = prev
+      ? `${section}\n\nPoprzednia wersja ma ${prev.length} znaków – za dużo. Skróć ją do najwyżej ${SUMMARY_TARGET} znaków:\n${prev}`
+      : section;
+    try {
+      out = ask(input);
+    } catch (e) {
+      warn(`play-notes: claude: ${e.message}`);
+      break;
+    }
+    const ok = checkSummary(out);
+    if (ok) return ok;
+    warn(`play-notes: streszczenie ${i}/${attempts} odrzucone (${String(out || '').trim().length} zn., limit ${PLAY_NOTES_LIMIT}).`);
+  }
+  warn('play-notes: !! brak streszczenia LLM – obcięte punkty (fitNotes).');
+  return fitted;
+}
+
+function askClaude(section) {
+  const res = spawnSync('claude', ['-p', '--model', 'sonnet', '--tools', '', '--setting-sources', '', '--no-session-persistence',
+    '--system-prompt', SUMMARY_PROMPT, 'Lista zmian jest na wejściu (stdin).'],
+    { input: section, encoding: 'utf8', cwd: os.tmpdir(), timeout: 180_000 });
+  if (res.error) throw res.error;
+  if (res.status !== 0) throw new Error(`kod ${res.status}: ${(res.stderr || res.stdout || '').trim().slice(0, 200)}`);
+  return res.stdout;
+}
+
+const notesFile = (heading) => path.join(NOTES_DIR, `${heading}.txt`);
+
 const releaseName = (version, code, staging) => `${version} (${code})${staging ? ' staging' : ''}`;
 
 // Track z API → track do zapisu: wybrane wydanie z nową nazwą/notatkami. Przy --complete zostaje tylko ono
@@ -54,7 +112,7 @@ function updateTrack(track, { code, name, notes, lang, complete }) {
 }
 
 function parseArgs(argv) {
-  const a = { track: 'internal', staging: false, complete: false, lang: 'pl-PL', code: null };
+  const a = { track: 'internal', staging: false, complete: false, lang: 'pl-PL', code: null, summarize: false, write: false, notesFile: null };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--track') a.track = argv[++i];
@@ -62,6 +120,9 @@ function parseArgs(argv) {
     else if (k === '--complete') a.complete = true;
     else if (k === '--lang') a.lang = argv[++i];
     else if (k === '--version-code') a.code = Number(argv[++i]);
+    else if (k === '--notes-file') a.notesFile = argv[++i];
+    else if (k === '--summarize') a.summarize = true;
+    else if (k === '--write') a.write = true;
     else throw new Error(`Nieznany argument: ${k}`);
   }
   return a;
@@ -101,7 +162,28 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const version = fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8').trim();
   const md = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
-  const notes = fitNotes(changelogSection(md, args.staging ? 'RELEASE-CANDIDATE' : `v${version}`));
+  const heading = args.staging ? 'RELEASE-CANDIDATE' : `v${version}`;
+  const section = changelogSection(md, heading);
+
+  if (args.summarize) {
+    // Staging zaraz po wydaniu (pusty RELEASE-CANDIDATE) – nic do streszczenia, Play zostawia poprzednie „Co nowego”.
+    if (!section && args.staging) return;
+    if (!section) throw new Error(`Pusta sekcja CHANGELOG-a (${heading}).`);
+    const text = summarize(section);
+    if (args.write) {
+      fs.mkdirSync(NOTES_DIR, { recursive: true });
+      fs.writeFileSync(notesFile(heading), `${text}\n`);
+      console.error(`==> ${path.relative(ROOT, notesFile(heading))} (${text.length} zn.):\n${text}`);
+    } else {
+      console.log(text);
+    }
+    return;
+  }
+
+  const file = args.notesFile || (fs.existsSync(notesFile(heading)) ? notesFile(heading) : null);
+  const fromFile = file ? checkSummary(fs.readFileSync(file, 'utf8')) : null;
+  if (file && !fromFile) throw new Error(`${file}: puste albo dłuższe niż ${PLAY_NOTES_LIMIT} znaków.`);
+  const notes = fromFile || fitNotes(section);
   // Wydanie bez notatek to błąd (i tak blokuje je make release-*); staging zaraz po wydaniu ma pusty RELEASE-CANDIDATE.
   if (!notes && !args.staging) throw new Error(`Pusta sekcja CHANGELOG-a (v${version}).`);
 
@@ -125,7 +207,7 @@ async function main() {
     (notes ? `Co nowego (${notes.length} zn.):\n${notes}` : 'bez „Co nowego” (pusty RELEASE-CANDIDATE).'));
 }
 
-module.exports = { changelogSection, fitNotes, releaseName, updateTrack, parseArgs, PLAY_NOTES_LIMIT };
+module.exports = { changelogSection, fitNotes, checkSummary, summarize, releaseName, updateTrack, parseArgs, PLAY_NOTES_LIMIT };
 
 if (require.main === module) {
   main().catch((e) => {

@@ -1,5 +1,5 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { changelogSection, fitNotes, releaseName, updateTrack, parseArgs, PLAY_NOTES_LIMIT } = require('../scripts/play-notes');
+const { changelogSection, fitNotes, checkSummary, summarize, releaseName, updateTrack, parseArgs, PLAY_NOTES_LIMIT } = require('../scripts/play-notes');
 
 const MD = `## RELEASE-CANDIDATE
 
@@ -26,6 +26,31 @@ describe('play-notes', () => {
     expect(notes.endsWith('…i więcej zmian.')).toBe(true);
   });
 
+  it('streszczenie LLM tylko dla sekcji, która się nie mieści; za długie ponawia, potem obcina', () => {
+    const ask = jest.fn();
+    expect(summarize('- A.\n- B.', { ask })).toBe('• A.\n• B.');
+    expect(ask).not.toHaveBeenCalled();
+
+    const long = Array.from({ length: 10 }, (_, i) => `- Zmiana ${i} ${'x'.repeat(80)}.`).join('\n');
+    const warn = jest.fn();
+    ask.mockReturnValueOnce('y'.repeat(600)).mockReturnValueOnce('```\n• Krótko.\n```\n');
+    expect(summarize(long, { ask, warn })).toBe('• Krótko.');
+    expect(ask).toHaveBeenCalledTimes(2);
+    expect(ask.mock.calls[1][0]).toContain('600 znaków');
+
+    ask.mockReset().mockReturnValue('');
+    expect(summarize(long, { ask, warn, attempts: 2 })).toBe(fitNotes(long));
+    ask.mockReset().mockImplementation(() => { throw new Error('brak claude'); });
+    expect(summarize(long, { ask, warn })).toBe(fitNotes(long));
+    expect(ask).toHaveBeenCalledTimes(1);
+  });
+
+  it('checkSummary: limit Play i puste', () => {
+    expect(checkSummary('  • A.\n')).toBe('• A.');
+    expect(checkSummary('')).toBeNull();
+    expect(checkSummary('x'.repeat(PLAY_NOTES_LIMIT + 1))).toBeNull();
+  });
+
   it('nazwa wydania: wersja, versionCode i dopisek staging', () => {
     expect(releaseName('1.0.0', 3, true)).toBe('1.0.0 (3) staging');
     expect(releaseName('1.1.0', 7, false)).toBe('1.1.0 (7)');
@@ -46,6 +71,8 @@ describe('play-notes', () => {
 
   it('argumenty', () => {
     expect(parseArgs(['--track', 'beta', '--version-code', '4'])).toMatchObject({ track: 'beta', code: 4, staging: false, complete: false });
+    expect(parseArgs(['--summarize', '--staging', '--write'])).toMatchObject({ summarize: true, staging: true, write: true });
+    expect(parseArgs(['--notes-file', 'n.txt']).notesFile).toBe('n.txt');
     expect(() => parseArgs(['--foo'])).toThrow(/Nieznany/);
   });
 });
