@@ -1,5 +1,8 @@
 ## RELEASE-CANDIDATE
 
+- Na górze listy rodzajów wykroczenia w nowym zgłoszeniu są kategorie, których ostatnio używałeś/aś na tym telefonie – każda nowa wypycha jedną z domyślnych, więc częste przypadki masz od razu pod ręką.
+- Przycisk „Pokaż wszystkie kategorie” jest wyraźnie oddzielony od kafelków kategorii i pokazuje, ile kategorii jeszcze kryje.
+
 ## v1.1.5 — 2026-10-25
 
 - Zgłoszenie „Oba” (dwa pojazdy) można poprawić po podglądzie przed wysłaniem – powrót do edycji i ponowne „Dalej” nie kończy się już błędem „Nie udało się dodać zdjęć drugiego pojazdu”.

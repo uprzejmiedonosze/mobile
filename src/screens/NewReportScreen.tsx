@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { type UdApp, imageUrl } from '../api/apps';
 import { fetchConfig } from '../api/dashboard';
 import { fetchCategories, reverseGeocode } from '../api/geo';
+import { loadRecentCategories, pickTopCategories } from '../lib/recentCategories';
 import { fetchRecydywa } from '../api/recydywa';
 import {
   createDraft, fetchReport, fetchVehicleDescription, saveReport, searchAddress, type ReportForm,
@@ -115,6 +116,7 @@ export function NewReportScreen({ navigation, route }: any) {
   const [app, setApp] = useState<UdApp | null>(null);
   const [form, setForm] = useState<Form>(EMPTY);
   const [cats, setCats] = useState<Category[]>([]);
+  const [recentCats, setRecentCats] = useState<number[]>([]);
   const [groups, setGroups] = useState<Groups>({});
   const [exts, setExts] = useState<Record<string, Extension>>({});
   const [showAllCats, setShowAllCats] = useState(false);
@@ -158,6 +160,7 @@ export function NewReportScreen({ navigation, route }: any) {
   useFocusEffect(useCallback(() => { refreshQuota(); }, [refreshQuota])); // licznik limitu zdjęć przy każdym wejściu na ekran
   useEffect(() => {
     fetchCategories().then(setCats);
+    loadRecentCategories().then(setRecentCats);
     fetchConfig<Groups>('category-groups').then(setGroups);
     fetchConfig<Record<string, Extension>>('extensions').then(setExts);
   }, []);
@@ -387,10 +390,15 @@ export function NewReportScreen({ navigation, route }: any) {
   const smDisabled = forcePolice || !!form.geo?.smUnknown;
   const unit = smDisabled ? 'SA' : form.unit;
   const unitHint = (u?: { name: string; hint: string }) => (u ? [u.name, u.hint].filter(Boolean).join(': ') : undefined);
-  const topCats = useMemo(() => cats.filter((c) => c.title && c.groups?.includes(0)).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)), [cats]);
+  // Domyślne TOP z categories.json (grupa 0), wypychane przez ostatnio używane na tym urządzeniu (recentCategories).
+  const topCats = useMemo(() => pickTopCategories(cats.filter((c) => c.title && c.groups?.includes(0)).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)), cats, recentCats), [cats, recentCats]);
   const catGroups = useMemo(() => Object.entries(groups).filter(([id]) => id !== '0').map(([id, g]) => ({
     id: Number(id), name: g.name, items: cats.filter((c) => c.title && c.groups?.includes(Number(id))).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)),
   })), [cats, groups]);
+  const hiddenCatsCnt = useMemo(() => {
+    const top = new Set(topCats.map((c) => c.id));
+    return new Set(catGroups.flatMap((g) => g.items.map((c) => c.id)).filter((id) => !top.has(id))).size;
+  }, [topCats, catGroups]);
 
   const submit = async () => {
     setErr(null);
@@ -516,7 +524,18 @@ export function NewReportScreen({ navigation, route }: any) {
         <H>Wybierz rodzaj wykroczenia</H>
         {topCats.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} onMore={setCatInfo} />)}
         {!showAllCats ? (
-          <Pressable onPress={() => setShowAllCats(true)}><Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, marginTop: 8 }}>Pokaż wszystkie</Text></Pressable>
+          // Pełna szerokość, tonalne tło bez ramki i odstęp od kart – wcześniej sam tekst ginął między kafelkami
+          // (i mylił się z zaznaczonym „Pozostałe przypadki”, które też ma zieloną ramkę).
+          <Pressable
+            onPress={() => setShowAllCats(true)}
+            accessibilityRole="button"
+            android_ripple={ripple}
+            style={{ overflow: 'hidden', marginTop: 16, marginBottom: 8, paddingVertical: 12, borderRadius: ud.radiusPill, backgroundColor: ud.primaryContainer, alignItems: 'center' }}
+          >
+            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, fontSize: 15 }}>
+              Pokaż wszystkie kategorie{hiddenCatsCnt ? ` (+${hiddenCatsCnt})` : ''} ▾
+            </Text>
+          </Pressable>
         ) : (
           catGroups.map((g) => (
             <View key={g.name}>

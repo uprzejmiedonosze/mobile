@@ -10,6 +10,7 @@ import { log } from '../lib/log';
 import { useNewReport } from '../store/useNewReport';
 import { toast } from '../store/useToast';
 import { ud } from '../theme';
+import { recordRecentCategory } from '../lib/recentCategories';
 
 // Odpowiednik potwierdz.html.twig („Sprawdź przed wysłaniem” / „Sprawdź zgłoszenie”): podsumowanie zapisanego
 // zgłoszenia, a dopiero przycisk na dole je potwierdza (POST /app/{id}/finish) i – gdy odbiorca ma automatyczny
@@ -66,6 +67,8 @@ export function ReportConfirmScreen({ navigation, route }: any) {
       }
       setDraftId(null);
       setDone(appIds.map((id) => finished.current.get(id)!));
+      // „Oba” = dwa szkice z tą samą kategorią – jeden wpis
+      for (const cat of new Set(items.map(({ app }) => Number(app.category)))) await recordRecentCategory(cat);
       // reset stosu: formularz znika, więc „Dodaj kolejne” zaczyna z czystego formularza
       navigation.reset({ index: 1, routes: [{ name: 'Dashboard' }, { name: 'ReportDone' }] });
     } catch (e: any) {
