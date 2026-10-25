@@ -392,9 +392,13 @@ export function NewReportScreen({ navigation, route }: any) {
   const unitHint = (u?: { name: string; hint: string }) => (u ? [u.name, u.hint].filter(Boolean).join(': ') : undefined);
   // Domyślne TOP z categories.json (grupa 0), wypychane przez ostatnio używane na tym urządzeniu (recentCategories).
   const topCats = useMemo(() => pickTopCategories(cats.filter((c) => c.title && c.groups?.includes(0)).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)), cats, recentCats), [cats, recentCats]);
+  // Kategoria 0 („Pozostałe przypadki”) ma stały kafelek pod listą, więc w rozwiniętych grupach jej nie ma
+  // (jej grupa 5 w categories.json zawiera tylko ją – pusta grupa znika razem z nagłówkiem).
   const catGroups = useMemo(() => Object.entries(groups).filter(([id]) => id !== '0').map(([id, g]) => ({
-    id: Number(id), name: g.name, items: cats.filter((c) => c.title && c.groups?.includes(Number(id))).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)),
-  })), [cats, groups]);
+    id: Number(id), name: g.name, items: cats.filter((c) => c.id && c.title && c.groups?.includes(Number(id))).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)),
+  })).filter((g) => g.items.length), [cats, groups]);
+  // Stały kafelek „Pozostałe przypadki” z danymi z categories.json (opis, mandat, „Więcej…”); zanim się wczytają – zaślepka.
+  const otherCat = useMemo(() => cats.find((c) => c.id === 0 && c.title), [cats]);
   const hiddenCatsCnt = useMemo(() => {
     const top = new Set(topCats.map((c) => c.id));
     return new Set(catGroups.flatMap((g) => g.items.map((c) => c.id)).filter((id) => !top.has(id))).size;
@@ -537,21 +541,21 @@ export function NewReportScreen({ navigation, route }: any) {
             </Text>
           </Pressable>
         ) : (
-          catGroups.map((g) => (
-            <View key={g.name}>
-              <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, marginTop: 16 }}>{g.name}</Text>
-              {g.items.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} onMore={setCatInfo} />)}
-              {g.id === 5 ? (
-                // jak .category-hint w nowe-zgloszenie.html.twig
-                <Text style={{ color: ud.muted, fontSize: 13, marginTop: 10 }}>
-                  Masz wątpliwości, którą kategorię wybrać? Przeczytaj{' '}
-                  <Text onPress={() => openUdPage(navigation, '/przepisy.html', 'Przepisy')} style={{ color: ud.primary, textDecorationLine: 'underline' }}>nasz poradnik</Text>.
-                </Text>
-              ) : null}
-            </View>
-          ))
+          <>
+            {catGroups.map((g) => (
+              <View key={g.name}>
+                <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, marginTop: 16 }}>{g.name}</Text>
+                {g.items.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} onMore={setCatInfo} />)}
+              </View>
+            ))}
+            {/* jak .category-hint w nowe-zgloszenie.html.twig (tam pod grupą 5, która tu jest stałym kafelkiem niżej) */}
+            <Text style={{ color: ud.muted, fontSize: 13, marginTop: 16 }}>
+              Masz wątpliwości, którą kategorię wybrać? Przeczytaj{' '}
+              <Text onPress={() => openUdPage(navigation, '/przepisy.html', 'Przepisy')} style={{ color: ud.primary, textDecorationLine: 'underline' }}>nasz poradnik</Text>.
+            </Text>
+          </>
         )}
-        <CategoryRow c={{ id: 0, title: 'Pozostałe przypadki', short: 'Opisz sytuację w komentarzu.' }} on={form.category === 0} onPress={() => chooseCategory(0)} />
+        <CategoryRow c={otherCat ?? { id: 0, title: 'Pozostałe przypadki', short: 'Opisz sytuację w komentarzu.' }} on={form.category === 0} onPress={() => chooseCategory(0)} onMore={otherCat ? setCatInfo : undefined} />
 
         <L>Komentarz{form.category === 0 ? ' (wymagany)' : ''}</L>
         <TextInput {...inputColors} style={[input, { minHeight: 80, textAlignVertical: 'top' }]} multiline value={form.comment} onChangeText={(t) => set('comment', t)} onEndEditing={() => { const w = !form.witness && commentWarning(form.comment); if (w) toast.info(`${w} Sprawdź opcję „świadek momentu parkowania”.`); }} placeholder="Dodatkowy opis wykroczenia" />
