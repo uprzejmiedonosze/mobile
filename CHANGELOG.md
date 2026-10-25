@@ -4,6 +4,7 @@
 - Poprawienie adresu w nowym zgłoszeniu nie przesuwa już pinezki na mapie – zostaje tam, gdzie wskazał GPS zdjęcia albo Ty na mapie, a zmienia się tylko tekst adresu (jak na stronie www).
 - Podgląd zgłoszenia przed wysłaniem pokazuje aktualne zdjęcia po ich podmianie (np. ponownym wyborze zdjęć albo innego pojazdu) – wcześniej telefon mógł pokazać poprzednie zdjęcie auta z ramką pojazdu z nowego, przez co ramka nie trafiała w auto.
 - W wersji testowej aplikacji nie ma już przycisku logowania kluczem dostępu (passkey) – nie działał tam i kończył się błędem „An unknown error occurred”. Zaloguj się linkiem z e-maila albo kontem Google.
+- Przy chwilowych kłopotach z siecią aplikacja sama ponawia wczytanie listy zgłoszeń i pulpitu oraz logowanie przez Google, zamiast od razu pokazywać błąd (np. „HTTP 504”).
 
 ## v1.1.4 — 2026-10-24
 

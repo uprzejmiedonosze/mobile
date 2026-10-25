@@ -104,7 +104,7 @@ export const useAuth = create<Auth>((set, get) => ({
     } catch (e: any) {
       const m = e?.message ?? String(e);
       set({ status: 'error', error: m });
-      log.error('auth', m);
+      log.fail('auth', e);
     }
   },
   signInWithGoogle: async () => {

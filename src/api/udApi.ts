@@ -8,6 +8,7 @@ import { refreshIdToken } from './firebaseAuth';
 import { useAuth } from '../store/useAuth';
 import { useAppUpdate } from '../store/useAppUpdate';
 import { clientHeaders } from '../lib/appVersion';
+import { retryTransient } from '../lib/retry';
 
 export async function verifySession(idToken: string): Promise<{ email?: string; name?: string } | null> {
   try {
@@ -70,20 +71,25 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
       if (timedOut) throw new ApiError('Serwer nie odpowiada – spróbuj ponownie.', 0);
       throw e; // anulowane przez wołającego
     }
-    throw new ApiError('Brak połączenia z internetem.', 0);
+    throw new OfflineError();
   } finally {
     clearTimeout(t);
     outer?.removeEventListener('abort', onOuterAbort);
   }
 }
 
-// fetch z Bearer + nagłówek wersji klienta + timeout + jeden retry po refreshu przy 401.
+// fetch z Bearer + nagłówek wersji klienta + timeout + jeden retry po refreshu przy 401. GET/HEAD dodatkowo ponawiamy
+// przy 502/503/504 i zerwanym połączeniu (retryTransient) – bez timeoutów, bo te już trwały pełne timeoutMs.
 export async function authFetch(path: string, init?: RequestInit, opts?: { timeoutMs?: number }): Promise<Response> {
   const token = await validIdToken();
   const url = path.startsWith('http') ? path : `${udConfig.base}${path}`;
   const timeoutMs = opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const call = (bearer: string) =>
-    fetchWithTimeout(url, { ...init, headers: { ...(init?.headers as any), ...clientHeaders(), Authorization: `Bearer ${bearer}` } }, timeoutMs);
+  const idempotent = ['GET', 'HEAD'].includes((init?.method ?? 'GET').toUpperCase());
+  const call = (bearer: string) => {
+    const once = () =>
+      fetchWithTimeout(url, { ...init, headers: { ...(init?.headers as any), ...clientHeaders(), Authorization: `Bearer ${bearer}` } }, timeoutMs);
+    return idempotent ? retryTransient(once, { isTransientError: (e) => e instanceof OfflineError }) : once();
+  };
   let res = await call(token);
   if (res.status === 401) {
     const s = useAuth.getState();
@@ -102,6 +108,13 @@ export async function authFetch(path: string, init?: RequestInit, opts?: { timeo
 export class ApiError extends Error {
   constructor(message: string, public status: number, public field?: string, public quota?: PhotoQuota) {
     super(message);
+  }
+}
+
+// Brak połączenia (fetch nie dostał żadnej odpowiedzi) – w odróżnieniu od timeoutu można od razu ponowić.
+export class OfflineError extends ApiError {
+  constructor() {
+    super('Brak połączenia z internetem.', 0);
   }
 }
 

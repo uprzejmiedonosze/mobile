@@ -367,7 +367,7 @@ export function ReportsScreen({ navigation, route }: any) {
     } catch (e: any) {
       if (id !== reqId.current) return;
       setErr(e);
-      log.error('zgloszenia', e?.message ?? String(e));
+      log.fail('zgloszenia', e);
     } finally {
       if (id === reqId.current) { setLoading(false); setRefreshing(false); }
     }

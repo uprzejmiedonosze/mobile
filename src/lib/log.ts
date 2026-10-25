@@ -44,10 +44,11 @@ function emit(level: LogLevel, tag: string, msg: string) {
 // Błąd po stronie użytkownika (odmowa uprawnień, zły e-mail…): komunikat dla niego, nie usterka do Sentry.
 export class UserError extends Error {}
 
-// Oczekiwane błędy: UserError oraz odpowiedzi API z walidacją (422) albo limitem zdjęć (402) – duck typing po `status`,
-// żeby log.ts nie importował api/udApi (cykl importów).
+// Oczekiwane błędy: UserError, odpowiedzi API z walidacją (422) albo limitem zdjęć (402) oraz brak sieci/timeout
+// (ApiError ze statusem 0 – telefon bez zasięgu, nie usterka) – duck typing po `status`, żeby log.ts nie importował
+// api/udApi (cykl importów).
 export const isExpectedError = (e: unknown): boolean =>
-  e instanceof UserError || [402, 422].includes((e as { status?: unknown } | null)?.status as number);
+  e instanceof UserError || [0, 402, 422].includes((e as { status?: unknown } | null)?.status as number);
 
 export const log = {
   debug: (tag: string, msg: string) => emit('debug', tag, msg),

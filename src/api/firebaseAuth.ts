@@ -9,10 +9,16 @@
 import * as SecureStore from 'expo-secure-store';
 import { firebaseConfig, firebaseEmulatorHost, udConfig } from '../config';
 import { log, logFetch, UserError } from '../lib/log';
+import { retryTransient } from '../lib/retry';
 
 // Emulator Firebase Auth wystawia te same ścieżki pod własnym hostem (e2e lokalnie, config.firebaseEmulatorHost).
 const IDTK = firebaseEmulatorHost ? `${firebaseEmulatorHost}/identitytoolkit.googleapis.com/v1` : 'https://identitytoolkit.googleapis.com/v1';
 const SECURE = firebaseEmulatorHost ? `${firebaseEmulatorHost}/securetoken.googleapis.com/v1` : 'https://securetoken.googleapis.com/v1';
+
+// Wymiana tokenu na sesję jest idempotentna – przy 502/503/504 i zerwanym połączeniu (fetch rzuca TypeError) ponawiamy.
+// Nie dla sendOobCode (drugi mail) ani signInWithEmailLink (kod jednorazowy mógł już zostać zużyty).
+const fbFetchRetry = (url: string, init: RequestInit) =>
+  retryTransient(() => logFetch('auth', url, init), { isTransientError: (e) => e instanceof TypeError });
 
 const K_REFRESH = 'udpro.fb.refresh';
 const K_EMAIL = 'udpro.fb.email';
@@ -28,7 +34,9 @@ async function fbErr(res: Response): Promise<never> {
   } catch {
     /* nie-JSON */
   }
-  throw new Error(fbFriendly(msg));
+  // Błędy, które użytkownik sam naprawi (zły e-mail, wygasły kod, za dużo prób), nie są usterką do Sentry.
+  const userFacing = /INVALID_EMAIL|TOO_MANY_ATTEMPTS|QUOTA_EXCEEDED|INVALID_OOB_CODE|EXPIRED_OOB_CODE|EMAIL_NOT_FOUND/i.test(msg);
+  throw userFacing ? new UserError(fbFriendly(msg)) : new Error(fbFriendly(msg));
 }
 
 function fbFriendly(msg: string): string {
@@ -60,7 +68,7 @@ export async function sendEmailLink(email: string): Promise<void> {
     }),
   });
   if (!res.ok) {
-    log.error('auth', `sendOobCode: HTTP ${res.status}`);
+    log.warn('auth', `sendOobCode: HTTP ${res.status}`);
     await fbErr(res);
   }
   await SecureStore.setItemAsync(K_EMAIL, clean);
@@ -80,7 +88,7 @@ export async function signInWithCode(email: string, codeOrLink: string): Promise
     body: JSON.stringify({ email: clean, oobCode }),
   });
   if (!res.ok) {
-    log.error('auth', `signInWithEmailLink: HTTP ${res.status}`);
+    log.warn('auth', `signInWithEmailLink: HTTP ${res.status}`);
     await fbErr(res);
   }
   const j = (await res.json()) as any;
@@ -101,7 +109,7 @@ export async function signInWithCode(email: string, codeOrLink: string): Promise
 // tylko inny provider (AuthMiddleware w backendzie jest provider-agnostyczny, patrz CLAUDE.md).
 export async function signInWithGoogleIdToken(googleIdToken: string): Promise<FbSession> {
   log.info('auth', 'wymieniam token Google na sesję Firebase…');
-  const res = await logFetch('auth', `${IDTK}/accounts:signInWithIdp?key=${firebaseConfig.apiKey}`, {
+  const res = await fbFetchRetry(`${IDTK}/accounts:signInWithIdp?key=${firebaseConfig.apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -112,7 +120,7 @@ export async function signInWithGoogleIdToken(googleIdToken: string): Promise<Fb
     }),
   });
   if (!res.ok) {
-    log.error('auth', `signInWithIdp: HTTP ${res.status}`);
+    log.warn('auth', `signInWithIdp: HTTP ${res.status}`);
     await fbErr(res);
   }
   const j = (await res.json()) as any;
@@ -133,13 +141,13 @@ export async function signInWithGoogleIdToken(googleIdToken: string): Promise<Fb
 // logowań); wymieniamy go na sesję, a e-mail (którego odpowiedź nie zawiera) pobieramy z accounts:lookup.
 export async function signInWithCustomToken(customToken: string): Promise<FbSession> {
   log.info('auth', 'wymieniam custom token (passkey) na sesję Firebase…');
-  const res = await logFetch('auth', `${IDTK}/accounts:signInWithCustomToken?key=${firebaseConfig.apiKey}`, {
+  const res = await fbFetchRetry(`${IDTK}/accounts:signInWithCustomToken?key=${firebaseConfig.apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token: customToken, returnSecureToken: true }),
   });
   if (!res.ok) {
-    log.error('auth', `signInWithCustomToken: HTTP ${res.status}`);
+    log.warn('auth', `signInWithCustomToken: HTTP ${res.status}`);
     await fbErr(res);
   }
   const j = (await res.json()) as any;
@@ -167,7 +175,7 @@ export async function signInWithCustomToken(customToken: string): Promise<FbSess
 }
 
 export async function refreshIdToken(refreshToken: string): Promise<FbSession> {
-  const res = await logFetch('auth', `${SECURE}/token?key=${firebaseConfig.apiKey}`, {
+  const res = await fbFetchRetry(`${SECURE}/token?key=${firebaseConfig.apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}`,

@@ -98,7 +98,7 @@ export function DashboardScreen({ navigation }: any) {
       setD(await fetchDashboard());
     } catch (e: any) {
       setErr(e);
-      log.error('pulpit', e?.message ?? String(e));
+      log.fail('pulpit', e);
     } finally {
       setRefreshing(false);
     }

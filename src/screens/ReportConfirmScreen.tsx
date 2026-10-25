@@ -50,7 +50,7 @@ export function ReportConfirmScreen({ navigation, route }: any) {
   useEffect(() => {
     Promise.all(appIds.map((id) => Promise.all([fetchReport(id), fetchConfirmation(id)]).then(([app, c]) => ({ app, c }))))
       .then(setItems)
-      .catch((e) => { log.error('potwierdzenie', String(e?.message ?? e)); toast.error(e?.message ?? 'Nie udało się wczytać podsumowania'); });
+      .catch((e) => { log.fail('potwierdzenie', e); toast.error(e?.message ?? 'Nie udało się wczytać podsumowania'); });
     const t = setTimeout(() => setArmed(true), 1500);
     return () => clearTimeout(t);
   }, [key]);
