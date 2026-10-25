@@ -1,0 +1,5 @@
+• Naprawiono błąd przy poprawianiu zgłoszenia „Oba” (dwa pojazdy) po podglądzie – ponowne „Dalej” już się nie wywala.
+• Poprawa adresu nie przesuwa pinezki na mapie, zmienia się tylko tekst adresu.
+• Podgląd przed wysłaniem pokazuje aktualne zdjęcia, a ramka pojazdu trafia w auto.
+• Aplikacja sama ponawia wczytanie listy, pulpitu i logowanie Google przy kłopotach z siecią.
+• W wersji testowej usunięto niedziałające logowanie passkey.
