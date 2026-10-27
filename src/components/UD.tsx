@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Image, Pressable, Text, View, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Image, Pressable, Text, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
 import { TAB_ICONS } from '../assets/tabIcons';
@@ -13,6 +13,18 @@ export function UdLogo({ height = 24, color }: { height?: number; color?: string
   // `color` podmienia zielony z oficjalnego SVG (np. biały logotyp na zielonym nagłówku)
   const xml = color ? UD_LOGO_SVG.replaceAll(UD_LOGO_COLOR, color) : UD_LOGO_SVG;
   return <SvgXml xml={xml} height={height} width={height * UD_LOGO_ASPECT} />;
+}
+
+// Ekran oczekiwania (start appki, logowanie, sprawdzanie konta) – wszędzie ten sam, żeby kolejne etapy
+// logowania przechodziły w siebie bez skoku, a spinner pokazywał, że coś się dzieje.
+export function UdSplash({ label }: { label: string }) {
+  return (
+    <View style={{ flex: 1, backgroundColor: ud.surfaceLow, alignItems: 'center', justifyContent: 'center' }}>
+      <UdLogo height={32} />
+      <ActivityIndicator color={ud.primary} style={{ marginTop: 16 }} />
+      <Text style={{ color: ud.muted, marginTop: 8 }}>{label}</Text>
+    </View>
+  );
 }
 
 // Ikony nagłówka (stroke Feather, białe): strzałka „wstecz” i ołówek „popraw”.

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Text, View } from 'react-native';
+import { AppState } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -21,14 +21,13 @@ import { UpdateRequiredScreen } from './src/screens/UpdateRequiredScreen';
 import { PhotoPickerHost } from './src/components/PhotoPickerHost';
 import { ToastHost } from './src/components/ToastHost';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
-import { UdLogo } from './src/components/UD';
+import { UdSplash } from './src/components/UD';
 import { installGlobalLogHandlers, log } from './src/lib/log';
 import { installE2eLogin } from './src/lib/e2eLogin';
 import { useAuth } from './src/store/useAuth';
 import { useAppUpdate } from './src/store/useAppUpdate';
 import { toast } from './src/store/useToast';
 import { udConfig, udEnv } from './src/config';
-import { ud } from './src/theme';
 
 const Stack = createNativeStackNavigator();
 
@@ -90,10 +89,7 @@ export default function App() {
       {updateStatus === 'required' && fontsLoaded ? (
         <UpdateRequiredScreen />
       ) : !fontsLoaded || !ready || (logged && !registrationChecked) ? (
-        <View style={{ flex: 1, backgroundColor: ud.surfaceLow, alignItems: 'center', justifyContent: 'center' }}>
-          <UdLogo height={32} />
-          <Text style={{ color: ud.muted, marginTop: 8 }}>{ready ? 'sprawdzam konto…' : 'sprawdzam sesję…'}</Text>
-        </View>
+        <UdSplash label={ready ? 'sprawdzam konto…' : 'sprawdzam sesję…'} />
       ) : !logged ? (
         <Stack.Navigator initialRouteName="Account" screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Account" component={AccountScreen} />

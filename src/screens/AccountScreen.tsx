@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { deleteAccount, fetchPasskeys, fetchProfile, removePasskey, updateUserProfile, type Passkey } from '../api/user';
 import { registerPasskey } from '../api/passkey';
 import { isPasskeyCancelled, passkeysEnabled } from '../lib/passkey';
@@ -7,7 +8,7 @@ import { googleSignInReady, useAuth } from '../store/useAuth';
 import { udConfig, udEnv } from '../config';
 import { appBuild, appVersion } from '../lib/appVersion';
 import { ud, inputColors } from '../theme';
-import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdCard, UdHeader, UdSplash, UdTabs } from '../components/UD';
 import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
 
 export function AccountScreen({ navigation }: any) {
@@ -17,6 +18,10 @@ export function AccountScreen({ navigation }: any) {
 
   const logged = a.status === 'logged' && !!a.idToken;
   const busy = a.status === 'link-sending' || a.status === 'verifying' || a.status === 'google-signing' || a.status === 'passkey-signing';
+  // Weryfikacja tokenu trwa 1–2 s – sam napis na przycisku wyglądał, jakby logowanie stanęło. Ten sam ekran co
+  // „sprawdzam konto…” w App, więc dalej zmienia się tylko podpis; po błędzie/anulowaniu wraca formularz z kodem.
+  const signingIn = a.status === 'verifying' || a.status === 'google-signing' || a.status === 'passkey-signing';
+  if (signingIn) return (<><StatusBar style="dark" /><UdSplash label="loguję…" /></>);
 
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>

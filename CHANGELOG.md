@@ -1,6 +1,7 @@
 ## RELEASE-CANDIDATE
 
 - Po wylogowaniu i zalogowaniu na inne konto na tym samym telefonie nowe zgłoszenie zaczyna się od czystego formularza – nie wczytuje się już niedokończony szkic poprzedniego konta, którego nie dało się wysłać.
+- Podczas logowania (kodem z maila, przez Google albo passkeyem) widać ekran „loguję…” z kręcącym się wskaźnikiem – nie wygląda już, jakby logowanie się zawiesiło.
 
 ## v1.1.6 — 2026-10-25
 
