@@ -27,6 +27,7 @@ import { SLOT_ORDER } from '../lib/roles';
 import type { Slot, Suggestion } from '../lib/suggest';
 import { udConfig } from '../config';
 import { openUdPage } from '../lib/openPage';
+import { useAuth } from '../store/useAuth';
 import { useNewReport } from '../store/useNewReport';
 import { toast } from '../store/useToast';
 import { ud, inputColors, ripple, switchColors } from '../theme';
@@ -173,6 +174,9 @@ export function NewReportScreen({ navigation, route }: any) {
     fetchReport(id)
       .then((a) => {
         if (!['draft', 'ready', 'confirmed'].includes(a.status)) throw new Error('nieedytowalne'); // jak isEditable() na webie
+        // GET oddaje też cudze zgłoszenia, a zapis już nie (403) – szkic zapisany na tym telefonie przez inne konto porzucamy.
+        const me = useAuth.getState().email;
+        if (a.email && me && a.email.toLowerCase() !== me.toLowerCase()) throw new Error('cudzy szkic');
         edited.current = { plate: true, address: true };
         resolvedText.current = a.address?.address ?? '';
         setApp(a);

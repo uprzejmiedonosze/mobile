@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { create } from 'zustand';
 import { log } from '../lib/log';
+import { useNewReport } from './useNewReport';
 import {
   clearStoredAuth,
   refreshIdToken,
@@ -194,6 +195,9 @@ export const useAuth = create<Auth>((set, get) => ({
   },
   logout: async () => {
     await clearStoredAuth();
+    // Szkic „Nowe” należy do wylogowanego konta – po zalogowaniu na inne serwer odrzuci każdą jego zmianę (403).
+    useNewReport.getState().setDraftId(null);
+    useNewReport.getState().setDone(null);
     // signOut() z Google, inaczej kolejne "Zaloguj przez Google" loguje po cichu na tym samym
     // koncie bez pokazania wyboru konta (natywny cache biblioteki, niezależny od SecureStore).
     // GoogleSignin.signOut() rzuca SYNCHRONICZNIE (nie odrzuconym promise'm), gdy natywny moduł

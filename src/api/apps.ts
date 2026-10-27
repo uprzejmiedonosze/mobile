@@ -21,6 +21,7 @@ export type Recipient = {
 
 export type UdApp = {
   id: string;
+  email?: string; // właściciel zgłoszenia
   number?: string;
   status: string;
   date: string; // "YYYY-MM-DDTHH:mm:ss", czas lokalny zdarzenia

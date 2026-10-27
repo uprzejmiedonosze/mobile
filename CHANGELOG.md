@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+- Po wylogowaniu i zalogowaniu na inne konto na tym samym telefonie nowe zgłoszenie zaczyna się od czystego formularza – nie wczytuje się już niedokończony szkic poprzedniego konta, którego nie dało się wysłać.
+
 ## v1.1.6 — 2026-10-25
 
 - Na górze listy rodzajów wykroczenia w nowym zgłoszeniu są kategorie, których ostatnio używałeś/aś na tym telefonie – każda nowa wypycha jedną z domyślnych, więc częste przypadki masz od razu pod ręką.
