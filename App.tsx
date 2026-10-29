@@ -24,6 +24,7 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { UdSplash } from './src/components/UD';
 import { installGlobalLogHandlers, log } from './src/lib/log';
 import { installE2eLogin } from './src/lib/e2eLogin';
+import { installEmailLinkLogin } from './src/lib/emailLinkLogin';
 import { useAuth } from './src/store/useAuth';
 import { useAppUpdate } from './src/store/useAppUpdate';
 import { toast } from './src/store/useToast';
@@ -65,6 +66,9 @@ export default function App() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Link logowania z maila – dopiero po hydrate(), żeby nie logować ponownie kogoś, kto już ma sesję.
+  useEffect(() => (ready ? installEmailLinkLogin() : undefined), [ready]);
 
   useEffect(() => {
     if (updateStatus === 'soft' && !softShown.current) {

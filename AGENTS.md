@@ -119,7 +119,12 @@ Same mechanism as the web app: Firebase email-link sign-in (`src/api/firebaseAut
 `src/store/useAuth.ts`), provider `EMAIL_LINK_SIGN_IN_METHOD`. After verifying via
 `POST /api/verify-token`, subsequent `/api/rest/*` calls (geo, categories) use the resulting
 Bearer token; refresh token persisted in SecureStore. Flow: Account screen → enter email → send
-link → copy the one-time `oobCode` from the email (**do not click the link**) → paste to log in.
+link → paste the link/`oobCode` from the email — never open a plain link in a browser first (one-time code, the web would
+consume it). `sendEmailLink` asks Firebase for an app link (`androidPackageName` + `linkDomain`,
+`https://<authDomain>/__/auth/links`, intent filter in `app.config.js`); tapping it on the phone opens the app,
+which signs in (`src/lib/emailLinkLogin.ts` → `useAuth.completeEmailLink`). When the Firebase project has no Android app
+registered or its Auth `mobileLinksConfig.domain` is not `HOSTING_DOMAIN`, Firebase rejects that (`DYNAMIC_LINK_NOT_ACTIVATED`) and a plain web link is sent; `useAuth.appLinkSent` picks the
+matching instructions on the Account screen.
 Without auth, geo/category endpoints return 403 and must be filled in by hand.
 
 The auth gate in `App.tsx` is **active**: with no session, the app shows only the Account screen

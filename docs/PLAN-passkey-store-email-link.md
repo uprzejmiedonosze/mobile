@@ -52,7 +52,7 @@ Stan: `eas.json` ma `submit.production.android` (track `internal`, `releaseStatu
 
 ## 3. Logowanie email-link przez App Links (zamiast kopiowania kodu)
 
-Dlaczego dziś kopiujemy `oobCode`: Dynamic Links wyłączono 25.08.2025, appka nie przechwytuje linku. Obecnie Firebase kieruje link na domenę Hosting (u nas `auth.uprzejmiedonosze.net/__/auth/links?link=…`), którą appka może przejąć przez Android App Links / iOS Universal Links.
+Dlaczego dziś kopiujemy `oobCode`: Dynamic Links wyłączono 25.08.2025, appka nie przechwytuje linku. Mail zawiera link na domyślną domenę Hostingu projektu (`<projectId>.firebaseapp.com/__/auth/action?…`, sprawdzone w mailach staging i prod 10.2026 – nie `auth*.uprzejmiedonosze.net`). Z `androidPackageName` + `linkDomain` (= `authDomain`, `auth*.uprzejmiedonosze.net`) w `sendOobCode` Firebase daje link `https://auth-staging.uprzejmiedonosze.net/__/auth/links?link=…` (sprawdzone 29.10.2026), który appka przejmuje przez Android App Links / iOS Universal Links. Wymaga appki Android z SHA-256 w projekcie i `mobileLinksConfig.domain = HOSTING_DOMAIN`, inaczej `DYNAMIC_LINK_NOT_ACTIVATED` – appka wtedy wysyła zwykły link. Szczegóły: `docs/FIREBASE-EMAIL-LINK.md`.
 
 Krok 0 (rejestracja appek w Firebase, tabela wyżej) jest warunkiem: Hosting serwuje wtedy `assetlinks.json` i AASA dla domeny auth automatycznie.
 
@@ -62,7 +62,9 @@ Zmiany w appce:
 3. `src/api/firebaseAuth.ts`: reuse `signInWithCode(email, codeOrLink)` (e-mail z SecureStore, zapisywany przy `sendEmailLink`); dopasować regex do zdekodowanego URL.
 4. `useAuth`: akcja `completeEmailLink(url)` (wzór `verifyCode`: sesja → `verifySession` → `logged`).
 5. Ekran logowania: tekst „Kliknij link w mailu na tym telefonie”; wklejanie kodu zostaje jako fallback (mail na innym urządzeniu, klient poczty z własną przeglądarką).
-6. Opcjonalnie `linkDomain` w `sendOobCode` (REST nie ma tego pola; użyć domyślnej domeny projektu lub zweryfikować zachowanie custom domain).
+6. `linkDomain` w `sendOobCode` = `authDomain`; `firebaseapp.com` Firebase odrzuca (`INVALID_HOSTING_LINK_DOMAIN`).
+
+Status (27.10.2026): punkty 1–5 zrobione dla Androida (`app.config.js`, `src/lib/emailLink.ts`, `src/lib/emailLinkLogin.ts`, `useAuth.completeEmailLink`); iOS (`applinks:`) jeszcze nie. Brakuje kroku 0 w konsoli: appka Android `net.uprzejmiedonosze.pro` z SHA-1/SHA-256 w obu projektach.
 
 Ograniczenia: wymaga nowego buildu natywnego; weryfikacja App Links bywa kapryśna; mail musi być otwarty na tym samym urządzeniu; bez appki link działa jak dziś przez www (`continueUrl` → `/login.html`).
 

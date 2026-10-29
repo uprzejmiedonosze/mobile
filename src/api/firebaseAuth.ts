@@ -1,13 +1,17 @@
 // Firebase Auth przez czyste REST (bez JS SDK – działa też bez dev-buildu, poza Google).
 // Ten sam projekt co web (src/js/lib/firebaseConfig.js), dwa providery:
 //  - email-link: EmailAuthProvider.EMAIL_LINK_SIGN_IN_METHOD (src/js/firebase.js doLogin).
-//    Przepływ: sendEmailLink(email) -> user kopiuje oobCode z linku w mailu
-//    (linku NIE klika – kod jest jednorazowy) -> signInWithCode(email, code).
+//    Przepływ: sendEmailLink(email) -> klik w link na telefonie otwiera appkę (App Link, src/lib/emailLinkLogin.ts;
+//    tylko gdy Firebase wydał link do appki) albo user wkleja link/kod -> signInWithCode(email, code). Kod jest
+//    jednorazowy: zwykły link otwarty w przeglądarce zużywa go na logowanie w www.
 //  - Google: natywny @react-native-google-signin/google-signin (wymaga dev-build) daje token ID
 //    Google -> signInWithGoogleIdToken wymienia go na sesję Firebase (accounts:signInWithIdp).
 // Sesja: refreshToken w SecureStore, ID token (1h) odświeżany przez securetoken endpoint.
+import { Platform } from 'react-native';
+import * as Application from 'expo-application';
 import * as SecureStore from 'expo-secure-store';
 import { firebaseConfig, firebaseEmulatorHost, udConfig } from '../config';
+import { extractOobCode } from '../lib/emailLink';
 import { log, logFetch, UserError } from '../lib/log';
 import { retryTransient } from '../lib/retry';
 
@@ -42,7 +46,7 @@ async function fbErr(res: Response): Promise<never> {
 function fbFriendly(msg: string): string {
   if (/INVALID_EMAIL/i.test(msg)) return 'Zły adres e-mail.';
   if (/TOO_MANY_ATTEMPTS|QUOTA_EXCEEDED/i.test(msg)) return 'Za dużo prób – poczekaj chwilę.';
-  if (/INVALID_OOB_CODE|EXPIRED_OOB_CODE/i.test(msg)) return 'Kod wygasł lub zużyty – wyślij link jeszcze raz (linku nie klikaj, tylko skopiuj kod).';
+  if (/INVALID_OOB_CODE|EXPIRED_OOB_CODE/i.test(msg)) return 'Link wygasł albo został już użyty (np. otwarty w przeglądarce) – wyślij nowy.';
   if (/EMAIL_NOT_FOUND/i.test(msg)) return 'Najpierw wyślij link na ten adres (przycisk powyżej).';
   if (/UNAUTHORIZED_CONTINUE_URI|unauthorized/i.test(msg)) return 'Firebase odrzucił continueUrl – zgłoś do dev (whitelist w konsoli Firebase).';
   if (/INVALID_IDP_RESPONSE/i.test(msg)) return 'Firebase odrzucił token Google – zgłoś do dev (zły webClientId albo SHA-1 klienta OAuth).';
@@ -53,34 +57,55 @@ function fbFriendly(msg: string): string {
 // continueUrl to /login.html na hoście APLIKACJI (index.php:236), NIE authDomain –
 // authDomain to custom domain Firebase Auth, obsługuje tylko /__/auth/*. Musi być
 // na whiteliscie Authorized Domains projektu Firebase (konsola, poza repo).
-export async function sendEmailLink(email: string): Promise<void> {
+//
+// Link „do appki”: z androidPackageName + linkDomain Firebase robi link Hostingu
+// https://<authDomain>/__/auth/links?link=…, który przejmuje appka (intent filter w app.config.js, weryfikowany przez
+// assetlinks.json serwowany przez Hosting dla appki zarejestrowanej w projekcie z SHA-256). linkDomain musi być własną
+// domeną Hostingu – firebaseapp.com Firebase odrzuca (INVALID_HOSTING_LINK_DOMAIN). Bez appki na telefonie Hosting
+// przekierowuje do www jak dotąd. Projekt bez appki Android albo z mobileLinksConfig ≠ HOSTING_DOMAIN odrzuca taki
+// link (DYNAMIC_LINK_NOT_ACTIVATED) – wtedy wysyłamy zwykły. Konfiguracja: docs/FIREBASE-EMAIL-LINK.md.
+const RELEASE_PACKAGE = 'net.uprzejmiedonosze.pro'; // dev client (…pro.dev) nie ma intent filtra ani rejestracji w Firebase
+const APP_LINK_UNAVAILABLE = /DYNAMIC_LINK|LINK_DOMAIN|HOSTING|ANDROID/i;
+
+function appLinkSettings(): Record<string, unknown> | null {
+  if (Platform.OS !== 'android' || Application.applicationId !== RELEASE_PACKAGE || firebaseEmulatorHost) return null;
+  return { androidPackageName: RELEASE_PACKAGE, androidInstallApp: false, linkDomain: firebaseConfig.authDomain };
+}
+
+// Zwraca true, gdy poszedł link do appki – tylko wtedy można kazać go kliknąć (zwykły link zużyje kod w www).
+export async function sendEmailLink(email: string): Promise<boolean> {
   const clean = email.trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) throw new UserError('Zły adres e-mail.');
   log.info('auth', `wysyłam link na ${clean}`);
-  const res = await logFetch('auth', `${IDTK}/accounts:sendOobCode?key=${firebaseConfig.apiKey}`, {
+  const base = { requestType: 'EMAIL_SIGNIN', email: clean, continueUrl: `${udConfig.base}/login.html?next=%2Fapp%2Flist`, canHandleCodeInApp: true };
+  const send = (body: object) => logFetch('auth', `${IDTK}/accounts:sendOobCode?key=${firebaseConfig.apiKey}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      requestType: 'EMAIL_SIGNIN',
-      email: clean,
-      continueUrl: `${udConfig.base}/login.html?next=%2Fapp%2Flist`,
-      canHandleCodeInApp: true,
-    }),
+    body: JSON.stringify(body),
   });
+  const app = appLinkSettings();
+  let res = await send(app ? { ...base, ...app } : base);
+  let appLink = !!app;
+  if (!res.ok && app && res.status === 400 && APP_LINK_UNAVAILABLE.test(await res.clone().text().catch(() => ''))) {
+    log.warn('auth', 'sendOobCode: link do appki niedostępny w tym projekcie Firebase – wysyłam zwykły');
+    appLink = false;
+    res = await send(base);
+  }
   if (!res.ok) {
     log.warn('auth', `sendOobCode: HTTP ${res.status}`);
     await fbErr(res);
   }
+  // E-mail do dokończenia logowania z linku – appka mogła zostać zamknięta, zanim user kliknie w mail.
   await SecureStore.setItemAsync(K_EMAIL, clean);
-  log.info('auth', 'link wysłany – skopiuj oobCode z maila (linku nie klikaj)');
+  log.info('auth', appLink ? 'link do appki wysłany – kliknij go w mailu na tym telefonie' : 'link wysłany – skopiuj go z maila (nie otwieraj)');
+  return appLink;
 }
 
-// Krok 2: weryfikacja kodu (oobCode wyłuskany z linku: parametr oobCode=...).
+// Krok 2: weryfikacja kodu (oobCode wyłuskany z linku – także zagnieżdżonego w linku Hostingu, lib/emailLink.ts).
 export async function signInWithCode(email: string, codeOrLink: string): Promise<FbSession> {
   const clean = email.trim().toLowerCase();
-  const m = codeOrLink.match(/[?&]oobCode=([^&]+)/);
-  const oobCode = (m ? m[1] : codeOrLink).trim();
-  if (!oobCode) throw new Error('Wklej kod (oobCode) z linku w mailu.');
+  const oobCode = extractOobCode(codeOrLink);
+  if (!oobCode) throw new UserError('W tym linku nie ma kodu logowania – wklej cały link z maila.');
   log.info('auth', 'weryfikuję kod…');
   const res = await logFetch('auth', `${IDTK}/accounts:signInWithEmailLink?key=${firebaseConfig.apiKey}`, {
     method: 'POST',

@@ -14,6 +14,8 @@ import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '.
 export function AccountScreen({ navigation }: any) {
   const a = useAuth();
   const [code, setCode] = useState('');
+  // Kod z klikniętego linku, gdy appka nie znała e-maila – wystarczy go wpisać i dotknąć „Zaloguj”.
+  useEffect(() => { if (a.linkCode) setCode(a.linkCode); }, [a.linkCode]);
   const go = (r: string) => navigation.navigate(r);
 
   const logged = a.status === 'logged' && !!a.idToken;
@@ -55,16 +57,26 @@ export function AccountScreen({ navigation }: any) {
               onPress={a.requestLink}
               disabled={a.status === 'link-sending' || a.status === 'verifying'}
             />
-            <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>2. Wklej kod z maila</Text>
-            <Text style={{ color: ud.muted, marginTop: 2 }}>W mailu jest link – linku NIE klikaj (kod jest jednorazowy), tylko skopiuj z niego parametr oobCode i wklej tu całość lub sam kod.</Text>
-            <TextInput {...inputColors} value={code} onChangeText={setCode} placeholder="oobCode… lub cały link" autoCapitalize="none" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
+            {/* „Kliknij” tylko, gdy Firebase wydał link do appki – zwykły link otwiera www, które zużywa jednorazowy kod */}
+            {a.appLinkSent ? (
+              <>
+                <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>2. Kliknij link w mailu na tym telefonie</Text>
+                <Text style={{ color: ud.muted, marginTop: 2 }}>Link otworzy aplikację i zaloguje Cię. Jeśli zamiast niej otworzy się przeglądarka albo mail czytasz na innym urządzeniu, wyślij link jeszcze raz, skopiuj go (nie otwieraj) i wklej tutaj.</Text>
+              </>
+            ) : (
+              <>
+                <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>2. Wklej link z maila</Text>
+                <Text style={{ color: ud.muted, marginTop: 2 }}>Linku NIE otwieraj (jest jednorazowy) – skopiuj go z maila i wklej tutaj całość.</Text>
+              </>
+            )}
+            <TextInput {...inputColors} value={code} onChangeText={setCode} placeholder="link z maila" autoCapitalize="none" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
             <UdButton
               title={a.status === 'verifying' ? 'Weryfikuję…' : 'Zaloguj'}
               variant="accent"
               onPress={() => a.verifyCode(code)}
               disabled={a.status === 'link-sending' || a.status === 'verifying' || !code.trim()}
             />
-            {a.status === 'link-sent' ? <Text style={{ color: ud.primary, fontWeight: '700' }}>Link wysłany – sprawdź skrzynkę.</Text> : null}
+            {a.status === 'link-sent' ? <Text style={{ color: ud.primary, fontWeight: '700' }}>{a.appLinkSent ? 'Link wysłany – otwórz mail na tym telefonie i kliknij link.' : 'Link wysłany – sprawdź skrzynkę.'}</Text> : null}
             {a.status === 'error' && a.error ? <Text style={{ color: 'red', marginTop: 6 }}>{a.error}</Text> : null}
           </UdCard>
         )}

@@ -28,7 +28,7 @@ Bramka aktywna: bez sesji apka pokazuje TYLKO ekran Konto (jak web wymaga loginu
 Domyślnie logowanie idzie wobec **stagingu** (`https://staging.uprzejmiedonosze.net`, osobny projekt Firebase/baza niż prod z `../uprzejmiedonosze`) – patrz `EXPO_PUBLIC_UD_ENV` niżej. Konto z produkcji **nie istnieje** na stagingu (osobna pula użytkowników); świeże konto Firebase bez wiersza w bazie stagingu dostanie 404/403 z `/api/rest/*` dopóki nie przejdzie rejestracji przez web/`PATCH /api/rest/user/`.
 
 ## Konfig (.env)
-Flow: Konto → e-mail → Wyślij link → skopiuj `oobCode` z maila (**linku nie klikaj**, kod jednorazowy) → Zaloguj. Bez zalogowania adresy/kategorie zwracają 403 i trzeba je wpisać ręcznie.
+Flow: Konto → e-mail → Wyślij link → skopiować link z maila (**nie otwierać go w przeglądarce** – kod jednorazowy) i wkleić → Zaloguj. Gdy projekt Firebase ma zarejestrowaną appkę Android (SHA-256), mail dostaje link do appki i wystarczy go kliknąć na telefonie (Android App Link, `src/lib/emailLinkLogin.ts`); ekran logowania pokazuje wtedy tę instrukcję. Bez zalogowania adresy/kategorie zwracają 403 i trzeba je wpisać ręcznie.
 Google/passkey: po stronie mobilnej w kolejnym etapie (whitelist redirectu / dev-build).
 ```bash
 cp .env.example .env   # .env jest w .gitignore

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { create } from 'zustand';
+import { parseEmailSignInLink } from '../lib/emailLink';
 import { log } from '../lib/log';
 import { useNewReport } from './useNewReport';
 import {
@@ -57,9 +58,12 @@ type Auth = {
   isRegistered: boolean;
   isTermsConfirmed: boolean;
   isPatron: boolean; // odznaka 'patron' ze stats z GET /api/rest/user/ (logo „PRO” w nagłówku)
+  appLinkSent: boolean; // ostatni mail ma link otwierający appkę (inaczej link trzeba skopiować, nie klikać)
+  linkCode: string; // kod z klikniętego linku, gdy nie wiadomo, na jaki e-mail przyszedł – trafia do pola „wklej kod”
   setEmail: (e: string) => void;
   requestLink: () => Promise<void>;
   verifyCode: (code: string) => Promise<void>;
+  completeEmailLink: (url: string | null) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithPasskey: () => Promise<void>;
   applySession: (s: { idToken: string; refreshToken: string; expiresAt: number; email: string }) => void;
@@ -67,6 +71,8 @@ type Auth = {
   hydrate: () => Promise<void>;
   logout: () => Promise<void>;
 };
+
+let lastLinkCode = '';
 
 export const useAuth = create<Auth>((set, get) => ({
   status: 'idle',
@@ -80,13 +86,15 @@ export const useAuth = create<Auth>((set, get) => ({
   isRegistered: false,
   isTermsConfirmed: false,
   isPatron: false,
+  appLinkSent: false,
+  linkCode: '',
   setEmail: (email) => set({ email }),
   requestLink: async () => {
     const { email } = get();
     set({ status: 'link-sending', error: null });
     try {
-      await sendEmailLink(email);
-      set({ status: 'link-sent' });
+      const appLinkSent = await sendEmailLink(email);
+      set({ status: 'link-sent', appLinkSent });
     } catch (e: any) {
       const m = e?.message ?? String(e);
       set({ status: 'error', error: m });
@@ -107,6 +115,25 @@ export const useAuth = create<Auth>((set, get) => ({
       set({ status: 'error', error: m });
       log.fail('auth', e);
     }
+  },
+  // Link z maila otworzył appkę (App Link, lib/emailLinkLogin.ts). E-mail: wpisany w formularzu albo zapisany przy wysyłce.
+  completeEmailLink: async (url) => {
+    const code = parseEmailSignInLink(url);
+    if (!code) return;
+    const { status } = get();
+    if (status === 'logged' || status === 'verifying' || status === 'google-signing' || status === 'passkey-signing') return;
+    // getInitialURL potrafi oddać ten sam link po przeładowaniu JS – drugi raz kod byłby już zużyty („link wygasł”).
+    if (code === lastLinkCode) return;
+    lastLinkCode = code;
+    const email = get().email || ((await storedEmail()) ?? '');
+    if (!email) {
+      set({ status: 'error', linkCode: code, error: 'Wpisz e-mail, na który przyszedł link, i dotknij „Zaloguj”.' });
+      return;
+    }
+    log.info('auth', 'logowanie linkiem z maila');
+    set({ email, linkCode: '' });
+    await get().verifyCode(code);
+    if (get().status === 'error') lastLinkCode = ''; // np. brak sieci – ponowny klik w ten sam link ma zadziałać
   },
   signInWithGoogle: async () => {
     if (!googleSignInReady) {
@@ -182,7 +209,10 @@ export const useAuth = create<Auth>((set, get) => ({
   hydrate: async () => {
     try {
       const [rt, em] = await Promise.all([storedRefreshToken(), storedEmail()]);
-      if (!rt) return;
+      if (!rt) {
+        if (em && !get().email) set({ email: em }); // ostatni e-mail (logowania albo wysłanego linku) – podpowiedź w formularzu
+        return;
+      }
       const sess = await refreshIdToken(rt);
       get().applySession(sess);
       set({ status: 'logged' });
