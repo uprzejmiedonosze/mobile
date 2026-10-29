@@ -330,9 +330,11 @@ export function NewReportScreen({ navigation, route }: any) {
     const iso = exifToIso(datetimeOriginal);
     const gps = lat != null && lng != null;
     if (gps) { edited.current.address = false; resolvedText.current = ''; }
+    // Te same współrzędne drugi raz (zgadnięte zdjęcie auta, potem to samo po analizie) zostawiają geo: efekt reverse
+    // geocode już ich nie pobierze (geoFor), więc wyzerowanie gubiło SM/Policję z hintami.
     setForm((f) => ({
       ...f,
-      ...(gps ? { lat, lng, geo: null } : {}),
+      ...(gps && (f.lat !== lat || f.lng !== lng) ? { lat, lng, geo: null } : {}),
       ...(iso ? { datetime: iso, dtFromPicture: true } : {}),
     }));
   }, []);
