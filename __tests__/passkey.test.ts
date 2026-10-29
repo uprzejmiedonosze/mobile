@@ -1,3 +1,4 @@
+jest.mock('expo-secure-store', () => ({ getItem: () => null })); // config.ts czyta flagę konta demo
 jest.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 
 import { passkeysAllowed, isPasskeyCancelled } from '../src/lib/passkey';

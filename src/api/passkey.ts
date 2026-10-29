@@ -16,7 +16,7 @@ const json = (body: unknown): RequestInit => ({
 });
 
 // Logowanie jest anonimowe (bez Bearer), reszta przez authFetch.
-async function anonPost<T>(path: string, body: unknown, fallback: string): Promise<T> {
+export async function anonPost<T>(path: string, body: unknown, fallback: string): Promise<T> {
   const init = json(body);
   const res = await logFetch('auth', `${udConfig.base}${path}`, { ...init, headers: { ...(init.headers as any), ...clientHeaders() } });
   return apiJson<T>(res, fallback);

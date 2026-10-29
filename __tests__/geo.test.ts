@@ -1,3 +1,4 @@
+jest.mock('expo-secure-store', () => ({ getItem: () => null })); // config.ts czyta flagę konta demo
 import { mergeGeo } from '../src/api/geo';
 
 // Odpowiedzi w kształcie z ../uprzejmiedonosze/src/inc/integrations/Geolocation.php (MapBox / Nominatim).

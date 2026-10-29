@@ -14,7 +14,8 @@ import {
   storedRefreshToken,
 } from '../api/firebaseAuth';
 import { authFetch, verifySession } from '../api/udApi';
-import { googleConfig } from '../config';
+import { demoMode, googleConfig } from '../config';
+import { demoCustomToken, enterDemo, isDemoEmail, leaveDemo } from '../lib/demoLogin';
 import { loginWithPasskey } from '../api/passkey';
 import { isPasskeyCancelled } from '../lib/passkey';
 
@@ -93,6 +94,9 @@ export const useAuth = create<Auth>((set, get) => ({
     const { email } = get();
     set({ status: 'link-sending', error: null });
     try {
+      // Konto demo: na stagingu nie wysyłamy maila (recenzent wpisuje kod), na prodzie przełączamy appkę na staging.
+      if (demoMode) { set({ status: 'link-sent', appLinkSent: false }); return; }
+      if (await isDemoEmail(email)) { await enterDemo(email); return; }
       const appLinkSent = await sendEmailLink(email);
       set({ status: 'link-sent', appLinkSent });
     } catch (e: any) {
@@ -105,7 +109,7 @@ export const useAuth = create<Auth>((set, get) => ({
     const { email } = get();
     set({ status: 'verifying', error: null });
     try {
-      const sess = await signInWithCode(email, code);
+      const sess = demoMode ? await signInWithCustomToken(await demoCustomToken(email, code)) : await signInWithCode(email, code);
       get().applySession(sess);
       const who = await verifySession(sess.idToken);
       if (who?.name) set({ name: who.name });
@@ -241,5 +245,6 @@ export const useAuth = create<Auth>((set, get) => ({
     }
     set({ status: 'idle', idToken: '', refreshToken: '', expiresAt: 0, name: '', error: null, registrationChecked: false, isRegistered: false, isTermsConfirmed: false, isPatron: false });
     log.info('auth', 'wylogowano');
+    await leaveDemo(); // konto demo → z powrotem na prod (restart appki)
   },
 }));

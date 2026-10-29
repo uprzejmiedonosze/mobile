@@ -231,6 +231,11 @@ export async function storedRefreshToken(): Promise<string | null> {
   return SecureStore.getItemAsync(K_REFRESH);
 }
 
+// Podpowiedź e-maila w formularzu po restarcie appki (konto demo przełącza środowisko przez reloadAppAsync).
+export async function rememberEmail(email: string): Promise<void> {
+  await SecureStore.setItemAsync(K_EMAIL, email.trim().toLowerCase());
+}
+
 export async function storedEmail(): Promise<string | null> {
   return SecureStore.getItemAsync(K_EMAIL);
 }

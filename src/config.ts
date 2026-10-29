@@ -1,3 +1,5 @@
+import * as SecureStore from 'expo-secure-store';
+
 // Scentralizowana konfiguracja z pliku .env (EXPO_PUBLIC_*).
 // Metro wczytuje .env przy starcie serwera – po zmianie `expo start -c`.
 function num(v: string | undefined, fallback: number): number {
@@ -41,13 +43,26 @@ const ENVS: Record<UdEnvName, { base: string; apiKey: string; authDomain: string
   },
 };
 
-export const udEnv: UdEnvName = process.env.EXPO_PUBLIC_UD_ENV === 'prod' ? 'prod' : 'staging';
+const buildEnv: UdEnvName = process.env.EXPO_PUBLIC_UD_ENV === 'prod' ? 'prod' : 'staging';
+
+// Konto demo recenzentów sklepów (src/lib/demoLogin.ts): prod rozpoznaje e-mail demo i build prod przełącza się na staging,
+// gdzie zgłoszenia nie trafiają do SM/policji. Flaga leży w SecureStore i jest czytana synchronicznie przy starcie modułu –
+// zmiana działa dopiero po restarcie JS (reloadAppAsync). Wylogowanie ją kasuje.
+export const ENV_OVERRIDE_KEY = 'udpro.envOverride';
+function readEnvOverride(): string | null {
+  try { return SecureStore.getItem(ENV_OVERRIDE_KEY); } catch { return null; }
+}
+export const demoMode = buildEnv === 'prod' && readEnvOverride() === 'staging';
+
+export const udEnv: UdEnvName = demoMode ? 'staging' : buildEnv;
 const envBlock = ENVS[udEnv];
+// W trybie demo pojedyncze nadpisania z env (np. EXPO_PUBLIC_UD_BASE) wskazywałyby prod – pomijamy je.
+const envOr = (v: string | undefined, fallback: string) => (demoMode ? fallback : v || fallback);
 
 // Backend UD – te same endpointy co web (src/index.php, src/api/rest/index.php).
 // EXPO_PUBLIC_UD_BASE nadpisuje tylko base (np. na localhost), niezależnie od udEnv.
 export const udConfig = {
-  base: (process.env.EXPO_PUBLIC_UD_BASE || envBlock.base).replace(/\/$/, ''),
+  base: envOr(process.env.EXPO_PUBLIC_UD_BASE, envBlock.base).replace(/\/$/, ''),
 } as const;
 
 // Firebase – ten sam projekt co web dla danego środowiska (src/js/lib/firebaseConfig.js).
@@ -56,9 +71,9 @@ export const udConfig = {
 // Pojedyncze pola można nadpisać z .env, ale wtedy trzeba nadpisać wszystkie trzy razem –
 // mieszanie np. prod apiKey ze staging authDomain kończy się 403 z Firebase.
 export const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || envBlock.apiKey,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || envBlock.authDomain,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || envBlock.projectId,
+  apiKey: envOr(process.env.EXPO_PUBLIC_FIREBASE_API_KEY, envBlock.apiKey),
+  authDomain: envOr(process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN, envBlock.authDomain),
+  projectId: envOr(process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID, envBlock.projectId),
 } as const;
 
 // Firebase Auth Emulator (backend w dockerze, `make dev` w ../uprzejmiedonosze: :9099). Ustawione → REST Firebase idzie
@@ -76,7 +91,7 @@ export const e2eEnabled = process.env.EXPO_PUBLIC_E2E === '1';
 // typu Android (package + SHA-1 keystore EAS) zarejestrowanego w konsoli Google Cloud – ten
 // klient nie ma tu odpowiednika w kodzie, biblioteka znajduje go sama po package name.
 export const googleConfig = {
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || envBlock.googleWebClientId,
+  webClientId: envOr(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, envBlock.googleWebClientId),
 } as const;
 
 // Sentry (crashe/błędy z buildów produkcyjnych). Pusty DSN = wyłączone (np. lokalny dev).
@@ -84,5 +99,5 @@ export const googleConfig = {
 export const sentryConfig = {
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || '',
   // EXPO_PUBLIC_SENTRY_ENV rozróżnia np. shadow (udEnv=prod, ale osobny host) od proda.
-  environment: process.env.EXPO_PUBLIC_SENTRY_ENV || udEnv,
+  environment: envOr(process.env.EXPO_PUBLIC_SENTRY_ENV, udEnv),
 } as const;

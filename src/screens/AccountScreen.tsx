@@ -5,12 +5,13 @@ import { deleteAccount, fetchPasskeys, fetchProfile, removePasskey, updateUserPr
 import { registerPasskey } from '../api/passkey';
 import { isPasskeyCancelled, passkeysEnabled } from '../lib/passkey';
 import { googleSignInReady, useAuth } from '../store/useAuth';
-import { udConfig, udEnv } from '../config';
+import { demoMode, udConfig, udEnv } from '../config';
 import { appBuild, appVersion } from '../lib/appVersion';
 import { ud, inputColors, ripple, rippleOnDark } from '../theme';
 import { SvgXml } from 'react-native-svg';
 import { UdButton, UdCard, UdHeader, UdSplash, UdTabs } from '../components/UD';
 import { FINGERPRINT_ICON, GOOGLE_ICON, MAIL_ICON } from '../components/loginIcons';
+import { leaveDemo } from '../lib/demoLogin';
 import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
 
 export function AccountScreen({ navigation }: any) {
@@ -41,7 +42,7 @@ const FEEDBACK_EMAIL = 'szymon+app@uprzejmiedonosze.net';
 function LoginPanel() {
   const a = useAuth();
   const [code, setCode] = useState('');
-  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(demoMode); // konto demo wróciło po restarcie na staging – czeka na kod
   // Kod z klikniętego linku, gdy appka nie znała e-maila – wystarczy go wpisać i dotknąć „Zaloguj”.
   useEffect(() => { if (a.linkCode) { setCode(a.linkCode); setEmailOpen(true); } }, [a.linkCode]);
   const busy = a.status === 'link-sending' || a.status === 'verifying' || a.status === 'google-signing' || a.status === 'passkey-signing';
@@ -66,7 +67,8 @@ function LoginPanel() {
           <LoginButton icon={FINGERPRINT_ICON} label="Zaloguj urządzeniem" bg={ud.primary} fg="#fff" onPress={a.signInWithPasskey} disabled={busy} />
         ) : null}
         {/* Na iOS bez przycisku Google: wtedy logujemy tylko własnymi metodami (e-mail-link, passkey) i wytyczna Apple 4.8 (Sign in with Apple) nie obowiązuje. */}
-        {googleSignInReady && Platform.OS !== 'ios' ? (
+        {/* Tryb demo działa na stagingu, gdzie para pakiet + SHA-1 klucza Play nie istnieje – Google skończyłby się DEVELOPER_ERROR. */}
+        {googleSignInReady && Platform.OS !== 'ios' && !demoMode ? (
           <LoginButton icon={GOOGLE_ICON} label="Zaloguj przez Google" bg={ud.surface} fg={ud.text} onPress={a.signInWithGoogle} disabled={busy} />
         ) : null}
         <LoginButton icon={MAIL_ICON} label="Zaloguj przez e-mail" bg="#db4437" fg="#fff" onPress={() => setEmailOpen((o) => !o)} disabled={busy} />
@@ -83,7 +85,9 @@ function LoginPanel() {
             disabled={busy || !a.email.trim()}
           />
           {/* „Kliknij” tylko, gdy Firebase wydał link do appki – zwykły link otwiera www, które zużywa jednorazowy kod */}
-          {a.appLinkSent ? (
+          {demoMode ? (
+            <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>2. Wpisz kod konta demo</Text>
+          ) : a.appLinkSent ? (
             <>
               <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>2. Kliknij link w mailu na tym telefonie</Text>
               <Text style={{ color: ud.muted, marginTop: 2 }}>Link otworzy aplikację i zaloguje Cię. Jeśli zamiast niej otworzy się przeglądarka albo mail czytasz na innym urządzeniu, wyślij link jeszcze raz, skopiuj go (nie otwieraj) i wklej tutaj.</Text>
@@ -94,12 +98,18 @@ function LoginPanel() {
               <Text style={{ color: ud.muted, marginTop: 2 }}>Linku NIE otwieraj (jest jednorazowy) – skopiuj go z maila i wklej tutaj całość.</Text>
             </>
           )}
-          <TextInput {...inputColors} value={code} onChangeText={setCode} placeholder="link z maila" autoCapitalize="none" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
+          <TextInput {...inputColors} value={code} onChangeText={setCode} placeholder={demoMode ? 'kod' : 'link z maila'} autoCapitalize="none" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
           <UdButton title="Zaloguj" variant="accent" onPress={() => a.verifyCode(code)} disabled={busy || !code.trim()} />
-          {a.status === 'link-sent' ? <Text style={{ color: ud.primary, fontWeight: '700' }}>{a.appLinkSent ? 'Link wysłany – otwórz mail na tym telefonie i kliknij link.' : 'Link wysłany – sprawdź skrzynkę.'}</Text> : null}
+          {a.status === 'link-sent' && !demoMode ? <Text style={{ color: ud.primary, fontWeight: '700' }}>{a.appLinkSent ? 'Link wysłany – otwórz mail na tym telefonie i kliknij link.' : 'Link wysłany – sprawdź skrzynkę.'}</Text> : null}
         </UdCard>
       ) : null}
       {a.status === 'error' && a.error ? <Text style={{ color: ud.plateVerified, marginTop: 10, textAlign: 'center' }}>{a.error}</Text> : null}
+      {/* Bez kodu nie da się zalogować ani wylogować – to jedyne wyjście z trybu demo (np. po przypadkowym wpisaniu e-maila demo). */}
+      {demoMode ? (
+        <Text style={{ color: ud.primary, textDecorationLine: 'underline', marginTop: 14, textAlign: 'center' }} onPress={() => { leaveDemo().catch(() => {}); }}>
+          Wróć do zwykłego logowania
+        </Text>
+      ) : null}
 
       <Text style={{ color: ud.muted, fontSize: 13, marginTop: 20, textAlign: 'center' }}>
         Logując się, akceptujesz{' '}
@@ -200,7 +210,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
         <ProfileFields value={p} onChange={(patch) => { setMsg(null); setP((o) => ({ ...o, ...patch })); }} email={email} disabled={!loaded} navigation={navigation} askSex />
         <UdButton title={saving ? 'Zapisuję…' : 'Zapisz'} variant="primary" onPress={save} disabled={!loaded || saving || !valid} />
         {msg ? <Text style={{ color: msg.ok ? ud.primary : 'red', marginTop: 6, fontWeight: '700' }}>{msg.text}</Text> : null}
-        <Text style={{ color: ud.muted, fontSize: 12, marginTop: 10 }}>Wersja {appVersion} ({appBuild}) · Środowisko: {udEnv} ({udConfig.base})</Text>
+        <Text style={{ color: ud.muted, fontSize: 12, marginTop: 10 }}>Wersja {appVersion} ({appBuild}) · Środowisko: {udEnv}{demoMode ? ' (konto demo – zgłoszenia nie trafiają do SM ani na Policję)' : ''} ({udConfig.base})</Text>
       </View>
 
       <View style={{ marginTop: 20 }}>
