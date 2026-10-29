@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+## v1.2.1 — 2026-10-29
+
 - Logowanie przyciskiem „Zaloguj urządzeniem” (odcisk palca, twarz lub PIN) i dodawanie klucza dostępu w Koncie działają – wcześniej kończyły się błędem „An unknown error occurred”.
 
 ## v1.2.0 — 2026-10-29

@@ -1,0 +1,1 @@
+• Logowanie przyciskiem „Zaloguj urządzeniem” (odcisk palca, twarz lub PIN) i dodawanie klucza dostępu w Koncie działają – wcześniej kończyły się błędem „An unknown error occurred”.
