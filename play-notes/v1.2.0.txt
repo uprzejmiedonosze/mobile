@@ -1,0 +1,5 @@
+• Aplikacja korzysta teraz z serwisu uprzejmiedonosze.net – zaloguj się kontem ze strony; konta z wersji testowej trzeba założyć od nowa
+• Nowy ekran logowania jak na stronie: „Zaloguj urządzeniem”, Google i e-mail
+• Wersja aplikacji jest teraz pod danymi konta
+• Informacja o wersji beta (wysyła prawdziwe zgłoszenia) i adres do uwag: szymon+app@uprzejmiedonosze.net
+• Poprawka: podpowiedzi wyboru straży miejskiej i Policji nie znikają po dodaniu zdjęć
