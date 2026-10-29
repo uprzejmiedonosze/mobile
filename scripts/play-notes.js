@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Nazwa wydania i „Co nowego” w Google Play z CHANGELOG.md – EAS Submit tego nie ustawia (docs/RELEASE.md).
 //   node scripts/play-notes.js --track internal --staging [--version-code N] [--complete]
-//   node scripts/play-notes.js --track beta [--version-code N] [--notes-file F]
+//   node scripts/play-notes.js --track production|beta [--version-code N] [--notes-file F]   (tor wydań = eas.json submit.production)
 //   node scripts/play-notes.js --summarize [--staging] [--write]
 // Nazwa: „X.Y.Z (versionCode)” albo „X.Y.Z (versionCode) staging”. Notatki: sekcja `## vX.Y.Z` (wydanie) albo
 // `## RELEASE-CANDIDATE` (staging), w limicie Play (500 znaków na język). Gdy sekcja się nie mieści, streszcza ją LLM

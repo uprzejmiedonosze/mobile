@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+- Aplikacja działa na produkcyjnym serwisie uprzejmiedonosze.net – zaloguj się tym samym kontem co na stronie. Konta z wersji testowej nie przechodzą, trzeba zalogować się od nowa.
+
 ## v1.1.7 — 2026-10-29
 
 - Po wylogowaniu i zalogowaniu na inne konto na tym samym telefonie nowe zgłoszenie zaczyna się od czystego formularza – nie wczytuje się już niedokończony szkic poprzedniego konta, którego nie dało się wysłać.

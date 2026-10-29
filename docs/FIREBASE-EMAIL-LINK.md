@@ -26,7 +26,7 @@ Każdy projekt potrzebuje obu kluczy, którymi podpisujemy pakiet `.pro`:
 | Play App Signing | Play Console → aplikacja → Test and release → App integrity → **App signing key certificate** → SHA-256 (nie *Upload key*). Ten sam odcisk jest już w backendzie: `../uprzejmiedonosze/src/.well-known/assetlinks.json` (`E3:ED:80:F5:…:44:07`). | z Google Play: `staging-play`, `production` |
 | Keystore EAS (upload) | `eas credentials -p android` → profil `staging` / `shadow` → SHA-256 | APK spoza Play: `staging`, `shadow` |
 
-Dlaczego oba w obu projektach: `staging-play` i (tymczasowo) `production` idą na staging podpisane kluczem Play, a `shadow` idzie na prod
+Dlaczego oba w obu projektach: `staging-play` idzie na staging, a `production` na prod – oba podpisane kluczem Play; `shadow` idzie na prod
 podpisany keystore'em EAS. Jeden manifest ma filtry dla obu domen, a **na Androidzie 11 i starszym link weryfikuje się tylko wtedy,
 gdy przejdą weryfikację obie domeny** – dlatego konfigurujemy oba projekty, zanim build trafi do testerów.
 

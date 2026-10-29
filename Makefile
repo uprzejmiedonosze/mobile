@@ -105,7 +105,7 @@ tag-release:
 	@echo "==> Pushing main + tag"
 	git push origin main
 	git push origin "refs/tags/v$$(tr -d '[:space:]' < VERSION)"
-	@echo "==> Tag uruchamia GitHub Actions „Wydanie Android” (.github/workflows/release-android.yml): eas build --local → Play testy otwarte (beta, szkic) + nazwa i „Co nowego”."
+	@echo "==> Tag uruchamia GitHub Actions „Wydanie Android” (.github/workflows/release-android.yml): eas build --local → Play, tor z eas.json (submit.production, szkic) + nazwa i „Co nowego”."
 	@echo "    Postęp: make workflow-runs. Nie ruszył albo padł? make release-android-run"
 
 release-patch: check-git-clean check-branch-main release-check test-staging ## Wydanie patch (np. 1.0.0 → 1.0.1)
@@ -152,8 +152,8 @@ workflow-runs: ## Ostatnie uruchomienia wydań w GitHub Actions
 
 # Nazwa wydania + „Co nowego” w Play (scripts/play-notes.js; klucz z secrets/ albo $$PLAY_SERVICE_ACCOUNT_JSON).
 # Workflow robi to sam po submit – te targety są do poprawek ręcznych. CODE=N wskazuje build (domyślnie najnowszy na torze).
-play-notes: ## Nazwa i „Co nowego” wydania X.Y.Z na testach otwartych (beta) z play-notes/vX.Y.Z.txt
-	node scripts/play-notes.js --track beta $(if $(CODE),--version-code $(CODE))
+play-notes: ## Nazwa i „Co nowego” wydania X.Y.Z na torze z eas.json (submit.production) z play-notes/vX.Y.Z.txt
+	node scripts/play-notes.js --track "$$(node -p "require('./eas.json').submit.production.android.track")" $(if $(CODE),--version-code $(CODE))
 
 play-notes-staging: ## Nazwa i „Co nowego” stagingu na internal ze streszczenia RELEASE-CANDIDATE (COMPLETE=1 wydaje testerom)
 	@notes=$$(mktemp); trap 'rm -f "$$notes"' EXIT; \

@@ -61,7 +61,7 @@ Polityka dziś mówi o serwisie www, Matomo, Firebase, Sentry, cookies. **Nie ws
 3. kluczach dostępu (passkey) i – po wdrożeniu – Sign in with Apple;
 4. **danych osób trzecich** (numery rejestracyjne, wizerunek na zdjęciach) i podstawie prawnej;
 5. pismach z policji/SM (funkcja PRO) i tym, że skan nie jest przechowywany – ✅ dodane (VII.5);
-6. przekazaniu danych poza EOG – ✅ dodane (VII.2–3): dostawcy zgłoszeń w UE/EOG; wyjątki opisane wprost: Firebase Auth (globalny), Mapbox (kafelki z urządzenia), Tumblr (galeria). ⚠ Sentry: DSN musi wskazywać region UE (`…ingest.de.sentry.io`); dotychczasowe projekty www są w US (`ingest.sentry.io`, `ingest.us.sentry.io`);
+6. przekazaniu danych poza EOG – ✅ (VII.2, poprawione 2026-10-29): dane przechowywane w UE, ale OpenAI (`api.openai.com`, bez EU data residency), Plate Recognizer, OpenALPR, Google (Firebase, Vision, Maps), Mapbox i Sentry (organizacja `uprzejmie-donosze` jest w regionie **US**) przetwarzają poza EOG – podstawa DPF/SCC (❓ potwierdź certyfikację DPF każdego dostawcy). Wcześniejsze „dane zostają w UE/EOG” było nieprawdziwe; VII.4 opisywało usunięte okno zgody na AI – teraz podstawa art. 6 ust. 1 lit. b.
 7. prostej, linkowalnej procedurze usunięcia konta (dla Play) – ✅ kotwica `#usuwanie-konta` → Data deletion URL = `https://uprzejmiedonosze.net/polityka-prywatnosci.html#usuwanie-konta`.
 
 Punkty 1–7 zostały dopisane w `../uprzejmiedonosze/src/templates/polityka-prywatnosci.html.twig` (sekcje VI–VIII) – do przeglądu prawnego i wdrożenia.

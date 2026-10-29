@@ -1,6 +1,6 @@
 # Wydanie Android na runnerze GitHuba: `eas build --local` (nie zużywa limitu buildów planu Free EAS) → EAS Submit
 # do Google Play → nazwa i „Co nowego” z CHANGELOG-a (scripts/play-notes.js). Patrz docs/RELEASE.md, „GitHub Actions”.
-#   - push tagu vX.Y.Z (make release-*)       → profil production → testy otwarte (beta), szkic
+#   - push tagu vX.Y.Z (make release-*)       → profil production → tor z eas.json (submit.production: production), szkic
 #   - ręcznie (make staging-play / Actions → Run) → staging-play z main → internal, od razu u testerów,
 #                                                  albo production na tagu (make release-android-run)
 # Podpis (keystore uploadu) i versionCode (appVersionSource: remote + autoIncrement) nadal biorą się z EAS – przez EXPO_TOKEN.
@@ -107,7 +107,8 @@ jobs:
           export PLAY_SERVICE_ACCOUNT_JSON="$RUNNER_TEMP/play-key.json"
           printf '%s' "$KEY" > "$PLAY_SERVICE_ACCOUNT_JSON"
           if [ "$PROFILE" = production ]; then
-            node scripts/play-notes.js --track beta
+            # ten sam tor, na który wysłał EAS Submit (eas.json → submit.production.android.track)
+            node scripts/play-notes.js --track "$(node -p "require('./eas.json').submit.production.android.track")"
           elif [ -n "$NOTES" ]; then
             printf '%s\n' "$NOTES" > "$RUNNER_TEMP/notes.txt"
             node scripts/play-notes.js --track internal --staging --notes-file "$RUNNER_TEMP/notes.txt"
