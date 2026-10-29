@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+- Logowanie przyciskiem „Zaloguj urządzeniem” (odcisk palca, twarz lub PIN) i dodawanie klucza dostępu w Koncie działają – wcześniej kończyły się błędem „An unknown error occurred”.
+
 ## v1.2.0 — 2026-10-29
 
 - Aplikacja działa na produkcyjnym serwisie uprzejmiedonosze.net – zaloguj się tym samym kontem co na stronie. Konta z wersji testowej nie przechodzą, trzeba zalogować się od nowa.

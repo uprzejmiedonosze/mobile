@@ -29,5 +29,10 @@ export function getPasskeyLib(): NonNullable<typeof PasskeyLib> {
   return PasskeyLib;
 }
 
+// lbuchs/WebAuthn w backendzie (getGetArgs/getCreateArgs) oddaje opcje jak dla navigator.credentials: {publicKey: {...}}.
+// react-native-passkey chce samo wnętrze – z opakowaniem Android dostawał zapytanie bez challenge/rpId i Credential Manager
+// odpowiadał „An unknown error occurred” (UD-MOBILE-A/E).
+export const webAuthnRequest = <T = any>(options: any): T => (options && typeof options === 'object' && options.publicKey ? options.publicKey : options);
+
 // Użytkownik zamknął systemowe okno (iOS: UserCancelled, Android: UserCancelled / NotAllowed po anulowaniu).
 export const isPasskeyCancelled = (e: any): boolean => /UserCancelled|Cancelled|Canceled/i.test(String(e?.error ?? e?.message ?? ''));
