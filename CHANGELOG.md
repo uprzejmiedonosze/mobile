@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+## v1.1.7 — 2026-10-29
+
 - Po wylogowaniu i zalogowaniu na inne konto na tym samym telefonie nowe zgłoszenie zaczyna się od czystego formularza – nie wczytuje się już niedokończony szkic poprzedniego konta, którego nie dało się wysłać.
 - Podczas logowania (kodem z maila, przez Google albo passkeyem) widać ekran „loguję…” z kręcącym się wskaźnikiem – nie wygląda już, jakby logowanie się zawiesiło.
 - Logowanie linkiem z maila na Androidzie: wystarczy kliknąć link w mailu na tym telefonie – aplikacja sama się otworzy i zaloguje, bez kopiowania i wklejania kodu. Wklejanie linku zostaje jako zapas, np. gdy mail czytasz na komputerze.

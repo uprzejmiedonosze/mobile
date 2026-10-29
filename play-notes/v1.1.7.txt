@@ -1,0 +1,3 @@
+• Logowanie linkiem z maila na Androidzie: kliknij link w mailu na tym telefonie, a aplikacja sama się otworzy i zaloguje – bez kopiowania kodu. Wklejanie linku zostaje na wypadek czytania maila na komputerze.
+• Podczas logowania (kod z maila, Google, passkey) widać ekran ładowania, więc nie wygląda już, jakby aplikacja się zawiesiła.
+• Po przelogowaniu na inne konto nowe zgłoszenie zaczyna się od czystego formularza, bez szkicu poprzedniego konta.

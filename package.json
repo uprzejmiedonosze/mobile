@@ -1,6 +1,6 @@
 {
   "name": "uprzejmiedonosze-pro",
-  "version": "1.1.6",
+  "version": "1.1.7",
   "main": "index.ts",
   "dependencies": {
     "@expo-google-fonts/bricolage-grotesque": "^0.4.1",

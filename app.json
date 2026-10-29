@@ -3,7 +3,7 @@
     "name": "Uprzejmie Donoszę PRO",
     "slug": "uprzejmie-donosze",
     "scheme": "udpro",
-    "version": "1.1.6",
+    "version": "1.1.7",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
