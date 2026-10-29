@@ -7,19 +7,17 @@ import { isPasskeyCancelled, passkeysEnabled } from '../lib/passkey';
 import { googleSignInReady, useAuth } from '../store/useAuth';
 import { udConfig, udEnv } from '../config';
 import { appBuild, appVersion } from '../lib/appVersion';
-import { ud, inputColors } from '../theme';
+import { ud, inputColors, ripple, rippleOnDark } from '../theme';
+import { SvgXml } from 'react-native-svg';
 import { UdButton, UdCard, UdHeader, UdSplash, UdTabs } from '../components/UD';
+import { FINGERPRINT_ICON, GOOGLE_ICON, MAIL_ICON } from '../components/loginIcons';
 import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
 
 export function AccountScreen({ navigation }: any) {
   const a = useAuth();
-  const [code, setCode] = useState('');
-  // Kod z klikniętego linku, gdy appka nie znała e-maila – wystarczy go wpisać i dotknąć „Zaloguj”.
-  useEffect(() => { if (a.linkCode) setCode(a.linkCode); }, [a.linkCode]);
   const go = (r: string) => navigation.navigate(r);
 
   const logged = a.status === 'logged' && !!a.idToken;
-  const busy = a.status === 'link-sending' || a.status === 'verifying' || a.status === 'google-signing' || a.status === 'passkey-signing';
   // Weryfikacja tokenu trwa 1–2 s – sam napis na przycisku wyglądał, jakby logowanie stanęło. Ten sam ekran co
   // „sprawdzam konto…” w App, więc dalej zmienia się tylko podpis; po błędzie/anulowaniu wraca formularz z kodem.
   const signingIn = a.status === 'verifying' || a.status === 'google-signing' || a.status === 'passkey-signing';
@@ -28,95 +26,104 @@ export function AccountScreen({ navigation }: any) {
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       <UdHeader />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
-        {logged ? (
-          <Text style={{ color: ud.muted, fontSize: 12 }}>Wersja {appVersion} ({appBuild}) · Środowisko: {udEnv} ({udConfig.base})</Text>
-        ) : (
-        <UdCard>
-          <Text style={{ color: ud.heading, fontWeight: '800', fontSize: 17 }}>Konto UD</Text>
-          {!logged ? (
-            <Text style={{ color: ud.muted, marginTop: 4 }}>
-              Logowanie tym samym mechanizmem co web: Firebase email-link (ten sam projekt i provider), potem Bearer do /api/rest/*.
-            </Text>
-          ) : null}
-          <Text style={{ color: ud.muted, marginTop: 4, fontWeight: '700' }}>
-            Wersja {appVersion} ({appBuild}) · Środowisko: {udEnv} ({udConfig.base})
-          </Text>
-        </UdCard>
-        )}
-
-        {logged ? (
-          <ProfileCards onLogout={a.logout} navigation={navigation} />
-        ) : (
-          <UdCard>
-            <Text style={{ color: ud.heading, fontWeight: '700' }}>1. Podaj e-mail</Text>
-            <TextInput {...inputColors} value={a.email} onChangeText={a.setEmail} placeholder="ty@przyklad.pl" autoCapitalize="none" keyboardType="email-address" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
-            <UdButton
-              title={a.status === 'link-sending' ? 'Wysyłam…' : 'Wyślij link logowania'}
-              variant="primary"
-              onPress={a.requestLink}
-              disabled={a.status === 'link-sending' || a.status === 'verifying'}
-            />
-            {/* „Kliknij” tylko, gdy Firebase wydał link do appki – zwykły link otwiera www, które zużywa jednorazowy kod */}
-            {a.appLinkSent ? (
-              <>
-                <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>2. Kliknij link w mailu na tym telefonie</Text>
-                <Text style={{ color: ud.muted, marginTop: 2 }}>Link otworzy aplikację i zaloguje Cię. Jeśli zamiast niej otworzy się przeglądarka albo mail czytasz na innym urządzeniu, wyślij link jeszcze raz, skopiuj go (nie otwieraj) i wklej tutaj.</Text>
-              </>
-            ) : (
-              <>
-                <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>2. Wklej link z maila</Text>
-                <Text style={{ color: ud.muted, marginTop: 2 }}>Linku NIE otwieraj (jest jednorazowy) – skopiuj go z maila i wklej tutaj całość.</Text>
-              </>
-            )}
-            <TextInput {...inputColors} value={code} onChangeText={setCode} placeholder="link z maila" autoCapitalize="none" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
-            <UdButton
-              title={a.status === 'verifying' ? 'Weryfikuję…' : 'Zaloguj'}
-              variant="accent"
-              onPress={() => a.verifyCode(code)}
-              disabled={a.status === 'link-sending' || a.status === 'verifying' || !code.trim()}
-            />
-            {a.status === 'link-sent' ? <Text style={{ color: ud.primary, fontWeight: '700' }}>{a.appLinkSent ? 'Link wysłany – otwórz mail na tym telefonie i kliknij link.' : 'Link wysłany – sprawdź skrzynkę.'}</Text> : null}
-            {a.status === 'error' && a.error ? <Text style={{ color: 'red', marginTop: 6 }}>{a.error}</Text> : null}
-          </UdCard>
-        )}
-
-        {/* Na iOS bez przycisku Google: wtedy logujemy tylko własnymi metodami (e-mail-link, passkey) i wytyczna Apple 4.8 (Sign in with Apple) nie obowiązuje. */}
-        {!logged && googleSignInReady && Platform.OS !== 'ios' ? (
-          <UdCard>
-            <Text style={{ color: ud.heading, fontWeight: '700' }}>Google</Text>
-            <Text style={{ color: ud.muted, marginTop: 4 }}>
-              Szybsze logowanie – bez kopiowania kodu z maila.
-            </Text>
-            <UdButton
-              title={a.status === 'google-signing' ? 'Loguję…' : 'Zaloguj przez Google'}
-              variant="accent"
-              onPress={a.signInWithGoogle}
-              disabled={busy}
-            />
-          </UdCard>
-        ) : null}
-
-        {!logged && passkeysEnabled() ? (
-          <UdCard>
-            <Text style={{ color: ud.heading, fontWeight: '700' }}>Passkey</Text>
-            <Text style={{ color: ud.muted, marginTop: 4 }}>Odcisk palca, twarz lub PIN – bez kodu z maila.</Text>
-            <UdButton
-              title={a.status === 'passkey-signing' ? 'Loguję…' : 'Zaloguj passkeyem'}
-              variant="accent"
-              onPress={a.signInWithPasskey}
-              disabled={busy}
-            />
-          </UdCard>
-        ) : null}
-        {!logged && !googleSignInReady ? (
-          <UdCard>
-            <Text style={{ color: ud.muted }}>Logowanie Google niedostępne w Expo Go (wymaga dev clienta) – użyj linku e-mail powyżej.</Text>
-          </UdCard>
-        ) : null}
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+        {logged ? <ProfileCards onLogout={a.logout} navigation={navigation} /> : <LoginPanel />}
       </ScrollView>
       {logged ? <UdTabs current="Account" navigate={go} /> : null}
     </View>
+  );
+}
+
+const FEEDBACK_EMAIL = 'szymon+app@uprzejmiedonosze.net';
+
+// Jak login.html.twig na webie: „Zaloguj urządzeniem” (passkey), Google, e-mail – ta sama kolejność i kolory przycisków
+// (firebaseui), pod spodem akceptacja regulaminu i polityki prywatności. E-mail rozwija formularz linku logowania.
+function LoginPanel() {
+  const a = useAuth();
+  const [code, setCode] = useState('');
+  const [emailOpen, setEmailOpen] = useState(false);
+  // Kod z klikniętego linku, gdy appka nie znała e-maila – wystarczy go wpisać i dotknąć „Zaloguj”.
+  useEffect(() => { if (a.linkCode) { setCode(a.linkCode); setEmailOpen(true); } }, [a.linkCode]);
+  const busy = a.status === 'link-sending' || a.status === 'verifying' || a.status === 'google-signing' || a.status === 'passkey-signing';
+  const web = (path: string) => Linking.openURL(`${udConfig.base}${path}`).catch(() => {});
+
+  return (
+    <>
+      <UdCard>
+        <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 17 }}>Wersja beta</Text>
+        <Text style={{ color: ud.text, marginTop: 4 }}>
+          Aplikacja jest jeszcze w wersji beta, ale zgłoszenia są prawdziwe – trafiają do straży miejskiej i na Policję tak samo jak ze strony uprzejmiedonosze.net.
+        </Text>
+        <Text style={{ color: ud.muted, marginTop: 6 }}>
+          Uwagi i błędy pisz na{' '}
+          <Text style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => Linking.openURL(`mailto:${FEEDBACK_EMAIL}`).catch(() => {})}>{FEEDBACK_EMAIL}</Text>
+        </Text>
+      </UdCard>
+
+      <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 34, marginTop: 16, textAlign: 'center' }}>Zaloguj się</Text>
+      <View style={{ alignItems: 'center', marginTop: 8 }}>
+        {passkeysEnabled() ? (
+          <LoginButton icon={FINGERPRINT_ICON} label="Zaloguj urządzeniem" bg={ud.primary} fg="#fff" onPress={a.signInWithPasskey} disabled={busy} />
+        ) : null}
+        {/* Na iOS bez przycisku Google: wtedy logujemy tylko własnymi metodami (e-mail-link, passkey) i wytyczna Apple 4.8 (Sign in with Apple) nie obowiązuje. */}
+        {googleSignInReady && Platform.OS !== 'ios' ? (
+          <LoginButton icon={GOOGLE_ICON} label="Zaloguj przez Google" bg={ud.surface} fg={ud.text} onPress={a.signInWithGoogle} disabled={busy} />
+        ) : null}
+        <LoginButton icon={MAIL_ICON} label="Zaloguj przez e-mail" bg="#db4437" fg="#fff" onPress={() => setEmailOpen((o) => !o)} disabled={busy} />
+      </View>
+
+      {emailOpen ? (
+        <UdCard>
+          <Text style={{ color: ud.heading, fontWeight: '700' }}>1. Podaj e-mail</Text>
+          <TextInput {...inputColors} value={a.email} onChangeText={a.setEmail} placeholder="ty@przyklad.pl" autoCapitalize="none" keyboardType="email-address" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
+          <UdButton
+            title={a.status === 'link-sending' ? 'Wysyłam…' : 'Wyślij link logowania'}
+            variant="primary"
+            onPress={a.requestLink}
+            disabled={busy || !a.email.trim()}
+          />
+          {/* „Kliknij” tylko, gdy Firebase wydał link do appki – zwykły link otwiera www, które zużywa jednorazowy kod */}
+          {a.appLinkSent ? (
+            <>
+              <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>2. Kliknij link w mailu na tym telefonie</Text>
+              <Text style={{ color: ud.muted, marginTop: 2 }}>Link otworzy aplikację i zaloguje Cię. Jeśli zamiast niej otworzy się przeglądarka albo mail czytasz na innym urządzeniu, wyślij link jeszcze raz, skopiuj go (nie otwieraj) i wklej tutaj.</Text>
+            </>
+          ) : (
+            <>
+              <Text style={{ color: ud.heading, fontWeight: '700', marginTop: 10 }}>2. Wklej link z maila</Text>
+              <Text style={{ color: ud.muted, marginTop: 2 }}>Linku NIE otwieraj (jest jednorazowy) – skopiuj go z maila i wklej tutaj całość.</Text>
+            </>
+          )}
+          <TextInput {...inputColors} value={code} onChangeText={setCode} placeholder="link z maila" autoCapitalize="none" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
+          <UdButton title="Zaloguj" variant="accent" onPress={() => a.verifyCode(code)} disabled={busy || !code.trim()} />
+          {a.status === 'link-sent' ? <Text style={{ color: ud.primary, fontWeight: '700' }}>{a.appLinkSent ? 'Link wysłany – otwórz mail na tym telefonie i kliknij link.' : 'Link wysłany – sprawdź skrzynkę.'}</Text> : null}
+        </UdCard>
+      ) : null}
+      {a.status === 'error' && a.error ? <Text style={{ color: ud.plateVerified, marginTop: 10, textAlign: 'center' }}>{a.error}</Text> : null}
+
+      <Text style={{ color: ud.muted, fontSize: 13, marginTop: 20, textAlign: 'center' }}>
+        Logując się, akceptujesz{' '}
+        <Text style={{ color: ud.primary }} onPress={() => web('/regulamin.html')}>regulamin</Text>
+        {' '}i{' '}
+        <Text style={{ color: ud.primary }} onPress={() => web('/polityka-prywatnosci.html')}>politykę prywatności</Text>.
+      </Text>
+    </>
+  );
+}
+
+// Przycisk w stylu firebaseui (.firebaseui-idp-button): kapsułka stałej szerokości, ikona po lewej, cień.
+function LoginButton({ icon, label, bg, fg, onPress, disabled }: { icon: string; label: string; bg: string; fg: string; onPress: () => void; disabled?: boolean }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      android_ripple={bg === ud.surface ? ripple : rippleOnDark}
+      style={{ width: 280, maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 20, backgroundColor: bg, borderRadius: ud.radiusPill, paddingVertical: 14, paddingHorizontal: 24, marginVertical: 8, overflow: 'hidden', opacity: disabled ? 0.6 : 1, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 3, shadowOffset: { width: 0, height: 2 }, elevation: 3 }}
+    >
+      <SvgXml xml={icon} width={24} height={24} />
+      <Text style={{ color: fg, fontFamily: ud.fontBodyBold, fontSize: 16 }}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -193,6 +200,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
         <ProfileFields value={p} onChange={(patch) => { setMsg(null); setP((o) => ({ ...o, ...patch })); }} email={email} disabled={!loaded} navigation={navigation} askSex />
         <UdButton title={saving ? 'Zapisuję…' : 'Zapisz'} variant="primary" onPress={save} disabled={!loaded || saving || !valid} />
         {msg ? <Text style={{ color: msg.ok ? ud.primary : 'red', marginTop: 6, fontWeight: '700' }}>{msg.text}</Text> : null}
+        <Text style={{ color: ud.muted, fontSize: 12, marginTop: 10 }}>Wersja {appVersion} ({appBuild}) · Środowisko: {udEnv} ({udConfig.base})</Text>
       </View>
 
       <View style={{ marginTop: 20 }}>

@@ -1,6 +1,8 @@
 ## RELEASE-CANDIDATE
 
 - Aplikacja działa na produkcyjnym serwisie uprzejmiedonosze.net – zaloguj się tym samym kontem co na stronie. Konta z wersji testowej nie przechodzą, trzeba zalogować się od nowa.
+- Nowy ekran logowania, jak na stronie www: „Zaloguj urządzeniem”, Google i e-mail w tej samej kolejności i z tymi samymi przyciskami, bez technicznych opisów. Wersja aplikacji jest teraz pod danymi konta.
+- Na ekranie logowania jest informacja, że aplikacja jest w wersji beta, ale wysyła prawdziwe zgłoszenia, oraz adres do uwag: szymon+app@uprzejmiedonosze.net.
 
 ## v1.1.7 — 2026-10-29
 
