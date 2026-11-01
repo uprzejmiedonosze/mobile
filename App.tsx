@@ -16,6 +16,7 @@ import { QuotaInfoScreen } from './src/screens/QuotaInfoScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { WebPageScreen } from './src/screens/WebPageScreen';
+import { WaitingRoomScreen } from './src/screens/WaitingRoomScreen';
 import { UpdateRequiredScreen } from './src/screens/UpdateRequiredScreen';
 
 import { PhotoPickerHost } from './src/components/PhotoPickerHost';
@@ -113,6 +114,9 @@ export default function App() {
           <Stack.Screen name="Reports" component={ReportsScreen} />
           <Stack.Screen name="Letter" component={LetterScreen} />
           <Stack.Screen name="QuotaInfo" component={QuotaInfoScreen} />
+          <Stack.Screen name="WaitingRoom" component={WaitingRoomScreen} />
+          {/* leniwie: expo-camera przy imporcie wymaga modułu natywnego, a build bez niego ma działać (poza tym ekranem) */}
+          <Stack.Screen name="WaitingCamera" getComponent={() => require('./src/screens/WaitingCameraScreen').WaitingCameraScreen} />
           <Stack.Screen name="Account" component={AccountScreen} />
           <Stack.Screen name="WebPage" component={WebPageScreen} />
         </Stack.Navigator>

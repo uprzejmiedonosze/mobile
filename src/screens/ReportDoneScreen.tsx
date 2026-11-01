@@ -6,6 +6,7 @@ import { plural } from '../lib/reports';
 import { PATRONEM_DEFAULT } from '../lib/sex';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import { useNewReport } from '../store/useNewReport';
+import { useWaitingRoom } from '../store/useWaitingRoom';
 import { ud } from '../theme';
 
 // Odpowiednik dziekujemy.html.twig – wynik „Potwierdź i wyślij” (POST /api/rest/app/{id}/finish).
@@ -14,6 +15,9 @@ export function ReportDoneScreen({ navigation }: any) {
   const results = useNewReport((s) => s.done);
   const [patron, setPatron] = useState(PATRONEM_DEFAULT); // „Patronem”/„Patronką” wg płci z profilu (sexStrings z backendu)
   useEffect(() => { fetchProfile().then((p) => setPatron(p.patronem)).catch(() => {}); }, []);
+  // Zgłoszenie z poczekalni jest potwierdzone: lokalne kopie zdjęć nie są już potrzebne.
+  useEffect(() => { if (results) useWaitingRoom.getState().removeDrafts(results.map((r) => r.app.id)); }, [results]);
+  const waitingCount = useWaitingRoom((st) => st.photos.filter((p) => !p.draftId).length);
   const done = results ? (['failed', 'manual', 'not_requested', 'sent'] as const).map((m) => results.find((r) => r.sendMode === m)).find(Boolean) ?? results[0] : null; // status wg najgorszego wyniku
 
   if (!done) {
@@ -56,6 +60,7 @@ export function ReportDoneScreen({ navigation }: any) {
         ) : null}
 
         <View style={{ marginTop: 24, gap: 8 }}>
+          {waitingCount > 0 ? <UdButton title={`Wróć do poczekalni (${waitingCount})`} onPress={() => go('WaitingRoom')} /> : null}
           <UdButton title="Moje zgłoszenia" variant="outline" pill onPress={() => go('Reports')} />
           <UdButton title="Jeszcze raz" onPress={() => go('NewReport')} />
         </View>

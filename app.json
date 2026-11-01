@@ -44,8 +44,17 @@
         "expo-image-picker",
         {
           "photosPermission": "Wybór zdjęć pojazdu do zgłoszenia i odczyt z nich daty oraz miejsca wykonania.",
-          "cameraPermission": "Zrób zdjęcie pisma z policji lub straży miejskiej, żeby przypisać je do zgłoszenia.",
+          "cameraPermission": "Zdjęcia pojazdu do zgłoszenia oraz pisma z policji lub straży miejskiej, żeby przypisać je do zgłoszenia.",
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Zdjęcia pojazdu do zgłoszenia oraz pisma z policji lub straży miejskiej, żeby przypisać je do zgłoszenia.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
         }
       ],
       [
@@ -59,7 +68,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Pokazanie Twojej lokalizacji na mapie przy wskazywaniu miejsca wykroczenia.",
+          "locationWhenInUsePermission": "Zapisanie miejsca zdjęcia zrobionego w aplikacji i pokazanie Twojej lokalizacji na mapie przy wskazywaniu miejsca wykroczenia.",
           "locationAlwaysAndWhenInUsePermission": false,
           "locationAlwaysPermission": false,
           "motionUsagePermission": false

@@ -40,6 +40,8 @@ i składa body. Analiza zużywa kredyty analizy zdjęć (1 na zdjęcie; 402 → 
 Fixture'y: `tests/correspondence/` (skan + `.txt` transkrypcja + `expected.json`) – **korzystaj z transkrypcji zamiast ponownie czytać obrazy**.
 Kontrakt: `../uprzejmiedonosze/API.md` → „Letters endpoints”.
 
+**Aparat w appce i poczekalnia (MVP do oceny przydatności; `waitingRoomEnabled`: Android, poza buildami produkcyjnymi).** `WaitingCameraScreen` (`expo-camera`, GPS z `expo-location`, przycisk „Następne auto”) zapisuje zdjęcia w prywatnym katalogu appki, poza rolką (`store/useWaitingRoom`: `<id>.jpg` + `<id>.json`). `WaitingRoomScreen` pokazuje paczki po 1–3 zdjęcia liczone bez sieci i bez kredytów (`lib/waitingRoom.ts`: granice „Następne auto” → `groupPhotos` → klaster > 3 dzielony przy największych przerwach w czasie). „Utwórz szkic” otwiera `NewReportScreen` z `waitingIds` (`usePhotoBatch.load`): dopiero wtedy jest wysyłka i ALPR. Taki szkic **nie używa** zapamiętanego `draftId` – jego id pamiętają zdjęcia, a szkic otwiera się z poczekalni (szkiców nie ma na liście zgłoszeń); po potwierdzeniu zdjęcia są kasowane (`removeDrafts`). Przed wydaniem produkcyjnym: reguły kopii zapasowej Androida (katalog jest w Auto Backup, limit 25 MB), retencja, przypisanie zdjęć do konta, deklaracje w sklepach.
+
 ## Non-functional requirements
 
 `docs/NFR.md` — wymagania niefunkcjonalne i status. Najważniejsze: każde żądanie REST niesie `X-UD-Schema` (wersja kontraktu API = `SCHEMA`)

@@ -3,6 +3,9 @@ const p2 = (n: number) => String(n).padStart(2, '0');
 
 export const toIso = (d: Date): string => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}:00`;
 
+// Epoka (ms) → „YYYY:MM:DD HH:mm:ss” czasu lokalnego (jak EXIF DateTimeOriginal), gdy plik nie ma własnej daty.
+export const exifDate = (ms: number): string => { const d = new Date(ms); return `${d.getFullYear()}:${p2(d.getMonth() + 1)}:${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`; };
+
 // „2026-09-10T19:43:00” → Date (czas lokalny; new Date(string) bez strefy bywa różnie interpretowany); null dla niepoprawnego tekstu.
 export function fromIso(iso: string | null | undefined): Date | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/.exec(iso ?? '');

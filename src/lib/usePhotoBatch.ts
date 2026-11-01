@@ -272,10 +272,10 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
     if (car) onCarExif?.(car); // inne auto = inne zdjęcie auta = inna data/GPS
   }, [applyChoice, onCarExif]);
 
-  const pick = useCallback(async () => {
+  // Gotowe zdjęcia (z galerii albo z poczekalni) → podgląd, wysyłka, ALPR, role, szkic.
+  const load = useCallback(async (picked: LocalPhoto[]) => {
     let my = -1;
     try {
-      const picked = (await pickPhotos(MAX_BATCH, MIN_PHOTOS)) as LocalPhoto[];
       if (!picked.length) return;
 
       my = ++batch.current;
@@ -333,6 +333,18 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
     }
   }, [onSuggestion, onError, onCarExif, applyChoice]);
 
+  const pick = useCallback(async () => {
+    let picked: LocalPhoto[];
+    try {
+      picked = (await pickPhotos(MAX_BATCH, MIN_PHOTOS)) as LocalPhoto[];
+    } catch (e) {
+      setPhase('idle');
+      onError(e);
+      return;
+    }
+    await load(picked);
+  }, [load, onError]);
+
   // Usunięcie zdjęcia (np. innego auta) przelicza role dla pozostałych; wskazany pojazd zostaje, jeśli jeszcze jest na zdjęciach.
   const remove = useCallback((id: string) => {
     const serverId = photosRef.current.find((p) => p.id === id)?.serverId;
@@ -354,5 +366,5 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
 
   const vehicleIdx = plate && plate2 === null ? vehicles.findIndex((v) => plateMatches(v.plate, plate)) : -1;
 
-  return { photos, slots, phase, uploading, note, crop, cropPreview, plateCropUri, reanalyzing, vehicles, vehicleIdx, canBoth: canChooseBoth(vehicles, detectionsRef.current.length) && splitVehicles(detectionsRef.current) !== null, both: plate2 !== null, plate2, second, chooseVehicle, assignSecondDraft, failed, retry, pick, remove, busy: phase === 'preparing' || phase === 'analyzing' || reanalyzing || uploading.length > 0 };
+  return { photos, slots, phase, uploading, note, crop, cropPreview, plateCropUri, reanalyzing, vehicles, vehicleIdx, canBoth: canChooseBoth(vehicles, detectionsRef.current.length) && splitVehicles(detectionsRef.current) !== null, both: plate2 !== null, plate2, second, chooseVehicle, assignSecondDraft, failed, retry, pick, load, remove, busy: phase === 'preparing' || phase === 'analyzing' || reanalyzing || uploading.length > 0 };
 }

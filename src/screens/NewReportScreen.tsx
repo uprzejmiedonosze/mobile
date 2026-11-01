@@ -23,6 +23,8 @@ import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import { usePhotoQuota } from '../lib/usePhotoQuota';
 import { PATRONEM_DEFAULT } from '../lib/sex';
 import { usePhotoBatch } from '../lib/usePhotoBatch';
+import { toPhotoItem } from '../lib/waitingRoom';
+import { useWaitingRoom } from '../store/useWaitingRoom';
 import { SLOT_ORDER } from '../lib/roles';
 import type { Slot, Suggestion } from '../lib/suggest';
 import { udConfig } from '../config';
@@ -112,6 +114,9 @@ function Radio({ on, onPress, children, disabled, hint }: { on: boolean; onPress
 export function NewReportScreen({ navigation, route }: any) {
   const go = (r: string) => navigation.navigate(r);
   const editId: string | undefined = route?.params?.editId;
+  // Paczka z poczekalni: osobny szkic, którego id pamiętają zdjęcia – zapamiętany `draftId` zwykłego formularza zostaje nietknięty
+  // (szkiców nie ma na liście zgłoszeń, więc nadpisanie go oznaczałoby utratę dostępu do niego).
+  const waitingIds: string[] | undefined = route?.params?.waitingIds;
   const { draftId, hydrated, hydrate, setDraftId } = useNewReport();
 
   const [app, setApp] = useState<UdApp | null>(null);
@@ -169,7 +174,7 @@ export function NewReportScreen({ navigation, route }: any) {
   // Wejście: tryb edycji (?editId) albo wznowienie szkicu z poprzedniej sesji – jak `$_SESSION['newAppId']`.
   useEffect(() => {
     if (!hydrated) return;
-    const id = editId ?? draftId;
+    const id = editId ?? (waitingIds ? null : draftId);
     if (!id) { setLoading(false); return; }
     fetchReport(id)
       .then((a) => {
@@ -301,10 +306,11 @@ export function NewReportScreen({ navigation, route }: any) {
     draftRef.current ??= createDraft().then((a) => {
       appRef.current = a;
       setApp(a);
-      if (!editId) setDraftId(a.id);
+      if (!editId && !waitingIds) setDraftId(a.id);
       return a;
     });
     return draftRef.current;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId, setDraftId]);
 
   // „Oba” = dwa osobne zgłoszenia: drugi szkic powstaje dopiero przy „Dalej” i jest używany ponownie przy powrocie z potwierdzenia.
@@ -340,6 +346,23 @@ export function NewReportScreen({ navigation, route }: any) {
   }, []);
   const batch = usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError: fail, onCarExif: applyCarExif });
   const photosOk = hasRequiredPhotos(app);
+  const waitingLoaded = useRef(false);
+  useEffect(() => {
+    if (!waitingIds || loading || waitingLoaded.current) return;
+    waitingLoaded.current = true;
+    void batch.load(useWaitingRoom.getState().photos.filter((p) => waitingIds.includes(p.id)).map(toPhotoItem));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+  // Zdjęcia wiążemy ze szkicem, gdy tylko powstanie (po wysyłce i ALPR): inaczej przerwany przydział zostawiałby szkic, do którego nic nie prowadzi.
+  // Limit kredytów czy błąd wysyłki zdarzają się wcześniej, więc paczka zostaje wtedy w poczekalni; z kolei „Przywróć” cofa powiązanie.
+  const waitingMarked = useRef(false);
+  useEffect(() => {
+    if (!waitingIds || waitingMarked.current || !app) return;
+    waitingMarked.current = true;
+    // zdjęcie usunięte w formularzu nie trafiło do szkicu – zostaje w poczekalni
+    useWaitingRoom.getState().markUsed(waitingIds.filter((id) => batch.photos.some((p) => p.id === id)), app.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app?.id]);
   useEffect(() => { if (photosOk) setErr((e) => clearFieldError(e, 'images')); }, [photosOk]); // zdjęcia dodane → znika „Dodaj zdjęcie auta…”
   const uploading = batch.busy;
   // „Zacznij od nowa”: zapominamy bieżący szkic i otwieramy formularz od zera (nowy szkic powstanie przy pierwszym zdjęciu). Zablokowane w trakcie
@@ -457,7 +480,7 @@ export function NewReportScreen({ navigation, route }: any) {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {editId ? <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>{`Edycja${app?.number ? ` ${app.number}` : ''}`}</Text> : null}
 
-        {!editId && tiles.length > 0 ? (
+        {!editId && !waitingIds && tiles.length > 0 ? (
           <Pressable onPress={startOver} disabled={uploading} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 10, opacity: uploading ? 0.5 : 1 }}>
             <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, textDecorationLine: 'underline' }}>Zacznij od nowa</Text>
           </Pressable>

@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Image, Modal, Pressable, Text, useWindowDi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // /legacy – patrz komentarz w lib/gallery.ts (główny eksport expo-media-library rzuca w runtime)
 import * as MediaLibrary from 'expo-media-library/legacy';
+import { exifDate } from '../lib/dateTime';
 import { parsePickerExif } from '../lib/gallery';
 import { log } from '../lib/log';
 import { usePhotoPicker } from '../store/usePhotoPicker';
@@ -11,9 +12,6 @@ import type { PhotoItem } from '../types';
 
 const PAGE = 60;
 const COLS = 3;
-const pad = (n: number) => String(n).padStart(2, '0');
-// creationTime (ms) → "YYYY:MM:DD HH:mm:ss" (jak EXIF DateTimeOriginal), gdy plik nie ma własnej daty
-const exifDate = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}:${pad(d.getMonth() + 1)}:${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; };
 
 // Wybór zdjęć z galerii własnym oknem na MediaLibrary. Powód: na Androidzie (build release) systemowy
 // ImagePicker potrafił zawsze odrzucać wywołanie ("unregistered ActivityResultLauncher" w expo-modules-core).

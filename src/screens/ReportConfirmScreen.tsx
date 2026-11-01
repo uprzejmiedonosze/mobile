@@ -65,7 +65,8 @@ export function ReportConfirmScreen({ navigation, route }: any) {
         if (finished.current.has(app.id)) continue;
         finished.current.set(app.id, await finishReport(app.id, c.recipient.automated));
       }
-      setDraftId(null);
+      // tylko gdy potwierdzamy zapamiętany szkic: zgłoszenie z poczekalni nie może zgubić rozpoczętego równolegle formularza
+      if (appIds.includes(useNewReport.getState().draftId ?? '')) setDraftId(null);
       setDone(appIds.map((id) => finished.current.get(id)!));
       // „Oba” = dwa szkice z tą samą kategorią – jeden wpis
       for (const cat of new Set(items.map(({ app }) => Number(app.category)))) await recordRecentCategory(cat);

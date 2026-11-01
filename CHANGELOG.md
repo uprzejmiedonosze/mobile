@@ -1,6 +1,7 @@
 ## RELEASE-CANDIDATE
 
 - Gdy galeria albo aparat nie chcą się otworzyć, aplikacja podpowiada teraz, co zrobić (zamknąć ją i otworzyć ponownie), zamiast pokazywać techniczny komunikat o błędzie.
+- Potwierdzenie poprawionego zgłoszenia z listy nie gubi już nowego zgłoszenia, które masz rozpoczęte w formularzu.
 
 ## v1.2.1 — 2026-10-29
 

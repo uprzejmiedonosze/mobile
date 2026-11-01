@@ -9,6 +9,7 @@ import { plural } from '../lib/reports';
 import type { PhotoQuota } from '../api/udApi';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import { useWaitingRoom, waitingRoomEnabled } from '../store/useWaitingRoom';
 import { ripple, rippleOnDark, ud } from '../theme';
 
 const Eyebrow = ({ children }: { children: string }) => (
@@ -107,6 +108,8 @@ export function DashboardScreen({ navigation }: any) {
   const [badge, setBadge] = useState<DashBadge | null>(null);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (waitingRoomEnabled) useWaitingRoom.getState().hydrate(); }, []);
+  const waitingCount = useWaitingRoom((st) => st.photos.filter((p) => !p.draftId).length);
 
   const s = d?.stats ?? {};
   const myBadges = s.badges ?? [];
@@ -137,6 +140,12 @@ export function DashboardScreen({ navigation }: any) {
             <Text style={{ color: ud.text, marginTop: 6, lineHeight: 21 }}>{stripHtml(d.introMsg)}</Text>
             <View style={{ marginTop: 14 }}>
               <UdButton title="Nowe zgłoszenie" onPress={() => go('NewReport')} />
+              {waitingRoomEnabled ? (
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flex: 1 }}><UdButton title="Zrób zdjęcia" variant="outline" pill onPress={() => go('WaitingCamera')} /></View>
+                  <View style={{ flex: 1 }}><UdButton title={`Poczekalnia (${waitingCount})`} variant="outline" pill onPress={() => go('WaitingRoom')} /></View>
+                </View>
+              ) : null}
             </View>
 
             {d.rank ? (
