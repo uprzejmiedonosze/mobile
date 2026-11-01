@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+- Gdy galeria albo aparat nie chcą się otworzyć, aplikacja podpowiada teraz, co zrobić (zamknąć ją i otworzyć ponownie), zamiast pokazywać techniczny komunikat o błędzie.
+
 ## v1.2.1 — 2026-10-29
 
 - Logowanie przyciskiem „Zaloguj urządzeniem” (odcisk palca, twarz lub PIN) i dodawanie klucza dostępu w Koncie działają – wcześniej kończyły się błędem „An unknown error occurred”.

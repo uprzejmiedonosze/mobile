@@ -64,11 +64,11 @@ export function PhotoPickerHost() {
     (async () => {
       let perm = await MediaLibrary.getPermissionsAsync(false, ['photo']);
       if (!perm.granted) perm = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
-      if (!perm.granted) { close('unavailable'); return; }
+      if (!perm.granted) { log.warn('galeria', 'brak zgody MediaLibrary – systemowy picker'); close('unavailable'); return; }
       setLimited(perm.accessPrivileges === 'limited');
       setReady(true);
       loadMore();
-    })().catch((e) => { log.warn('galeria', String(e?.message ?? e)); close('unavailable'); });
+    })().catch((e) => { log.error('galeria', `MediaLibrary: ${String(e?.message ?? e).slice(0, 150)}`); close('unavailable'); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 

@@ -26,13 +26,15 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // Android (build release): ExponentImagePicker.launchImageLibraryAsync potrafi odrzucić wywołanie z
 // „Attempting to launch an unregistered ActivityResultLauncher…” – kontrakty Activity są rejestrowane przez
 // expo-modules-core dopiero w onHostResume (po odtworzeniu Activity, np. po oknie uprawnień). Czekamy,
-// aż aplikacja będzie aktywna, i przy tym konkretnym błędzie ponawiamy z rosnącym opóźnieniem.
-const launchLibrary = (opts: ImagePicker.ImagePickerOptions) => launchWithRetry(ImagePicker.launchImageLibraryAsync, opts);
-const launchCamera = (opts: ImagePicker.ImagePickerOptions) => launchWithRetry(ImagePicker.launchCameraAsync, opts);
+// aż aplikacja będzie aktywna, i przy tym konkretnym błędzie ponawiamy z rosnącym opóźnieniem. Gdy to nie pomoże,
+// ponowne otwarcie aplikacji rejestruje kontrakty od nowa – użytkownik dostaje taką wskazówkę, a Sentry zgłoszenie (UD-MOBILE-V).
+const launchLibrary = (opts: ImagePicker.ImagePickerOptions) => launchWithRetry(ImagePicker.launchImageLibraryAsync, opts, 'galerii');
+const launchCamera = (opts: ImagePicker.ImagePickerOptions) => launchWithRetry(ImagePicker.launchCameraAsync, opts, 'aparatu');
 
 async function launchWithRetry(
   launch: (opts: ImagePicker.ImagePickerOptions) => Promise<ImagePicker.ImagePickerResult>,
   opts: ImagePicker.ImagePickerOptions,
+  what: string,
 ): Promise<ImagePicker.ImagePickerResult> {
   for (let attempt = 0; ; attempt++) {
     for (let i = 0; i < 10 && AppState.currentState !== 'active'; i++) await sleep(150);
@@ -40,7 +42,11 @@ async function launchWithRetry(
       return await launch(opts);
     } catch (e: any) {
       const unregistered = /unregistered ActivityResultLauncher/i.test(String(e?.message ?? e));
-      if (!unregistered || attempt >= 3) throw e;
+      if (!unregistered) throw e;
+      if (attempt >= 3) {
+        log.error('galeria', `kontrakt Activity niezarejestrowany po ponowieniach (${what})`);
+        throw new UserError(`Nie udało się otworzyć ${what}. Zamknij aplikację, otwórz ją ponownie i spróbuj jeszcze raz.`);
+      }
       log.warn('galeria', `kontrakt Activity jeszcze niezarejestrowany – ponawiam (${attempt + 1}/3)`);
       await sleep(400 * (attempt + 1));
     }
