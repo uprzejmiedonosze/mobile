@@ -25,6 +25,27 @@ export type WaitingPhoto = {
 export type Pack = { id: string; photos: WaitingPhoto[]; startMs: number; endMs: number };
 export type Fix = { lat: number; lng: number; accuracy: number | null; atMs: number };
 
+// Punkt paczki do geokodowania: role zdjęć poznamy dopiero z ALPR, więc bierzemy najdokładniejszy odczyt GPS.
+export function bestFix(photos: WaitingPhoto[]): { lat: number; lng: number } | null {
+  let best: WaitingPhoto | null = null;
+  for (const p of photos) {
+    if (p.lat == null || p.lng == null) continue;
+    if (!best || (p.accuracy ?? Infinity) < (best.accuracy ?? Infinity)) best = p;
+  }
+  return best ? { lat: best.lat!, lng: best.lng! } : null;
+}
+
+// Obrót interfejsu aparatu z akcelerometru (Android: x > 0, gdy góra telefonu jest po lewej). Martwa strefa, żeby zdjęcie robione
+// pod kątem albo telefon na płasko nie przełączały układu; wtedy, tak jak do góry nogami, zostaje poprzedni.
+export type UiRotation = 0 | 90 | -90;
+const TILT_MIN_G = 0.6;
+const TILT_MARGIN_G = 0.2;
+export function uiRotation(x: number, y: number, prev: UiRotation): UiRotation {
+  if (Math.abs(x) > TILT_MIN_G && Math.abs(x) > Math.abs(y) + TILT_MARGIN_G) return x > 0 ? 90 : -90;
+  if (y > TILT_MIN_G && y > Math.abs(x) + TILT_MARGIN_G) return 0;
+  return prev;
+}
+
 const toPack = (photos: WaitingPhoto[]): Pack => ({
   id: photos[0].id,
   photos,

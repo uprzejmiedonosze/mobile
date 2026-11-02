@@ -202,11 +202,12 @@ export function UdPhoto({
   );
 }
 
-// Cztery zakładki jak na webie (_app-tabbar.html.twig): Start, Nowe, Zgłoszenia, Konto.
+// Cztery zakładki jak na webie (_app-tabbar.html.twig): Start, Nowe, Zgłoszenia, Konto; piąta, Poczekalnia, tylko tam, gdzie jest ta funkcja.
 // `screens` = ekrany, na których zakładka świeci się jako aktywna (cały proces dodawania = „Nowe”).
 const TABS = [
   { key: 'Start', route: 'Dashboard', icon: TAB_ICONS.start, screens: ['Dashboard'] },
   { key: 'Nowe', route: 'NewReport', icon: TAB_ICONS.nowe, screens: ['NewReport', 'ReportConfirm', 'ReportDone'] },
+  ...(waitingRoomEnabled ? [{ key: 'Poczekalnia', route: 'WaitingRoom', icon: TAB_ICONS.aparat, screens: ['WaitingRoom'] }] : []),
   { key: 'Zgłoszenia', route: 'Reports', icon: TAB_ICONS.zgloszenia, screens: ['Reports', 'Letter'] },
   { key: 'Konto', route: 'Account', icon: TAB_ICONS.konto, screens: ['Account'] },
 ];

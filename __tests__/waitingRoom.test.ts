@@ -1,4 +1,4 @@
-import { freshFix, FIX_MAX_AGE_MS, packPhotos, splitOversized, toPhotoItem, type WaitingPhoto } from '../src/lib/waitingRoom';
+import { bestFix, freshFix, FIX_MAX_AGE_MS, packPhotos, splitOversized, toPhotoItem, uiRotation, type WaitingPhoto } from '../src/lib/waitingRoom';
 
 const T0 = Date.UTC(2026, 5, 19, 10, 0, 0); // 12:00 CEST
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -19,6 +19,31 @@ const walk = (cars: number, shots: number, gapS: number, metres: number) => {
   }
   return out;
 };
+
+describe('poczekalnia: punkt do geokodowania', () => {
+  it('bierze najdokładniejszy odczyt, a odczyt bez dokładności dopiero na końcu', () => {
+    const a = { ...mk('a', 0, 100), accuracy: 30 }, b = { ...mk('b', 8, 200), accuracy: 6 }, c = { ...mk('c', 16, 300), accuracy: null };
+    expect(bestFix([a, b, c])).toEqual({ lat: b.lat, lng: b.lng });
+    expect(bestFix([c])).toEqual({ lat: c.lat, lng: c.lng });
+  });
+  it('bez GPS nie ma punktu', () => {
+    expect(bestFix([{ ...mk('a', 0), lat: null, lng: null }])).toBeNull();
+  });
+});
+
+describe('aparat: obrót interfejsu', () => {
+  it('poziom w obie strony i powrót do pionu', () => {
+    expect(uiRotation(0.95, 0.1, 0)).toBe(90);
+    expect(uiRotation(-0.95, 0.1, 0)).toBe(-90);
+    expect(uiRotation(0.1, 0.95, 90)).toBe(0);
+  });
+  it('w martwej strefie, na płasko i do góry nogami zostaje poprzedni układ', () => {
+    expect(uiRotation(0.65, 0.6, 90)).toBe(90);
+    expect(uiRotation(0.65, 0.6, 0)).toBe(0);
+    expect(uiRotation(0.02, 0.03, -90)).toBe(-90);
+    expect(uiRotation(0.1, -0.95, 90)).toBe(90);
+  });
+});
 
 describe('poczekalnia: paczki bez ALPR', () => {
   it('rozdziela sąsiednie auta, które groupPhotos scala (przerwa większa niż między zdjęciami jednego auta)', () => {

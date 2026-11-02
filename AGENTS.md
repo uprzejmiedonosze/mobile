@@ -5,7 +5,7 @@
 
 UD Pro — an Expo/React Native mobile client for uprzejmiedonosze.net (Polish parking-violation
 reporting service). Screens: Dashboard (`/app`), report creation (`/app/new`), list (`/app/list`) and
-account (`/app/account`), bottom tabs Start / Nowe / Zgłoszenia / Konto (same icons as the web tab bar).
+account (`/app/account`), bottom tabs Start / Nowe / Zgłoszenia / Konto (same icons as the web tab bar), plus Poczekalnia where `waitingRoomEnabled`.
 Everything goes through the JWT REST API (`/api/rest/*`, Firebase Bearer) — never the cookie-based
 `/api/app/*` the web uses; both share their implementation in the backend's `src/inc/API.php`.
 
@@ -40,7 +40,7 @@ i składa body. Analiza zużywa kredyty analizy zdjęć (1 na zdjęcie; 402 → 
 Fixture'y: `tests/correspondence/` (skan + `.txt` transkrypcja + `expected.json`) – **korzystaj z transkrypcji zamiast ponownie czytać obrazy**.
 Kontrakt: `../uprzejmiedonosze/API.md` → „Letters endpoints”.
 
-**Aparat w appce i poczekalnia (MVP do oceny przydatności; `waitingRoomEnabled`: Android, poza buildami produkcyjnymi).** `WaitingCameraScreen` (`expo-camera`, GPS z `expo-location`, przycisk „Następne auto”) zapisuje zdjęcia w prywatnym katalogu appki, poza rolką (`store/useWaitingRoom`: `<id>.jpg` + `<id>.json`). `WaitingRoomScreen` pokazuje paczki po 1–3 zdjęcia liczone bez sieci i bez kredytów (`lib/waitingRoom.ts`: granice „Następne auto” → `groupPhotos` → klaster > 3 dzielony przy największych przerwach w czasie). „Utwórz szkic” otwiera `NewReportScreen` z `waitingIds` (`usePhotoBatch.load`): dopiero wtedy jest wysyłka i ALPR. Taki szkic **nie używa** zapamiętanego `draftId` – jego id pamiętają zdjęcia, a szkic otwiera się z poczekalni (szkiców nie ma na liście zgłoszeń); po potwierdzeniu zdjęcia są kasowane (`removeDrafts`). Przed wydaniem produkcyjnym: reguły kopii zapasowej Androida (katalog jest w Auto Backup, limit 25 MB), retencja, przypisanie zdjęć do konta, deklaracje w sklepach.
+**Aparat w appce i poczekalnia (MVP do oceny przydatności; `waitingRoomEnabled`: Android, poza buildami produkcyjnymi).** `WaitingCameraScreen` (`expo-camera`, GPS z `expo-location`, przycisk „Następne auto”) zapisuje zdjęcia w prywatnym katalogu appki, poza rolką (`store/useWaitingRoom`: `<id>.jpg` + `<id>.json`). Praca w poziomie: appka zostaje zablokowana w pionie, obraca się tylko nakładka (`expo-sensors`, `uiRotation`), a orientację pliku ustawia CameraX. `WaitingRoomScreen` pokazuje paczki po 1–3 zdjęcia liczone bez sieci i bez kredytów (`lib/waitingRoom.ts`: granice „Następne auto” → `groupPhotos` → klaster > 3 dzielony przy największych przerwach w czasie), a adres paczki bierze z `reverseGeocode` dla najdokładniejszego odczytu GPS (`bestFix`). „Zgłoszenie” otwiera `NewReportScreen` z `waitingIds` (`usePhotoBatch.load`): dopiero wtedy jest wysyłka i ALPR. Taki szkic **nie używa** zapamiętanego `draftId` – jego id pamiętają zdjęcia, a szkic otwiera się z poczekalni (szkiców nie ma na liście zgłoszeń); po potwierdzeniu zdjęcia są kasowane (`removeDrafts`). Przed wydaniem produkcyjnym: reguły kopii zapasowej Androida (katalog jest w Auto Backup, limit 25 MB), retencja, przypisanie zdjęć do konta, deklaracje w sklepach.
 
 ## Non-functional requirements
 
