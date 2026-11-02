@@ -2,12 +2,13 @@ import { Platform } from 'react-native';
 import { Directory, File, Paths } from 'expo-file-system';
 import { create } from 'zustand';
 import { udEnv } from '../config';
+import { isRcBuild } from '../lib/appVersion';
 import { exifDate } from '../lib/dateTime';
 import { log } from '../lib/log';
 import type { Fix, WaitingPhoto } from '../lib/waitingRoom';
 
-// MVP do oceny przydatności: Android, poza buildami produkcyjnymi (dev client na prod, np. `make dev-prod`, też ma funkcję).
-export const waitingRoomEnabled = Platform.OS === 'android' && (__DEV__ || udEnv !== 'prod');
+// MVP do oceny przydatności: Android, poza wydaniami z tagu. Kandydaci rcN z Play internal i dev client (także `make dev-prod`) mają funkcję, choć są na produkcji.
+export const waitingRoomEnabled = Platform.OS === 'android' && (__DEV__ || udEnv !== 'prod' || isRcBuild);
 
 // Zdjęcia z aparatu w appce żyją w jej prywatnym katalogu: <id>.jpg + <id>.json (metadane). Osobny plik na zdjęcie, żeby awaria w trakcie
 // zapisu kosztowała najwyżej jedno zdjęcie. W JSON-ie nie ma uri: ścieżka katalogu appki może się zmienić po aktualizacji.

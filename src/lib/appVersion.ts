@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import * as Application from 'expo-application';
 import appConfig from '../../app.json';
 import { SCHEMA } from './vision';
+import { isRcVersion } from './compareVersions';
 export { compareVersions } from './compareVersions';
 
 // Wersja KONTRAKTU API, z którym appka została zbudowana (SCHEMA z lib/vision.ts = VISION_SCHEMA backendu). To ona decyduje
@@ -17,6 +18,7 @@ export const apiSchema = Number.isFinite(fakeSchema) ? fakeSchema : SCHEMA;
 // inaczej bramka wersji (serwer: 426 poniżej minVersion) nigdy nie zadziała w dev.
 const inExpoGo = Application.applicationId === 'host.exp.exponent';
 export const appVersion = (inExpoGo ? (appConfig.expo.version ?? '0.0.0') : (Application.nativeApplicationVersion ?? '0.0.0'));
+export const isRcBuild = isRcVersion(appVersion);
 export const appBuild = Application.nativeBuildVersion ?? '0';
 export const platform: 'ios' | 'android' = Platform.OS === 'ios' ? 'ios' : 'android';
 

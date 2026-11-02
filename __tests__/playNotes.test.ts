@@ -51,27 +51,27 @@ describe('play-notes', () => {
     expect(checkSummary('x'.repeat(PLAY_NOTES_LIMIT + 1))).toBeNull();
   });
 
-  it('nazwa wydania: wersja, versionCode i dopisek staging', () => {
-    expect(releaseName('1.0.0', 3, true)).toBe('1.0.0 (3) staging');
+  it('nazwa wydania: wersja i versionCode', () => {
+    expect(releaseName('1.3.0-rc22', 22)).toBe('1.3.0-rc22 (22)');
     expect(releaseName('1.1.0', 7, false)).toBe('1.1.0 (7)');
   });
 
   it('aktualizuje tylko wskazane wydanie; --complete zostawia samo wydane', () => {
     const track = { track: 'internal', releases: [{ versionCodes: ['2'], status: 'completed' }, { versionCodes: ['3'], status: 'draft' }] };
-    const upd = { code: 3, name: '1.0.0 (3) staging', notes: '• A.', lang: 'pl-PL' };
+    const upd = { code: 3, name: '1.0.0 (3)', notes: '• A.', lang: 'pl-PL' };
     const draft = updateTrack(track, { ...upd, complete: false });
     expect(draft.releases).toHaveLength(2);
-    expect(draft.releases[1]).toEqual({ versionCodes: ['3'], status: 'draft', name: '1.0.0 (3) staging', releaseNotes: [{ language: 'pl-PL', text: '• A.' }] });
+    expect(draft.releases[1]).toEqual({ versionCodes: ['3'], status: 'draft', name: '1.0.0 (3)', releaseNotes: [{ language: 'pl-PL', text: '• A.' }] });
     const done = updateTrack(track, { ...upd, complete: true });
     expect(done.releases).toEqual([{ ...draft.releases[1], status: 'completed' }]);
     expect(() => updateTrack(track, { ...upd, code: 9, complete: false })).toThrow(/versionCode 9/);
     const bare = updateTrack(track, { ...upd, notes: '', complete: false });
-    expect(bare.releases[1]).toEqual({ versionCodes: ['3'], status: 'draft', name: '1.0.0 (3) staging' });
+    expect(bare.releases[1]).toEqual({ versionCodes: ['3'], status: 'draft', name: '1.0.0 (3)' });
   });
 
   it('argumenty', () => {
-    expect(parseArgs(['--track', 'beta', '--version-code', '4'])).toMatchObject({ track: 'beta', code: 4, staging: false, complete: false });
-    expect(parseArgs(['--summarize', '--staging', '--write'])).toMatchObject({ summarize: true, staging: true, write: true });
+    expect(parseArgs(['--track', 'beta', '--version-code', '4'])).toMatchObject({ track: 'beta', code: 4, rc: false, complete: false });
+    expect(parseArgs(['--summarize', '--rc', '--write'])).toMatchObject({ summarize: true, rc: true, write: true });
     expect(parseArgs(['--notes-file', 'n.txt']).notesFile).toBe('n.txt');
     expect(() => parseArgs(['--foo'])).toThrow(/Nieznany/);
   });

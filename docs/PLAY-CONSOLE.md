@@ -71,5 +71,5 @@ Przed wysłaniem do recenzji: backend z `POST /api/rest/demo-login` wdrożony na
 
 Build produkcyjny łączy się z innym projektem Firebase niż staging. Po aktualizacji appka nie odnowi starej sesji i pokaże ekran logowania. Szkic ze stagingu sam znika, bo na prodzie go nie ma. Trzeba zalogować się kontem produkcyjnym, tym samym co na uprzejmiedonosze.net. Zgłoszenia ze stagingu nie przechodzą. Uprzedź testerów przed publikacją.
 
-Play daje każdemu użytkownikowi build o najwyższym `versionCode` ze wszystkich ścieżek, do których należy. `staging-play` i `production` mają wspólny licznik. Build prod (18+) jest wyższy niż build 17 ze stagingu, który jest dziś na alpha i beta, więc testerzy tych ścieżek dostaną prod automatycznie. Ryzyko jest jedno:
-- **internal:** każdy `make staging-play` po wydaniu prod dostanie wyższy `versionCode` i przeniesie testerów internal z powrotem na staging. Zostaw na liście internal tylko siebie albo przestań wysyłać staging do Play.
+Play daje każdemu użytkownikowi build o najwyższym `versionCode` ze wszystkich ścieżek, do których należy. `internal` i `production` mają wspólny licznik. Build prod (18+) jest wyższy niż build 17 ze stagingu, który jest dziś na alpha i beta, więc testerzy tych ścieżek dostaną prod automatycznie. Ryzyko jest jedno:
+- **internal:** od 1.3.0-rc22 kandydaci (`make rc-play`) są na produkcji, więc testerzy internal nie wracają już na staging, ale ich zgłoszenia są prawdziwe.

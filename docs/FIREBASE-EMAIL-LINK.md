@@ -23,10 +23,10 @@ Każdy projekt potrzebuje obu kluczy, którymi podpisujemy pakiet `.pro`:
 
 | Klucz | Skąd | Które buildy |
 |---|---|---|
-| Play App Signing | Play Console → aplikacja → Test and release → App integrity → **App signing key certificate** → SHA-256 (nie *Upload key*). Ten sam odcisk jest już w backendzie: `../uprzejmiedonosze/src/.well-known/assetlinks.json` (`E3:ED:80:F5:…:44:07`). | z Google Play: `staging-play`, `production` |
+| Play App Signing | Play Console → aplikacja → Test and release → App integrity → **App signing key certificate** → SHA-256 (nie *Upload key*). Ten sam odcisk jest już w backendzie: `../uprzejmiedonosze/src/.well-known/assetlinks.json` (`E3:ED:80:F5:…:44:07`). | z Google Play: `internal`, `production` |
 | Keystore EAS (upload) | `eas credentials -p android` → profil `staging` / `shadow` → SHA-256 | APK spoza Play: `staging`, `shadow` |
 
-Dlaczego oba w obu projektach: `staging-play` idzie na staging, a `production` na prod – oba podpisane kluczem Play; `shadow` idzie na prod
+Dlaczego oba w obu projektach: `internal` i `production` idą na prod, podpisane kluczem Play (do 1.3.0-rc21 build z Play szedł też na staging); `shadow` idzie na prod
 podpisany keystore'em EAS. Jeden manifest ma filtry dla obu domen, a **na Androidzie 11 i starszym link weryfikuje się tylko wtedy,
 gdy przejdą weryfikację obie domeny** – dlatego konfigurujemy oba projekty, zanim build trafi do testerów.
 
@@ -121,7 +121,7 @@ cd /tmp/ud-hosting && firebase deploy --only hosting --project uprzejmie-donosze
 
 Konsola musi być skonfigurowana **przed** instalacją buildu: Android weryfikuje App Links przy instalacji.
 
-1. Zainstaluj build z Play (`make staging-play`). Expo Go i dev client się nie nadają: inny pakiet, brak filtra.
+1. Zainstaluj build z Play (`make rc-play`). Expo Go i dev client się nie nadają: inny pakiet, brak filtra.
 2. Sprawdź weryfikację (telefon przez USB):
 
    ```bash

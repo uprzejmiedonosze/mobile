@@ -57,13 +57,13 @@ e2e-staging: ## Maestro na telefonie przeciw stagingowi
 # Buildy i wysyłka do Play idą wyłącznie przez GitHub Actions (.github/workflows/release-android.yml, `eas build --local`).
 # Wydajesz z `main`, na czystym drzewie, po uzupełnieniu `## RELEASE-CANDIDATE` w CHANGELOG.md:
 #   make release-patch|release-minor|release-major   → testy, bump, „Co nowego” (play-notes/), commit, tag, push → Actions
-#   make staging-play                                 → staging z origin/main do Play internal
+#   make rc-play                                      → kandydat (produkcja) z origin/main do Play internal
 # Major nigdy nie bumpuje się „przy okazji” – tylko jawnym `make release-major`.
 
 .PHONY: check-git-clean check-branch-main release-check bump-version \
 	release-patch release-minor release-major tag-release \
-	release-notes log-from-last-tag play-notes play-notes-staging \
-	staging-play release-android-run workflow-runs
+	release-notes log-from-last-tag play-notes play-notes-rc \
+	rc-play release-android-run workflow-runs
 
 check-git-clean:
 	@echo "==> Checking if the repo is clean"
@@ -122,9 +122,9 @@ release-major: check-git-clean check-branch-main release-check test-staging ## W
 
 # „Co nowego” w Play (limit 500 zn.): sekcja CHANGELOG-a w całości, gdy się mieści, inaczej streszczenie przez `claude -p`
 # (scripts/play-notes.js). Przy wydaniu robi to samo apply-version.sh i commituje play-notes/vX.Y.Z.txt – plik można
-# poprawić ręcznie przed pushem tagu. RC=1: sekcja RELEASE-CANDIDATE (podgląd tego, co dostanie staging).
+# poprawić ręcznie przed pushem tagu. RC=1: sekcja RELEASE-CANDIDATE (podgląd tego, co dostanie kandydat).
 release-notes: ## Podgląd „Co nowego” bieżącej wersji (RC=1: RELEASE-CANDIDATE), streszczenie LLM gdy > 500 zn.
-	@node scripts/play-notes.js --summarize $(if $(RC),--staging)
+	@node scripts/play-notes.js --summarize $(if $(RC),--rc)
 
 log-from-last-tag: ## Commity od ostatniego tagu (pomoc przy pisaniu CHANGELOG-a)
 	@tag=$$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | head -n1); \
@@ -135,15 +135,15 @@ log-from-last-tag: ## Commity od ostatniego tagu (pomoc przy pisaniu CHANGELOG-a
 # GitHub Actions (.github/workflows/release-android.yml) – `eas build --local` na runnerze GitHuba, więc bez limitu
 # buildów planu Free EAS; podpis i versionCode dalej z EAS, submit przez EAS Submit. Tag vX.Y.Z odpala wydanie sam;
 # poniższe targety to ręczne uruchomienie (--ref: stan z GitHuba, nie z lokalnego katalogu – najpierw push).
-# Staging: build z origin/main (REF=gałąź: inna gałąź), numer X.(Y+1).0-rcN nadaje workflow, VERSION w repo bez zmian; N = versionCode
+# Kandydat (produkcja) na Play internal: build z origin/main (REF=gałąź: inna gałąź), numer X.(Y+1).0-rcN nadaje workflow, VERSION w repo bez zmian; N = versionCode
 # z licznika EAS (wspólny z production). „Co nowego” =
 # streszczenie lokalnego RELEASE-CANDIDATE (na runnerze nie ma claude), przekazane do workflowu jako input.
 GH_WF = gh workflow run release-android.yml
 
-staging-play: ## Staging do Google Play internal przez GitHub Actions (build + submit, z origin/main)
-	@notes=$$(node scripts/play-notes.js --summarize --staging) || exit 1; \
+rc-play: ## Kandydat X.Y.0-rcN (produkcja) do Google Play internal przez GitHub Actions (build + submit, z origin/main)
+	@notes=$$(node scripts/play-notes.js --summarize --rc) || exit 1; \
 	printf '==> Co nowego:\n%s\n' "$$notes"; \
-	$(GH_WF) --ref "$(or $(REF),main)" -f profile=staging-play -f notes="$$notes"
+	$(GH_WF) --ref "$(or $(REF),main)" -f profile=internal -f notes="$$notes"
 
 release-android-run: ## Ponów wydanie Androida dla bieżącego tagu przez GitHub Actions (gdy push tagu go nie uruchomił)
 	$(GH_WF) --ref "v$$(tr -d '[:space:]' < VERSION)" -f profile=production
@@ -156,8 +156,8 @@ workflow-runs: ## Ostatnie uruchomienia wydań w GitHub Actions
 play-notes: ## Nazwa i „Co nowego” wydania X.Y.Z na torze z eas.json (submit.production) z play-notes/vX.Y.Z.txt
 	node scripts/play-notes.js --track "$$(node -p "require('./eas.json').submit.production.android.track")" $(if $(CODE),--version-code $(CODE))
 
-play-notes-staging: ## Nazwa i „Co nowego” stagingu na internal ze streszczenia RELEASE-CANDIDATE (COMPLETE=1 wydaje testerom)
+play-notes-rc: ## Nazwa i „Co nowego” kandydata na internal ze streszczenia RELEASE-CANDIDATE (COMPLETE=1 wydaje testerom)
 	@notes=$$(mktemp); trap 'rm -f "$$notes"' EXIT; \
-	node scripts/play-notes.js --summarize --staging > "$$notes" || exit 1; \
-	node scripts/play-notes.js --track internal --staging $$(test -s "$$notes" && echo --notes-file "$$notes") \
+	node scripts/play-notes.js --summarize --rc > "$$notes" || exit 1; \
+	node scripts/play-notes.js --track internal --rc $$(test -s "$$notes" && echo --notes-file "$$notes") \
 		$(if $(CODE),--version-code $(CODE)) $(if $(COMPLETE),--complete)

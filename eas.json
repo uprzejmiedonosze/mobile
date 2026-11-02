@@ -42,16 +42,11 @@
         "EXPO_PUBLIC_SENTRY_ENV": "shadow"
       }
     },
-    "staging-play": {
-      "autoIncrement": true,
+    "internal": {
+      "extends": "production",
       "distribution": "store",
       "android": {
         "buildType": "app-bundle"
-      },
-      "env": {
-        "EXPO_PUBLIC_UD_ENV": "staging",
-        "EXPO_PUBLIC_SENTRY_ENV": "staging",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     }
   },
@@ -62,7 +57,7 @@
         "releaseStatus": "draft"
       }
     },
-    "staging-play": {
+    "internal": {
       "android": {
         "track": "internal",
         "releaseStatus": "completed"

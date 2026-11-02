@@ -1,7 +1,7 @@
 # Wydanie Android na runnerze GitHuba: `eas build --local` (nie zużywa limitu buildów planu Free EAS) → EAS Submit
 # do Google Play → nazwa i „Co nowego” z CHANGELOG-a (scripts/play-notes.js). Patrz docs/RELEASE.md, „GitHub Actions”.
 #   - push tagu vX.Y.Z (make release-*)       → profil production → tor z eas.json (submit.production: production), szkic
-#   - ręcznie (make staging-play / Actions → Run) → staging-play z main (albo REF=gałąź) → internal, od razu u testerów,
+#   - ręcznie (make rc-play / Actions → Run) → profil internal (produkcja) z main albo REF=gałąź → internal, od razu u testerów,
 #                                                  albo production na tagu (make release-android-run)
 # Podpis (keystore uploadu) i versionCode (appVersionSource: remote + autoIncrement) nadal biorą się z EAS – przez EXPO_TOKEN.
 # Sekrety repo: EXPO_TOKEN, SENTRY_AUTH_TOKEN (zmienne EAS typu secret nie są dostępne poza serwerami EAS),
@@ -16,10 +16,10 @@ on:
       profile:
         description: Profil EAS
         type: choice
-        options: [staging-play, production]
-        default: staging-play
+        options: [internal, production]
+        default: internal
       notes:
-        description: „Co nowego” (streszczenie z make staging-play; puste = punkty z CHANGELOG-a, przycięte)
+        description: „Co nowego” (streszczenie z make rc-play; puste = punkty z CHANGELOG-a, przycięte)
         type: string
         required: false
 
@@ -71,10 +71,10 @@ jobs:
 
       - run: npm ci
 
-      # Staging to kandydat na kolejną wersję minor: X.(Y+1).0-rcN, N = versionCode tego builda (autoIncrement podbije licznik EAS o 1).
+      # Build na internal to kandydat na kolejną wersję minor: X.(Y+1).0-rcN, N = versionCode tego builda (autoIncrement podbije licznik EAS o 1).
       # Tylko w katalogu runnera: VERSION w repo to ostatnie wydanie (bump-version.sh), a iOS nie przyjmuje sufiksu w numerze wersji.
-      - name: Wersja kandydata (staging)
-        if: env.PROFILE == 'staging-play'
+      - name: Wersja kandydata (internal)
+        if: env.PROFILE == 'internal'
         run: |
           code=$(eas build:version:get --non-interactive --platform android --profile "$PROFILE" --json | jq -r .versionCode)
           [[ "$code" =~ ^[0-9]+$ ]] || { echo "::error::Nieprawidłowy versionCode z EAS: $code"; exit 1; }
@@ -109,7 +109,7 @@ jobs:
         run: eas submit --non-interactive --platform android --profile "$PROFILE" --path build/app.aab --wait
 
       # Production: play-notes/vX.Y.Z.txt z commita wydania (streszczenie LLM robi lokalnie apply-version.sh – na runnerze
-      # nie ma claude). Staging: streszczenie RELEASE-CANDIDATE przekazane z make staging-play jako input `notes`.
+      # nie ma claude). Internal: streszczenie RELEASE-CANDIDATE przekazane z make rc-play jako input `notes`.
       - name: Nazwa i „Co nowego” w Play
         env:
           KEY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -122,7 +122,7 @@ jobs:
             node scripts/play-notes.js --track "$(node -p "require('./eas.json').submit.production.android.track")"
           elif [ -n "$NOTES" ]; then
             printf '%s\n' "$NOTES" > "$RUNNER_TEMP/notes.txt"
-            node scripts/play-notes.js --track internal --staging --notes-file "$RUNNER_TEMP/notes.txt"
+            node scripts/play-notes.js --track internal --rc --notes-file "$RUNNER_TEMP/notes.txt"
           else
-            node scripts/play-notes.js --track internal --staging
+            node scripts/play-notes.js --track internal --rc
           fi

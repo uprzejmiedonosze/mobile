@@ -54,7 +54,7 @@ function readEnvOverride(): string | null {
 }
 export const demoMode = buildEnv === 'prod' && readEnvOverride() === 'staging';
 
-// Build na stagingu (także dev client). Tryb demo się nie liczy: recenzent sklepu ma widzieć appkę jak produkcyjną.
+// Build na stagingu (dev client, APK `staging`). Tryb demo się nie liczy: recenzent sklepu ma widzieć appkę jak produkcyjną.
 export const isTestBuild = buildEnv !== 'prod';
 
 export const udEnv: UdEnvName = demoMode ? 'staging' : buildEnv;

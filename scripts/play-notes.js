@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Nazwa wydania i „Co nowego” w Google Play z CHANGELOG.md – EAS Submit tego nie ustawia (docs/RELEASE.md).
-//   node scripts/play-notes.js --track internal --staging [--version-code N] [--complete]
+//   node scripts/play-notes.js --track internal --rc [--version-code N] [--complete]
 //   node scripts/play-notes.js --track production|beta [--version-code N] [--notes-file F]   (tor wydań = eas.json submit.production)
-//   node scripts/play-notes.js --summarize [--staging] [--write]
-// Nazwa: „X.Y.Z (versionCode)” albo „X.Y.Z (versionCode) staging”. Notatki: sekcja `## vX.Y.Z` (wydanie) albo
-// `## RELEASE-CANDIDATE` (staging), w limicie Play (500 znaków na język). Gdy sekcja się nie mieści, streszcza ją LLM
+//   node scripts/play-notes.js --summarize [--rc] [--write]
+// Nazwa: „X.Y.Z (versionCode)”, u kandydata „X.Y.0-rcN (versionCode)”. Notatki: sekcja `## vX.Y.Z` (wydanie) albo
+// `## RELEASE-CANDIDATE` (kandydat), w limicie Play (500 znaków na język). Gdy sekcja się nie mieści, streszcza ją LLM
 // (`claude -p`, tylko lokalnie – na runnerze nie ma CLI): --summarize wypisuje streszczenie, --write zapisuje je
 // w play-notes/vX.Y.Z.txt (apply-version.sh przy wydaniu, plik idzie do commita z tagiem). Wysyłka do Play bierze
 // --notes-file, potem play-notes/vX.Y.Z.txt, a bez nich obcina punkty (fitNotes). Bez --version-code: najwyższy
@@ -98,11 +98,11 @@ function askClaude(section) {
 
 const notesFile = (heading) => path.join(NOTES_DIR, `${heading}.txt`);
 
-const releaseName = (version, code, staging) => `${version} (${code})${staging ? ' staging' : ''}`;
+const releaseName = (version, code) => `${version} (${code})`;
 
 // Track z API → track do zapisu: wybrane wydanie z nową nazwą/notatkami. Przy --complete zostaje tylko ono
 // (na torze może być jedno wydanie „completed”; poprzednie Play i tak zastępuje), inaczej reszta bez zmian.
-// Puste notatki (staging bez wpisów w RELEASE-CANDIDATE) – tylko nazwa, „Co nowego” zostaje, jakie było.
+// Puste notatki (kandydat bez wpisów w RELEASE-CANDIDATE) – tylko nazwa, „Co nowego” zostaje, jakie było.
 function updateTrack(track, { code, name, notes, lang, complete }) {
   const hit = (r) => (r.versionCodes || []).map(String).includes(String(code));
   const release = (track.releases || []).find(hit);
@@ -112,11 +112,11 @@ function updateTrack(track, { code, name, notes, lang, complete }) {
 }
 
 function parseArgs(argv) {
-  const a = { track: 'internal', staging: false, complete: false, lang: 'pl-PL', code: null, summarize: false, write: false, notesFile: null };
+  const a = { track: 'internal', rc: false, complete: false, lang: 'pl-PL', code: null, summarize: false, write: false, notesFile: null };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     if (k === '--track') a.track = argv[++i];
-    else if (k === '--staging') a.staging = true;
+    else if (k === '--rc') a.rc = true;
     else if (k === '--complete') a.complete = true;
     else if (k === '--lang') a.lang = argv[++i];
     else if (k === '--version-code') a.code = Number(argv[++i]);
@@ -162,12 +162,12 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const version = fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8').trim();
   const md = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
-  const heading = args.staging ? 'RELEASE-CANDIDATE' : `v${version}`;
+  const heading = args.rc ? 'RELEASE-CANDIDATE' : `v${version}`;
   const section = changelogSection(md, heading);
 
   if (args.summarize) {
     // Staging zaraz po wydaniu (pusty RELEASE-CANDIDATE) – nic do streszczenia, Play zostawia poprzednie „Co nowego”.
-    if (!section && args.staging) return;
+    if (!section && args.rc) return;
     if (!section) throw new Error(`Pusta sekcja CHANGELOG-a (${heading}).`);
     const text = summarize(section);
     if (args.write) {
@@ -184,8 +184,8 @@ async function main() {
   const fromFile = file ? checkSummary(fs.readFileSync(file, 'utf8')) : null;
   if (file && !fromFile) throw new Error(`${file}: puste albo dłuższe niż ${PLAY_NOTES_LIMIT} znaków.`);
   const notes = fromFile || fitNotes(section);
-  // Wydanie bez notatek to błąd (i tak blokuje je make release-*); staging zaraz po wydaniu ma pusty RELEASE-CANDIDATE.
-  if (!notes && !args.staging) throw new Error(`Pusta sekcja CHANGELOG-a (v${version}).`);
+  // Wydanie bez notatek to błąd (i tak blokuje je make release-*); kandydat zaraz po wydaniu ma pusty RELEASE-CANDIDATE.
+  if (!notes && !args.rc) throw new Error(`Pusta sekcja CHANGELOG-a (v${version}).`);
 
   const token = await accessToken(loadKey());
   const base = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE}/edits`;
@@ -200,7 +200,7 @@ async function main() {
   const track = await call('GET', `${base}/${edit.id}/tracks/${args.track}`);
   const code = args.code ?? Math.max(...(track.releases || []).flatMap((r) => (r.versionCodes || []).map(Number)));
   if (!Number.isFinite(code)) throw new Error(`Tor ${args.track} nie ma żadnego wydania.`);
-  const name = releaseName(version, code, args.staging);
+  const name = releaseName(version, code);
   await call('PUT', `${base}/${edit.id}/tracks/${args.track}`, updateTrack(track, { code, name, notes, lang: args.lang, complete: args.complete }));
   await call('POST', `${base}/${edit.id}:commit`);
   console.log(`==> Play ${args.track}: „${name}”${args.complete ? ', wydane testerom' : ''}; ` +

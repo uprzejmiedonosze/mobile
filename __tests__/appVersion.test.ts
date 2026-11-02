@@ -1,11 +1,15 @@
-import { compareVersions } from '../src/lib/compareVersions';
+import { compareVersions, isRcVersion } from '../src/lib/compareVersions';
 
 describe('compareVersions', () => {
   it('równe wersje', () => {
     expect(compareVersions('1.2.3', '1.2.3')).toBe(0);
     expect(compareVersions('1.2', '1.2.0')).toBe(0);
   });
-  it('kandydat -rcN (build staging) liczy się jak wersja bez sufiksu', () => {
+  it('rozpoznaje numer kandydata', () => {
+    expect(isRcVersion('1.3.0-rc22')).toBe(true);
+    expect(isRcVersion('1.3.0')).toBe(false);
+  });
+  it('kandydat -rcN liczy się jak wersja bez sufiksu', () => {
     expect(compareVersions('1.3.0-rc22', '1.3.0')).toBe(0);
     expect(compareVersions('1.3.0-rc22', '1.2.1')).toBeGreaterThan(0);
   });

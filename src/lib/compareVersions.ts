@@ -1,3 +1,6 @@
+// Kandydat z Play internal (numer nadaje workflow wydania, docs/RELEASE.md).
+export const isRcVersion = (version: string): boolean => /-rc\d+$/.test(version);
+
 // Porównanie wersji numerycznych "1.2.3" (brakujące segmenty = 0). <0 gdy a<b, 0 gdy równe, >0 gdy a>b.
 export function compareVersions(a: string, b: string): number {
   const pa = a.split('.').map((x) => parseInt(x, 10) || 0);

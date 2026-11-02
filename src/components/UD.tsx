@@ -5,7 +5,7 @@ import { SvgXml } from 'react-native-svg';
 import { TAB_ICONS } from '../assets/tabIcons';
 import { UD_CAR_SVG, UD_LOGO_ASPECT, UD_LOGO_COLOR, UD_LOGO_SVG } from '../assets/udLogoSvg';
 import { isTestBuild } from '../config';
-import { appVersion } from '../lib/appVersion';
+import { appVersion, isRcBuild } from '../lib/appVersion';
 import { useAuth } from '../store/useAuth';
 import { waitingRoomEnabled } from '../store/useWaitingRoom';
 import { ripple, rippleBorderless, rippleOnDark, ud } from '../theme';
@@ -13,12 +13,12 @@ import type { BBox } from '../types';
 
 // Pełne oficjalne logo UD (ikona + napis), zamiast tekstu "UD".
 export function UdLogo({ height = 24, color }: { height?: number; color?: string }) {
-  // Build na stagingu ma się nie mylić z produkcyjnym: Play internal to ta sama aplikacja co produkcja (ten sam applicationId).
-  if (isTestBuild) {
+  // Staging i kandydat rcN nie mogą się mylić z wydaniem. Kandydat jest na produkcji (prawdziwe zgłoszenia), więc bez słowa „Test”.
+  if (isTestBuild || isRcBuild) {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
         <SvgXml xml={color ? UD_CAR_SVG.replaceAll(UD_LOGO_COLOR, color) : UD_CAR_SVG} height={height} width={height} />
-        <Text numberOfLines={1} style={{ color: color ?? UD_LOGO_COLOR, fontFamily: ud.fontDisplay, fontSize: height * 0.8 }}>UD Test {appVersion}</Text>
+        <Text numberOfLines={1} style={{ color: color ?? UD_LOGO_COLOR, fontFamily: ud.fontDisplay, fontSize: height * 0.8 }}>{isTestBuild ? 'UD Test' : 'UD'} {appVersion}</Text>
       </View>
     );
   }
