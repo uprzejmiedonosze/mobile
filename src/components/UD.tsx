@@ -3,13 +3,25 @@ import { ActivityIndicator, Image, Pressable, Text, View, type ViewStyle } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
 import { TAB_ICONS } from '../assets/tabIcons';
-import { UD_LOGO_ASPECT, UD_LOGO_COLOR, UD_LOGO_SVG } from '../assets/udLogoSvg';
+import { UD_CAR_SVG, UD_LOGO_ASPECT, UD_LOGO_COLOR, UD_LOGO_SVG } from '../assets/udLogoSvg';
+import { isTestBuild } from '../config';
+import { appVersion } from '../lib/appVersion';
 import { useAuth } from '../store/useAuth';
+import { waitingRoomEnabled } from '../store/useWaitingRoom';
 import { ripple, rippleBorderless, rippleOnDark, ud } from '../theme';
 import type { BBox } from '../types';
 
 // Pełne oficjalne logo UD (ikona + napis), zamiast tekstu "UD".
 export function UdLogo({ height = 24, color }: { height?: number; color?: string }) {
+  // Build na stagingu ma się nie mylić z produkcyjnym: Play internal to ta sama aplikacja co produkcja (ten sam applicationId).
+  if (isTestBuild) {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <SvgXml xml={color ? UD_CAR_SVG.replaceAll(UD_LOGO_COLOR, color) : UD_CAR_SVG} height={height} width={height} />
+        <Text numberOfLines={1} style={{ color: color ?? UD_LOGO_COLOR, fontFamily: ud.fontDisplay, fontSize: height * 0.8 }}>UD Test {appVersion}</Text>
+      </View>
+    );
+  }
   // `color` podmienia zielony z oficjalnego SVG (np. biały logotyp na zielonym nagłówku)
   const xml = color ? UD_LOGO_SVG.replaceAll(UD_LOGO_COLOR, color) : UD_LOGO_SVG;
   return <SvgXml xml={xml} height={height} width={height * UD_LOGO_ASPECT} />;
