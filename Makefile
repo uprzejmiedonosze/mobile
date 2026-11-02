@@ -135,14 +135,15 @@ log-from-last-tag: ## Commity od ostatniego tagu (pomoc przy pisaniu CHANGELOG-a
 # GitHub Actions (.github/workflows/release-android.yml) – `eas build --local` na runnerze GitHuba, więc bez limitu
 # buildów planu Free EAS; podpis i versionCode dalej z EAS, submit przez EAS Submit. Tag vX.Y.Z odpala wydanie sam;
 # poniższe targety to ręczne uruchomienie (--ref: stan z GitHuba, nie z lokalnego katalogu – najpierw push).
-# Staging: build z origin/main, VERSION bez zmian, versionCode z licznika EAS (wspólny z production). „Co nowego” =
+# Staging: build z origin/main (REF=gałąź: inna gałąź), numer X.(Y+1).0-rcN nadaje workflow, VERSION w repo bez zmian; N = versionCode
+# z licznika EAS (wspólny z production). „Co nowego” =
 # streszczenie lokalnego RELEASE-CANDIDATE (na runnerze nie ma claude), przekazane do workflowu jako input.
 GH_WF = gh workflow run release-android.yml
 
 staging-play: ## Staging do Google Play internal przez GitHub Actions (build + submit, z origin/main)
 	@notes=$$(node scripts/play-notes.js --summarize --staging) || exit 1; \
 	printf '==> Co nowego:\n%s\n' "$$notes"; \
-	$(GH_WF) --ref main -f profile=staging-play -f notes="$$notes"
+	$(GH_WF) --ref "$(or $(REF),main)" -f profile=staging-play -f notes="$$notes"
 
 release-android-run: ## Ponów wydanie Androida dla bieżącego tagu przez GitHub Actions (gdy push tagu go nie uruchomił)
 	$(GH_WF) --ref "v$$(tr -d '[:space:]' < VERSION)" -f profile=production

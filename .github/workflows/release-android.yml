@@ -1,7 +1,7 @@
 # Wydanie Android na runnerze GitHuba: `eas build --local` (nie zużywa limitu buildów planu Free EAS) → EAS Submit
 # do Google Play → nazwa i „Co nowego” z CHANGELOG-a (scripts/play-notes.js). Patrz docs/RELEASE.md, „GitHub Actions”.
 #   - push tagu vX.Y.Z (make release-*)       → profil production → tor z eas.json (submit.production: production), szkic
-#   - ręcznie (make staging-play / Actions → Run) → staging-play z main → internal, od razu u testerów,
+#   - ręcznie (make staging-play / Actions → Run) → staging-play z main (albo REF=gałąź) → internal, od razu u testerów,
 #                                                  albo production na tagu (make release-android-run)
 # Podpis (keystore uploadu) i versionCode (appVersionSource: remote + autoIncrement) nadal biorą się z EAS – przez EXPO_TOKEN.
 # Sekrety repo: EXPO_TOKEN, SENTRY_AUTH_TOKEN (zmienne EAS typu secret nie są dostępne poza serwerami EAS),
@@ -70,6 +70,17 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - run: npm ci
+
+      # Staging to kandydat na kolejną wersję minor: X.(Y+1).0-rcN, N = versionCode tego builda (autoIncrement podbije licznik EAS o 1).
+      # Tylko w katalogu runnera: VERSION w repo to ostatnie wydanie (bump-version.sh), a iOS nie przyjmuje sufiksu w numerze wersji.
+      - name: Wersja kandydata (staging)
+        if: env.PROFILE == 'staging-play'
+        run: |
+          code=$(eas build:version:get --non-interactive --platform android --profile "$PROFILE" --json | jq -r .versionCode)
+          [[ "$code" =~ ^[0-9]+$ ]] || { echo "::error::Nieprawidłowy versionCode z EAS: $code"; exit 1; }
+          awk -F. -v n="$((code + 1))" '{ print $1 "." $2 + 1 ".0-rc" n }' VERSION > VERSION.rc
+          mv VERSION.rc VERSION
+          echo "::notice::Wersja: $(cat VERSION)"
 
       # Katalog roboczy builda zostaje (SKIP_CLEANUP), żeby zachować mapping.txt z R8 w artefakcie joba
       # (Play bierze plik deobfuskacji sam z AAB: BUNDLE-METADATA/…/proguard.map).

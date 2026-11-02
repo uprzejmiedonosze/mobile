@@ -5,6 +5,10 @@ describe('compareVersions', () => {
     expect(compareVersions('1.2.3', '1.2.3')).toBe(0);
     expect(compareVersions('1.2', '1.2.0')).toBe(0);
   });
+  it('kandydat -rcN (build staging) liczy się jak wersja bez sufiksu', () => {
+    expect(compareVersions('1.3.0-rc22', '1.3.0')).toBe(0);
+    expect(compareVersions('1.3.0-rc22', '1.2.1')).toBeGreaterThan(0);
+  });
   it('porównuje numerycznie, nie leksykograficznie', () => {
     expect(compareVersions('1.10.0', '1.9.0')).toBeGreaterThan(0);
     expect(compareVersions('1.0.9', '1.0.10')).toBeLessThan(0);
