@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+## v1.3.0 — 2026-11-03
+
 - Poczekalnia zdjęć (Android): zakładka „Poczekalnia” w dolnym menu i aparat w aplikacji. Fotografujesz kolejne auta w terenie (przycisk „Następne auto”, także w poziomie), zdjęcia zapisują się tylko w aplikacji, a zgłoszenie z nich robisz później jednym dotknięciem – zdjęcia są grupowane po czasie i miejscu w paczki po 1–3, z adresem. Wysyłka i rozpoznanie tablic dopiero po „Zgłoszenie”.
 - Lista zgłoszeń: w szczegółach jest przycisk „Kopiuj komentarz”, a okno historii pojazdu (recydywa) znowu się przewija.
 - Gdy galeria albo aparat nie chcą się otworzyć, aplikacja podpowiada teraz, co zrobić (zamknąć ją i otworzyć ponownie), zamiast pokazywać techniczny komunikat o błędzie.

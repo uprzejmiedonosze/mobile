@@ -1,0 +1,6 @@
+• Nowa „Poczekalnia” (Android): fotografuj auta w terenie, zdjęcia zostają w aplikacji, a zgłoszenie zrobisz później jednym dotknięciem
+• Zdjęcia grupowane po czasie i miejscu w paczki po 1–3, z adresem
+• Recydywa w szczegółach: dotknij, by zobaczyć historię pojazdu ze zdjęciami
+• „Kopiuj komentarz” w szczegółach; historia pojazdu znów się przewija
+• Czytelna podpowiedź, gdy nie otworzy się galeria lub aparat
+• Poprawione zgłoszenie z listy nie kasuje rozpoczętego formularza
