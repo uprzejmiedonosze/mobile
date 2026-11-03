@@ -47,7 +47,7 @@ Plan **Free** EAS daje 15 buildów Androida w miesiącu i 60 minut EAS Workflows
 
 ## Kandydaci w Google Play (testy wewnętrzne)
 Build z **produkcyjnym** backendem rozsyłany testerom przez Play (track **internal**, do 100 testerów, bez review Google): zgłoszenia są prawdziwe i trafiają do SM/policji. Profil EAS `internal`
-(`extends: production`, AAB, licznik `versionCode` wspólny z `production`), submit `internal` (internal, od razu u testerów). Nagłówek pokazuje `UD X.Y.0-rcN`; poczekalnia i aparat są włączone tylko tu, a nie w wydaniach z tagu (`waitingRoomEnabled`).
+(`extends: production`, AAB, licznik `versionCode` wspólny z `production`), submit `internal` (internal, od razu u testerów). Nagłówek pokazuje `UD X.Y.0-rcN`; poczekalnia i aparat (`waitingRoomEnabled`, Android) są od 1.3.0 we wszystkich buildach.
 1. Wypchnij commity i uruchom `make rc-play`; `.aab` pobierzesz z artefaktów runu w GitHub Actions.
 2. **Pierwszy** upload ręcznie: Play Console → Testing → Internal testing → Create new release → wgraj `.aab` (Play App Signing: zgódź się na podpis Google, kluczem uploadu jest keystore z EAS) → Save → Review → Start rollout.
    Tester → zakładka Testers: lista e-maili (grupa), skopiuj **link opt-in**; tester musi mieć to konto Google na telefonie.

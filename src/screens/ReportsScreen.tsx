@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { changeStatus, fetchApps, fetchStatusCounts, fetchStatuses, imageUrl, PAGE_SIZE, setReportFields, type StatusDef, type UdApp } from '../api/apps';
 import { fetchCategories } from '../api/geo';
 import { fetchRecydywa, fetchRecydywaGallery } from '../api/recydywa';
@@ -13,6 +14,7 @@ import { openUdPage } from '../lib/openPage';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import type { Category, RecydywaEntry, RecydywaGallery, RecydywaInfo } from '../types';
 import { useAuth } from '../store/useAuth';
+import { toast } from '../store/useToast';
 import { ud, inputColors, ripple, rippleBorderless } from '../theme';
 import { SvgXml } from 'react-native-svg';
 import { CHEVRON_ICON, DATETIME_ICON, DESCRIPTION_ICON, ENCRYPTED_ICON, INFO_ICON, PIN_ICON } from '../assets/detailIcons';
@@ -165,8 +167,10 @@ function RecydywaHistory({ info, categories, onClose, onAccount }: { info: Recyd
   const reports: (RecydywaEntry & Partial<RecydywaGallery['reports'][number]>)[] = plateHistory<RecydywaEntry>(gallery ?? info);
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-        <Pressable style={{ backgroundColor: ud.surface, borderRadius: ud.radiusCard, paddingVertical: 18, width: '100%', maxWidth: 480, maxHeight: '90%' }}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        {/* Tło zamykające okno jest rodzeństwem karty, nie rodzicem – zagnieżdżony Pressable zabierał gest przewijania ScrollView. */}
+        <Pressable onPress={onClose} accessibilityLabel="Zamknij" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />
+        <View style={{ backgroundColor: ud.surface, borderRadius: ud.radiusCard, paddingVertical: 18, width: '100%', maxWidth: 480, maxHeight: '90%' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 }}>
             <Text style={{ fontFamily: ud.fontDisplay, fontSize: 18, color: ud.heading }}>Recydywa</Text>
             <PlateBadge plate={info.plateId} />
@@ -212,8 +216,8 @@ function RecydywaHistory({ info, categories, onClose, onAccount }: { info: Recyd
           <Pressable onPress={onClose} accessibilityRole="button" style={{ borderTopWidth: 1, borderTopColor: ud.hairline, paddingTop: 14, paddingHorizontal: 20, alignItems: 'center' }}>
             <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>ZAMKNIJ</Text>
           </Pressable>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -243,6 +247,14 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
   const cat = categories.get(Number(app.category));
   const plate = app.carInfo?.plateId;
   const recCnt = recydywa?.appsCnt ?? 0;
+  const comment = app.userComment?.trim();
+
+  // Ten sam opis przy kolejnym pojeździe: kopiujemy sam komentarz, bez tekstu kategorii z „Treści zgłoszenia”.
+  const copyComment = () => {
+    Clipboard.setStringAsync(comment ?? '')
+      .then(() => toast.info('Skopiowano komentarz.'))
+      .catch(() => toast.error('Nie udało się skopiować komentarza.'));
+  };
 
   // Recydywa (1 wywołanie na kartę) dopiero po rozwinięciu – lista może mieć setki pozycji.
   useEffect(() => {
@@ -347,6 +359,12 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
 
           <Row label="TREŚĆ ZGŁOSZENIA" icon={DESCRIPTION_ICON}>
             <Text style={{ color: ud.text, fontSize: 15, lineHeight: 22 }}>{reportBody(cat?.formal, app.userComment) || '—'}</Text>
+            {/* Własny Pressable: bez niego dotknięcie trafia do karty i zwija szczegóły. */}
+            {comment ? (
+              <Pressable onPress={copyComment} accessibilityRole="button" style={{ alignSelf: 'flex-start', paddingVertical: 6 }}>
+                <Text style={{ color: ud.primary, fontSize: 13, textDecorationLine: 'underline' }}>Kopiuj komentarz</Text>
+              </Pressable>
+            ) : null}
           </Row>
           <Row label="INFORMACJE DODATKOWE" icon={INFO_ICON}>
             <Text style={{ color: ud.text, fontSize: 15, lineHeight: 22 }}>{witnessText(app.statements?.witness)}</Text>
