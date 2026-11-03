@@ -1,4 +1,4 @@
-import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor, hasRequiredPhotos, clearFieldError, formLocks, ownSameDayReport, imageVersion } from '../src/lib/reports';
+import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor, hasRequiredPhotos, clearFieldError, formLocks, ownSameDayReport, plateHistory, imageVersion } from '../src/lib/reports';
 
 describe('reports helpers', () => {
   it('formats dates like the web list', () => {
@@ -73,6 +73,16 @@ describe('formLocks (które pola formularza są zablokowane)', () => {
 
   it('blokady są niezależne: zdjęcie bez lokalizacji odblokowuje datę i numer, ale nie adres', () => {
     expect(formLocks({ hasCarPhoto: true, uploading: false, hasLocation: false, geoBusy: false })).toEqual({ photoFields: false, address: true });
+  });
+});
+
+describe('plateHistory', () => {
+  const info = (dates: (string | null)[]) => ({ plateId: 'WE12345', appsCnt: dates.length, usersCnt: 2, sharedHistory: true, reports: dates.map((date) => ({ date })) as any });
+
+  it('od najnowszego, bez daty na końcu, nie rusza oryginału', () => {
+    const i = info(['2026-01-02T10:00:00', null, '2026-03-01T08:00:00']);
+    expect(plateHistory(i).map((r) => r.date)).toEqual(['2026-03-01T08:00:00', '2026-01-02T10:00:00', null]);
+    expect(i.reports[0].date).toBe('2026-01-02T10:00:00');
   });
 });
 

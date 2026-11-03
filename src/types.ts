@@ -106,6 +106,13 @@ export type RecydywaInfo = {
   reports: RecydywaEntry[];
 };
 
+// GET /api/rest/recydywa/{plate}/gallery: ta sama historia ze zdjęciami jak na stronie pojazdu na webie
+export type RecydywaGallery = Omit<RecydywaInfo, 'reports'> & {
+  reports: (RecydywaEntry & { imageUrl: string; imageHint: string | null })[];
+  allImagesVisible: boolean;
+  userAllowedSharing: boolean;
+};
+
 export type ReportProposal = {
   id: string;
   pairId: string; // reportId rekordu analizy (np. R014-2)

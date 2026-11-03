@@ -2,16 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { changeStatus, fetchApps, fetchStatusCounts, fetchStatuses, imageUrl, PAGE_SIZE, setReportFields, type StatusDef, type UdApp } from '../api/apps';
 import { fetchCategories } from '../api/geo';
-import { fetchRecydywa } from '../api/recydywa';
+import { fetchRecydywa, fetchRecydywaGallery } from '../api/recydywa';
 import { validIdToken } from '../api/udApi';
 import { LETTER_LINK_LABEL, letterEntry } from '../lib/letters';
 import { log } from '../lib/log';
-import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plural, reportBody, shortAddress, statusColor, witnessText } from '../lib/reports';
+import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plateHistory, plural, reportBody, shortAddress, statusColor, witnessText } from '../lib/reports';
 import { ImageViewer } from '../components/ImageViewer';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { openUdPage } from '../lib/openPage';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
-import type { Category, RecydywaInfo } from '../types';
+import type { Category, RecydywaEntry, RecydywaGallery, RecydywaInfo } from '../types';
 import { useAuth } from '../store/useAuth';
 import { ud, inputColors, ripple, rippleBorderless } from '../theme';
 import { SvgXml } from 'react-native-svg';
@@ -154,6 +154,70 @@ function StatusPicker({ visible, current, currentLabel, options, onPick, onClose
   );
 }
 
+// Historia pojazdu („Zobacz zgłoszenia” z webu) z REST, bo strona /tablica-rejestracyjna-… wymaga sesji www, której WebView nie ma.
+// Zdjęcia, ich opisy i progi widoczności liczy backend jak na webie (\recydywa\plateGallery); bez nich (błąd, starszy backend) zostaje sama lista.
+function RecydywaHistory({ info, categories, onClose, onAccount }: { info: RecydywaInfo; categories: Map<number, Category>; onClose: () => void; onAccount: () => void }) {
+  const [gallery, setGallery] = useState<RecydywaGallery | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    validIdToken().then((t) => fetchRecydywaGallery(info.plateId, t)).then(setGallery).catch(() => {}).finally(() => setLoading(false));
+  }, [info.plateId]);
+  const reports: (RecydywaEntry & Partial<RecydywaGallery['reports'][number]>)[] = plateHistory<RecydywaEntry>(gallery ?? info);
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <Pressable style={{ backgroundColor: ud.surface, borderRadius: ud.radiusCard, paddingVertical: 18, width: '100%', maxWidth: 480, maxHeight: '90%' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16 }}>
+            <Text style={{ fontFamily: ud.fontDisplay, fontSize: 18, color: ud.heading }}>Recydywa</Text>
+            <PlateBadge plate={info.plateId} />
+          </View>
+          <Text style={{ color: ud.muted, fontSize: 13, paddingHorizontal: 16, marginTop: 6, marginBottom: 10 }}>
+            {plural(info.appsCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}, {plural(info.usersCnt, ['osób zgłosiło', 'osoba zgłosiła', 'osoby zgłosiły'])}
+          </Text>
+          <ScrollView style={{ flexShrink: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 12, gap: 12 }}>
+            {gallery && !gallery.allImagesVisible && !gallery.userAllowedSharing ? (
+              <View style={{ backgroundColor: ud.surfaceLow, borderRadius: ud.radiusSm, padding: 12, gap: 4 }}>
+                <Text style={{ fontFamily: ud.fontBodyBold, color: ud.text, fontSize: 14 }}>Chcesz widzieć więcej zdjęć? Udostępnij swoje!</Text>
+                <Text style={{ color: ud.text, fontSize: 13 }}>Publikujemy wyłącznie zdjęcia od użytkowników, którzy się na to zgodzili.</Text>
+                <Text onPress={onAccount} style={{ color: ud.primary, fontSize: 13, textDecorationLine: 'underline' }}>Przejdź do ustawień</Text>
+              </View>
+            ) : null}
+            {loading ? <ActivityIndicator color={ud.primary} /> : null}
+            {reports.map((r, i) => {
+              const cat = r.categoryInfo ? categories.get(r.categoryInfo.id) : undefined;
+              return (
+                <View key={r.reportId ?? i} style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusSm, overflow: 'hidden' }}>
+                  {r.isOwn ? <Text style={{ backgroundColor: ud.primary, color: ud.surface, fontFamily: ud.fontBodyBold, fontSize: 12, textAlign: 'center', paddingVertical: 3 }}>TWOJE ZGŁOSZENIE{r.number ? ` ${r.number}` : ''}</Text> : null}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 10 }}>
+                    <StatusDot status={r.status} label={r.statusLabel} police={r.recipient.isPolice} />
+                    <Text style={{ color: ud.muted, fontSize: 13 }}>{fmtShortDate(r.date ?? undefined)}</Text>
+                  </View>
+                  {r.imageUrl ? (
+                    <View>
+                      <Image source={{ uri: r.imageUrl }} style={{ width: '100%', aspectRatio: 4 / 3, backgroundColor: ud.surfaceLow }} />
+                      {r.imageHint ? <Text style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.55)', color: '#FFFFFF', fontSize: 12, textAlign: 'center', paddingVertical: 3 }}>{r.imageHint}</Text> : null}
+                    </View>
+                  ) : null}
+                  <View style={{ padding: 10, gap: 6 }}>
+                    {r.categoryInfo ? <Text style={{ color: ud.text, fontSize: 14 }}>{cat?.short || r.categoryInfo.title}</Text> : null}
+                    {r.recipient.shortName ? <Text style={{ color: ud.muted, fontSize: 13 }}>{r.recipient.isPolice ? '👮 ' : ''}{r.recipient.shortName}{r.caseNumber ? `, sprawa ${r.caseNumber}` : ''}</Text> : null}
+                  </View>
+                </View>
+              );
+            })}
+            {!info.sharedHistory && info.reports.length < info.appsCnt ? (
+              <Text style={{ color: ud.muted, fontSize: 13 }}>Cudze zgłoszenia widać dopiero, gdy pojazd zgłoszą co najmniej dwie osoby.</Text>
+            ) : null}
+          </ScrollView>
+          <Pressable onPress={onClose} accessibilityRole="button" style={{ borderTopWidth: 1, borderTopColor: ud.hairline, paddingTop: 14, paddingHorizontal: 20, alignItems: 'center' }}>
+            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>ZAMKNIJ</Text>
+          </Pressable>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 type CardProps = {
   app: UdApp;
   statuses: Record<string, StatusDef>;
@@ -163,14 +227,16 @@ type CardProps = {
   onFields: (id: string, fields: { externalId?: string; privateComment?: string }) => Promise<void>;
   onFieldFocus: (id: string) => void;
   onPage: (path: string, title?: string) => void;
+  onAccount: () => void;
   open: boolean;
   onToggle: (id: string) => void;
 };
 
-function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onFieldFocus, onPage, open, onToggle }: CardProps) {
+function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onFieldFocus, onPage, onAccount, open, onToggle }: CardProps) {
   const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState(false);
   const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
+  const [history, setHistory] = useState(false);
   const [viewer, setViewer] = useState<number | null>(null);
   const police = app.recipient?.isPolice ?? !!app.stopAgresji; // recipient liczy backend (recipientData w API.php)
   const statusName = statuses[app.status]?.name ?? app.status;
@@ -262,16 +328,21 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
           <IconLine icon={PIN_ICON}><Text style={{ color: ud.text, fontSize: 15 }}>{app.address?.address || 'Brak adresu'}</Text></IconLine>
 
           {recCnt > 1 ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ backgroundColor: ud.accent, borderRadius: ud.radiusPill, paddingHorizontal: 10, paddingVertical: 3 }}>
-                <Text style={{ fontFamily: ud.fontBodyBold, color: ud.onAccent, fontSize: 12 }}>
-                  ❗ {plural(recCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}
+            <>
+              {/* Własny Pressable: bez niego dotknięcie trafia do karty i zwija szczegóły. */}
+              <Pressable onPress={() => setHistory(true)} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, paddingVertical: 4 }}>
+                <View style={{ backgroundColor: ud.accent, borderRadius: ud.radiusPill, paddingHorizontal: 10, paddingVertical: 3 }}>
+                  <Text style={{ fontFamily: ud.fontBodyBold, color: ud.onAccent, fontSize: 12 }}>
+                    ❗ {plural(recCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}
+                  </Text>
+                </View>
+                <Text style={{ color: ud.muted, fontSize: 12 }}>
+                  {plural(recydywa!.usersCnt, ['osób zgłosiło', 'osoba zgłosiła', 'osoby zgłosiły'])}
                 </Text>
-              </View>
-              <Text style={{ color: ud.muted, fontSize: 12 }}>
-                {plural(recydywa!.usersCnt, ['osób zgłosiło', 'osoba zgłosiła', 'osoby zgłosiły'])}
-              </Text>
-            </View>
+                <Text style={{ color: ud.primary, fontSize: 12, textDecorationLine: 'underline' }}>Zobacz zgłoszenia</Text>
+              </Pressable>
+              {history ? <RecydywaHistory info={recydywa!} categories={categories} onClose={() => setHistory(false)} onAccount={() => { setHistory(false); onAccount(); }} /> : null}
+            </>
           ) : null}
 
           <Row label="TREŚĆ ZGŁOSZENIA" icon={DESCRIPTION_ICON}>
@@ -500,7 +571,7 @@ export function ReportsScreen({ navigation, route }: any) {
           data={apps}
           keyExtractor={(a) => a.id}
           keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onStatus={onStatus} onFields={onFields} onFieldFocus={onFieldFocus} onPage={(path, title) => openUdPage(navigation, path, title)} onEdit={(id) => navigation.navigate('NewReport', { editId: id })} open={openId === item.id} onToggle={(id) => setOpenId((cur) => (cur === id ? null : id))} />}
+          renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onStatus={onStatus} onFields={onFields} onFieldFocus={onFieldFocus} onPage={(path, title) => openUdPage(navigation, path, title)} onAccount={() => go('Account')} onEdit={(id) => navigation.navigate('NewReport', { editId: id })} open={openId === item.id} onToggle={(id) => setOpenId((cur) => (cur === id ? null : id))} />}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={ud.primary} />}
           onEndReachedThreshold={0.5}

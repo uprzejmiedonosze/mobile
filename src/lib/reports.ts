@@ -136,6 +136,11 @@ export function ownSameDayReport(info: RecydywaInfo | null, datetime: string, cu
   return info.reports.find((r) => r.isOwn && r.reportId !== currentId && (r.date ?? '').slice(0, 10) === day) ?? null;
 }
 
+// Historia pojazdu do pokazania: od najnowszego zgłoszenia, bez daty na końcu.
+export function plateHistory<E extends RecydywaEntry>(info: { reports: E[] }): E[] {
+  return [...info.reports].sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+}
+
 // Wersja zdjęcia w adresie (`?v=`): serwer trzyma każdy slot pod stałą nazwą pliku (`{id},ca.jpg`), więc podmiana zdjęcia w szkicu
 // (inne auto, „Oba”, ponowny wybór zdjęć) nie zmienia adresu i telefon pokazywał z pamięci podręcznej STARE zdjęcie z NOWĄ ramką
 // pojazdu. Id zdjęcia z etapu „wip” (`wipPhotos`, do zakończenia zgłoszenia) zmienia się przy każdym przydziale; potem zostaje
