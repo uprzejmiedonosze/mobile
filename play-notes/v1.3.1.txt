@@ -1,0 +1,4 @@
+• Aparat w poczekalni: podgląd pokazuje całą matrycę (3:4, jak w aparacie systemowym)
+• Przyciski „Zakończ”, migawka i „Następne auto” są w jednej linii na czarnym tle, a w poziomie napisy obracają się w miejscu
+• Logowanie passkeyem: gdy brak passkeya na telefonie, podpowiadamy logowanie linkiem z maila lub kontem Google zamiast błędu
+• Konto: lista passkeyów nie wywala już ekranu, gdy wpis nie ma daty dodania
