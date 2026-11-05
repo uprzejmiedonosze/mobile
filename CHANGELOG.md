@@ -2,6 +2,7 @@
 
 - Logowanie passkeyem: gdy na telefonie nie ma jeszcze passkeya, aplikacja podpowiada, żeby zalogować się linkiem z maila lub kontem Google, zamiast pokazywać techniczny błąd.
 - Konto: lista passkeyów nie wywala już ekranu, gdy któryś wpis nie ma daty dodania.
+- Aparat w poczekalni: podgląd pokazuje całą matrycę (format 3:4, jak w aparacie systemowym) zamiast wąskiego, przyciętego kadru. Przyciski są na czarnym tle pod i nad podglądem: „Zakończ”, migawka i „Następne auto” w jednej linii, a w poziomie napisy obracają się w miejscu.
 
 ## v1.3.0 — 2026-11-03
 

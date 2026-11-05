@@ -131,43 +131,88 @@ export function WaitingCameraScreen({ navigation }: any) {
   const gpsText = gps === 'wait' ? 'GPS: szukam…' : gps === 'off' ? 'Bez GPS (brak zgody)' : `GPS ±${gps} m`;
   const gpsColor = gps === 'off' ? ud.plateVerified : gps === 'wait' || gps > 25 ? ud.accent : '#fff';
   const chip = { backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: ud.radiusPill, paddingHorizontal: 14, paddingVertical: 9 } as const;
-  // W poziomie nakładka ma zamienione wymiary i jest obrócona wokół środka ekranu; paski systemowe są wtedy po jej bokach.
-  const overlay = rotation && box.w
-    ? { width: box.h, height: box.w, left: (box.w - box.h) / 2, top: (box.h - box.w) / 2, transform: [{ rotate: `${rotation}deg` }], paddingHorizontal: Math.max(insets.top, insets.bottom), paddingVertical: 14 }
-    : { top: 0, left: 0, right: 0, bottom: 0, paddingTop: insets.top + 10, paddingBottom: insets.bottom + 18 };
+  const topBar = insets.top + 56;
+  const previewH = box.w ? Math.min(box.w * 4 / 3, Math.max(0, box.h - topBar - 150)) : 0;
+  const previewTop = box.w ? Math.min(topBar, (box.h - previewH) * 0.3) : 0;
+  const previewBottom = previewTop + previewH;
+  const land = rotation !== 0;
+  // Migawka stoi w czarnym pasie pod podglądem (w pionie i w poziomie w tym samym miejscu); w poziomie nad nią i pod nią są obrócone napisy.
+  const SHUTTER = 76; const CHIP_H = 38; const BTN_H = 48; const GAP = 8;
+  const W = { gps: 150, torch: 84, end: 74, next: 88, car: 220 };
+  const zoneCenter = (previewBottom + box.h - insets.bottom) / 2 - 20;
+  // Element o stałym rozmiarze w×h; w poziomie zajmuje h×w i jest obrócony o `rotation` wokół własnego środka, więc zostaje na miejscu.
+  const rot = (w: number, h: number, child: React.ReactNode) => (
+    <View style={land ? { width: h, height: w } : { width: w, height: h }}>
+      <View style={land ? { position: 'absolute', width: w, height: h, left: (h - w) / 2, top: (w - h) / 2, transform: [{ rotate: `${rotation}deg` }] } : { width: w, height: h }}>{child}</View>
+    </View>
+  );
+  const chipBox = { ...chip, height: CHIP_H, alignItems: 'center', justifyContent: 'center' } as const;
+  const btnText = { color: '#fff', fontFamily: ud.fontBodyBold, fontSize: 16, textAlign: 'center' } as const;
+  const endBtn = rot(W.end, BTN_H, (
+    <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Zakończ robienie zdjęć" style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={btnText}>Zakończ</Text></Pressable>
+  ));
+  const nextBtn = rot(W.next, BTN_H, (
+    <Pressable onPress={nextCar} disabled={carShots === 0} accessibilityRole="button" accessibilityLabel="Następne auto" accessibilityState={{ disabled: carShots === 0 }} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: carShots === 0 ? 0.45 : 1 }}>
+      <Text style={{ ...btnText, color: carShots === 0 ? '#fff' : ud.accent }}>{'Następne\nauto'}</Text>
+    </Pressable>
+  ));
+  const gpsChip = rot(W.gps, CHIP_H, <View style={{ ...chipBox, flex: 1, paddingHorizontal: 6 }}><Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: gpsColor, fontFamily: ud.fontBodyBold, fontSize: 13 }}>{gpsText}</Text></View>);
+  const torchBtn = rot(W.torch, CHIP_H, (
+    <Pressable onPress={() => setTorch((v) => !v)} accessibilityRole="switch" accessibilityState={{ checked: torch }} accessibilityLabel="Latarka" style={{ ...chipBox, flex: 1, paddingHorizontal: 0 }}><Text style={{ color: torch ? ud.accent : '#fff', fontFamily: ud.fontBodyBold }}>Latarka</Text></Pressable>
+  ));
+  const carLabel = [carShots ? `To auto: ${plural(carShots, ['zdjęć', 'zdjęcie', 'zdjęcia'])}` : '', zoom > 0 ? `zoom ${Math.round(zoom * 100)}%` : ''].filter(Boolean).join(' · ');
+  const carChip = carLabel ? rot(W.car, CHIP_H, (
+    <View style={{ ...chipBox, flex: 1, paddingHorizontal: 6 }}>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: '#fff', fontFamily: ud.fontBodyBold }}>{carLabel}</Text>
+    </View>
+  )) : null;
+  const thumb = lastUri ? rot(58, 58, (
+    <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Otwórz poczekalnię" style={{ width: 58, height: 58 }}>
+      <Image source={{ uri: lastUri }} resizeMethod="resize" style={{ width: 58, height: 58, borderRadius: ud.radiusSm, borderWidth: 2, borderColor: '#fff' }} />
+    </Pressable>
+  )) : null;
+  const center = { position: 'absolute', left: 0, right: 0, alignItems: 'center' } as const;
+  const cornerTop = insets.top + 10; const cornerBottom = insets.bottom + 18;
+  // Układ w poziomie liczymy tak, jak widzi go użytkownik (lewy-górny róg itd.) i zamieniamy na pozycje na ekranie fizycznym:
+  // przy +90° lewy-górny to prawy-górny róg, „na lewo od migawki” to nad nią; przy -90° lewy-górny to lewy-dolny, a „na lewo” to pod nią.
+  const cw = rotation === 90;
 
   return (
     <View onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })} style={{ flex: 1, backgroundColor: '#000' }}>
-      <CameraView ref={camera} style={{ flex: 1 }} facing="back" mode="picture" active={focused} zoom={zoom} enableTorch={torch} />
-      {/* nakładka obok podglądu, nie w nim – gest dwóch palców = zoom */}
-      <View {...pinchResponder.panHandlers} style={{ position: 'absolute', justifyContent: 'space-between', ...overlay }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12 }}>
-          <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Zakończ robienie zdjęć" style={chip}><Text style={{ color: '#fff', fontFamily: ud.fontBodyBold }}>Zakończ</Text></Pressable>
-          <View style={chip}><Text style={{ color: gpsColor, fontFamily: ud.fontBodyBold, fontSize: 13 }}>{gpsText}</Text></View>
-          <Pressable onPress={() => setTorch((v) => !v)} accessibilityRole="switch" accessibilityState={{ checked: torch }} accessibilityLabel="Latarka" style={chip}><Text style={{ color: torch ? ud.accent : '#fff', fontFamily: ud.fontBodyBold }}>Latarka</Text></Pressable>
-        </View>
-
-        <View style={{ paddingHorizontal: 16 }}>
-          <View style={{ alignItems: 'center', marginBottom: 14 }}>
-            <View style={chip}>
-              <Text style={{ color: '#fff', fontFamily: ud.fontBodyBold }}>{carShots ? `To auto: ${plural(carShots, ['zdjęć', 'zdjęcie', 'zdjęcia'])}` : 'Nowe auto'}{zoom > 0 ? ` · zoom ${Math.round(zoom * 100)}%` : ''}</Text>
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Pressable onPress={close} accessibilityRole="button" accessibilityLabel="Otwórz poczekalnię" style={{ flex: 1 }}>
-              {lastUri ? <Image source={{ uri: lastUri }} resizeMethod="resize" style={{ width: 58, height: 58, borderRadius: ud.radiusSm, borderWidth: 2, borderColor: '#fff' }} /> : null}
-            </Pressable>
-            <Pressable onPress={shoot} disabled={busy} accessibilityRole="button" accessibilityLabel="Zrób zdjęcie" style={{ width: 76, height: 76, borderRadius: 38, borderWidth: 5, borderColor: '#fff', alignItems: 'center', justifyContent: 'center', backgroundColor: busy ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.9)' }}>
-              {busy ? <ActivityIndicator color={ud.primary} /> : null}
-            </Pressable>
-            <View style={{ flex: 1, alignItems: 'flex-end' }}>
-              <Pressable onPress={nextCar} disabled={carShots === 0} accessibilityRole="button" accessibilityLabel="Następne auto" accessibilityState={{ disabled: carShots === 0 }} style={{ ...chip, paddingHorizontal: 12, maxWidth: '100%', backgroundColor: carShots === 0 ? 'rgba(0,0,0,0.35)' : ud.primary, opacity: carShots === 0 ? 0.6 : 1 }}>
-                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ color: '#fff', fontFamily: ud.fontBodyBold, fontSize: 13 }}>Następne auto</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
+      {/* Podgląd 3:4 = cała matryca 4:3 (jak w aparacie systemowym); reszta ekranu to czerń pod przyciski. Na bardzo niskim ekranie podgląd się zmniejsza. */}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: previewTop, height: previewH, overflow: 'hidden' }}>
+        <CameraView ref={camera} style={{ flex: 1 }} facing="back" mode="picture" ratio="4:3" active={focused} zoom={zoom} enableTorch={torch} />
       </View>
+      {/* nakładka obok podglądu, nie w nim – gest dwóch palców = zoom */}
+      {box.w ? (
+        <View {...pinchResponder.panHandlers} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          {land ? (
+            <>
+              <View style={cw ? { position: 'absolute', right: 12, top: cornerTop } : { position: 'absolute', left: 12, bottom: cornerBottom }}>{torchBtn}</View>
+              <View style={cw ? { position: 'absolute', left: 12, top: cornerTop } : { position: 'absolute', right: 12, bottom: cornerBottom }}>{gpsChip}</View>
+              {carChip ? <View style={{ ...center, top: previewBottom - 50 - W.car }}>{carChip}</View> : null}
+            </>
+          ) : (
+            <>
+              <View style={{ position: 'absolute', left: 12, right: 12, top: cornerTop, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ width: W.torch }} />
+                {gpsChip}
+                {torchBtn}
+              </View>
+              {carChip ? <View style={{ ...center, top: previewBottom - 14 - CHIP_H }}>{carChip}</View> : null}
+            </>
+          )}
+          <View style={{ position: 'absolute', left: 0, right: 0, top: zoneCenter - SHUTTER / 2, height: SHUTTER, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-evenly' }}>
+            {endBtn}
+            <View style={{ width: SHUTTER }} />
+            {nextBtn}
+          </View>
+          {thumb ? <View style={{ position: 'absolute', left: 16, top: previewBottom - 12 - 58 }}>{thumb}</View> : null}
+          <Pressable onPress={shoot} disabled={busy} accessibilityRole="button" accessibilityLabel="Zrób zdjęcie" style={{ position: 'absolute', left: (box.w - SHUTTER) / 2, top: zoneCenter - SHUTTER / 2, width: SHUTTER, height: SHUTTER, borderRadius: SHUTTER / 2, borderWidth: 5, borderColor: '#fff', alignItems: 'center', justifyContent: 'center', backgroundColor: busy ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.9)' }}>
+            {busy ? <ActivityIndicator color={ud.primary} /> : null}
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
