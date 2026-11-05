@@ -25,7 +25,17 @@ Sentry.init({
 // log.error → Sentry, z pominięciem tagów, które Sentry łapie sam (fatal/promise) albo ErrorBoundary (react) – bez duplikatów.
 setErrorReporter((tag, msg) => {
   if (tag === 'fatal' || tag === 'promise' || tag === 'react') return;
-  Sentry.captureMessage(`[${tag}] ${msg.slice(0, 300)}`, 'error');
+  // Wyjątek zamiast captureMessage: tytuł zgłoszenia to „tag: komunikat”, a nie nazwa funkcji reportera (setErrorReporter$argument_0).
+  // Fingerprint z tagiem i komunikatem bez cyfr (IP, kody, id) – różne błędy nie zlewają się w jedno zgłoszenie, a te same się łączą.
+  const text = msg.slice(0, 300);
+  const err = new Error(text);
+  err.name = tag;
+  Sentry.withScope((scope) => {
+    scope.setLevel('error');
+    scope.setTag('log_tag', tag);
+    scope.setFingerprint([tag, text.replace(/\d+/g, '#')]);
+    Sentry.captureException(err);
+  });
 });
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);

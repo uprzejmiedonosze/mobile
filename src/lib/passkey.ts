@@ -36,3 +36,7 @@ export const webAuthnRequest = <T = any>(options: any): T => (options && typeof 
 
 // Użytkownik zamknął systemowe okno (iOS: UserCancelled, Android: UserCancelled / NotAllowed po anulowaniu).
 export const isPasskeyCancelled = (e: any): boolean => /UserCancelled|Cancelled|Canceled/i.test(String(e?.error ?? e?.message ?? ''));
+
+// Na urządzeniu nie ma passkeya dla tej domeny albo Credential Manager nie ma czego zaproponować (NoCredentials / NotSupported,
+// m.in. „Passkeys not supported for this app”) – sytuacja użytkownika, nie usterka: nie idzie do Sentry (UD-MOBILE-A).
+export const isPasskeyUnavailable = (e: any): boolean => /^(NoCredentials|NotSupported)$/.test(String(e?.error ?? ''));

@@ -1,7 +1,7 @@
 jest.mock('expo-secure-store', () => ({ getItem: () => null })); // config.ts czyta flagę konta demo
 jest.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 
-import { passkeysAllowed, isPasskeyCancelled, webAuthnRequest } from '../src/lib/passkey';
+import { passkeysAllowed, isPasskeyCancelled, isPasskeyUnavailable, webAuthnRequest } from '../src/lib/passkey';
 
 describe('passkeysAllowed', () => {
   it('włączone tylko na prod z natywnym modułem', () => {
@@ -27,5 +27,17 @@ describe('webAuthnRequest', () => {
   it('opcje bez opakowania zostawia bez zmian', () => {
     const inner = { challenge: 'abc', rpId: 'uprzejmiedonosze.net' };
     expect(webAuthnRequest(inner)).toBe(inner);
+  });
+});
+
+describe('isPasskeyUnavailable', () => {
+  it('brak passkeya / NotSupported z Credential Managera to nie usterka', () => {
+    expect(isPasskeyUnavailable({ error: 'NoCredentials', message: 'x' })).toBe(true);
+    expect(isPasskeyUnavailable({ error: 'NotSupported', message: 'Passkeys not supported for this app' })).toBe(true);
+  });
+  it('inne błędy nadal raportujemy', () => {
+    expect(isPasskeyUnavailable({ error: 'RequestFailed' })).toBe(false);
+    expect(isPasskeyUnavailable(new Error('fetch failed'))).toBe(false);
+    expect(isPasskeyUnavailable(null)).toBe(false);
   });
 });

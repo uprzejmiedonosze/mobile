@@ -223,7 +223,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
             <View key={k.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: ud.text, fontFamily: ud.fontBodyBold }}>{k.label}</Text>
-                <Text style={{ color: ud.muted, fontSize: 12 }}>dodano {k.createdAt.slice(0, 10)}{k.lastUsedAt ? `, ostatnio użyto ${k.lastUsedAt.slice(0, 10)}` : ''}</Text>
+                <Text style={{ color: ud.muted, fontSize: 12 }}>{k.createdAt ? `dodano ${k.createdAt.slice(0, 10)}` : 'dodano'}{k.lastUsedAt ? `, ostatnio użyto ${k.lastUsedAt.slice(0, 10)}` : ''}</Text>
               </View>
               <Pressable onPress={() => dropPasskey(k.id)}><Text style={{ color: ud.plateVerified, fontFamily: ud.fontBodyBold }}>Usuń</Text></Pressable>
             </View>
