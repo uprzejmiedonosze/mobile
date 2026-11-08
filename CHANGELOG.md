@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+- Szybszy start: aplikacja od razu pokazuje ekran główny z ostatnio zapamiętanymi danymi, a konto i pulpit odświeża w tle, zamiast czekać na serwer. Brak internetu przy starcie nie wylogowuje.
+
 ## v1.3.1 — 2026-11-05
 
 - Logowanie passkeyem: gdy na telefonie nie ma jeszcze passkeya, aplikacja podpowiada, żeby zalogować się linkiem z maila lub kontem Google, zamiast pokazywać techniczny błąd.
