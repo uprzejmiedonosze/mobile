@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, Linking, Modal, Pressable, RefreshControl, Sc
 import { fetchDashboard, fmtInt, num, stripHtml, type DashBadge, type Dashboard } from '../api/dashboard';
 import { udConfig } from '../config';
 import { log } from '../lib/log';
+import { cachedDashboard, saveDashboard } from '../lib/startupCache';
 import { externalUrl, openUdPage } from '../lib/openPage';
 import { patronem } from '../lib/sex';
 import { plural } from '../lib/reports';
@@ -89,14 +90,16 @@ function SupportCard({ title, text, url, external, onOpen }: { title: string; te
 
 export function DashboardScreen({ navigation }: any) {
   const go = (r: string, params?: object) => navigation.navigate(r, params);
-  const [d, setD] = useState<Dashboard | null>(null);
+  const [d, setD] = useState<Dashboard | null>(cachedDashboard); // ostatni pulpit z pamięci: pokazujemy od razu, load() odświeża
   const [err, setErr] = useState<unknown>(null); // błąd ładowania pulpitu (ApiError/Error) → ErrorScreen
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     setErr(null);
     try {
-      setD(await fetchDashboard());
+      const fresh = await fetchDashboard();
+      setD(fresh);
+      saveDashboard(fresh);
     } catch (e: any) {
       setErr(e);
       log.fail('pulpit', e);

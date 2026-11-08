@@ -35,11 +35,16 @@ export async function validIdToken(): Promise<string> {
   const s = useAuth.getState();
   if (s.idToken && Date.now() < s.expiresAt - 60_000) return s.idToken;
   if (!s.refreshToken) throw new Error('Brak sesji – zaloguj się (Konto).');
-  log.info('auth', 'odświeżam ID token…');
-  const sess = await refreshIdToken(s.refreshToken);
-  useAuth.getState().applySession(sess);
-  return sess.idToken;
+  // Jedno odświeżanie naraz: start appki z pamięci podręcznej odpala je w tle, a pulpit prosi o token w tej samej chwili.
+  refreshing ??= (async () => {
+    log.info('auth', 'odświeżam ID token…');
+    const sess = await refreshIdToken(s.refreshToken);
+    useAuth.getState().applySession(sess);
+    return sess.idToken;
+  })().finally(() => { refreshing = null; });
+  return refreshing;
 }
+let refreshing: Promise<string> | null = null;
 
 const DEFAULT_TIMEOUT_MS = 20_000;
 // Upload zdjęć i analiza wizyjna (ALPR + LLM po stronie serwera) trwają dłużej niż zwykłe wywołanie.

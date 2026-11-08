@@ -13,8 +13,9 @@ import {
   storedEmail,
   storedRefreshToken,
 } from '../api/firebaseAuth';
-import { authFetch, verifySession } from '../api/udApi';
-import { demoMode, googleConfig } from '../config';
+import { authFetch, validIdToken, verifySession } from '../api/udApi';
+import { demoMode, googleConfig, udEnv } from '../config';
+import { cachedSession, clearCache, saveSession, useCacheFor } from '../lib/startupCache';
 import { demoCustomToken, enterDemo, isDemoEmail, leaveDemo } from '../lib/demoLogin';
 import { loginWithPasskey } from '../api/passkey';
 import { isPasskeyCancelled, isPasskeyUnavailable } from '../lib/passkey';
@@ -198,6 +199,11 @@ export const useAuth = create<Auth>((set, get) => ({
   },
   applySession: (s) => set({ idToken: s.idToken, refreshToken: s.refreshToken, expiresAt: s.expiresAt, email: s.email || get().email }),
   checkRegistration: async () => {
+    // Awaria sieci/serwera przy odświeżaniu w tle nie może cofnąć już pokazanego ekranu głównego (stan z pamięci podręcznej).
+    const keepOrReset = () => {
+      if (get().registrationChecked && get().isRegistered) return;
+      set({ registrationChecked: true, isRegistered: false, isTermsConfirmed: false });
+    };
     try {
       const res = await authFetch('/api/rest/user/');
       if (res.status === 404) {
@@ -206,14 +212,19 @@ export const useAuth = create<Auth>((set, get) => ({
       }
       if (!res.ok) {
         log.warn('auth', `checkRegistration: HTTP ${res.status}`);
-        set({ registrationChecked: true, isRegistered: false, isTermsConfirmed: false });
+        keepOrReset();
         return;
       }
       const j = (await res.json()) as any;
       set({ registrationChecked: true, isRegistered: !!j.isRegistered, isTermsConfirmed: !!j.isTermsConfirmed, isPatron: !!j.stats?.badges?.includes('patron') });
+      const { name, email, isRegistered, isTermsConfirmed, isPatron } = get();
+      if (isRegistered && isTermsConfirmed) {
+        useCacheFor(udEnv, email);
+        saveSession({ name: name || j?.data?.name || '', isRegistered, isTermsConfirmed, isPatron });
+      }
     } catch (e: any) {
       log.warn('auth', `checkRegistration: ${String(e?.message ?? e).slice(0, 150)}`);
-      set({ registrationChecked: true, isRegistered: false, isTermsConfirmed: false });
+      keepOrReset();
     }
   },
   hydrate: async () => {
@@ -221,6 +232,28 @@ export const useAuth = create<Auth>((set, get) => ({
       const [rt, em] = await Promise.all([storedRefreshToken(), storedEmail()]);
       if (!rt) {
         if (em && !get().email) set({ email: em }); // ostatni e-mail (logowania albo wysłanego linku) – podpowiedź w formularzu
+        return;
+      }
+      // Szybki start: znamy już konto i wiemy, że jest zarejestrowane → pokazujemy ekran główny od razu,
+      // a token i rejestrację odświeżamy w tle (bez splasha czekającego na sieć).
+      useCacheFor(udEnv, em ?? '');
+      const cached = em ? cachedSession() : null;
+      if (cached?.isRegistered && cached.isTermsConfirmed) {
+        set({
+          status: 'logged', email: em ?? '', name: cached.name, refreshToken: rt,
+          registrationChecked: true, isRegistered: true, isTermsConfirmed: true, isPatron: cached.isPatron,
+        });
+        log.info('auth', `sesja z pamięci podręcznej (${em}), odświeżam w tle`);
+        validIdToken()
+          .then(() => get().checkRegistration())
+          .catch(async (e: any) => {
+            if (e?.tokenRejected) {
+              log.warn('auth', `hydrate (tło): ${String(e?.message ?? e).slice(0, 150)} – zaloguj ponownie`);
+              await get().logout();
+            } else {
+              log.warn('auth', `odświeżanie w tle: ${String(e?.message ?? e).slice(0, 150)} (zostajemy na danych z pamięci)`);
+            }
+          });
         return;
       }
       const sess = await refreshIdToken(rt);
@@ -235,6 +268,7 @@ export const useAuth = create<Auth>((set, get) => ({
   },
   logout: async () => {
     await clearStoredAuth();
+    clearCache(); // dane poprzedniego konta nie mogą trafić na ekran kolejnego
     // Szkic „Nowe” należy do wylogowanego konta – po zalogowaniu na inne serwer odrzuci każdą jego zmianę (403).
     useNewReport.getState().setDraftId(null);
     useNewReport.getState().setDone(null);

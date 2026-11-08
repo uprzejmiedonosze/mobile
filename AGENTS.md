@@ -133,6 +133,10 @@ The auth gate in `App.tsx` is **active**: with no session, the app shows only th
 (no back button, no tab bar — see `src/screens/AccountScreen.tsx`); once `useAuth` status is
 `logged`, it switches to the full stack starting at `Picker`. A splash screen covers the initial
 `hydrate()` call while the stored refresh token (if any) is checked.
+**Szybki start (`src/lib/startupCache.ts`).** Plik `startup-cache.json` (per środowisko + e-mail; kasowany w `logout`) trzyma stan sesji
+(rejestracja, odznaka PRO) i ostatni pulpit. Gdy jest wpis dla zarejestrowanego konta, `hydrate()` od razu ustawia `logged` (bez splasha
+czekającego na sieć), a token i `checkRegistration()` odświeża w tle (`validIdToken` ma jedno wspólne odświeżanie); pulpit pokazuje
+zapamiętane dane i odświeża je w `load()`. Wylogowuje tylko odrzucenie tokenu przez Firebase (`tokenRejected`), nie brak sieci.
 
 ### Environment: staging vs prod
 

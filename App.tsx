@@ -40,6 +40,7 @@ const Stack = createNativeStackNavigator();
 export default function App() {
   const status = useAuth((s) => s.status);
   const idToken = useAuth((s) => s.idToken);
+  const refreshToken = useAuth((s) => s.refreshToken);
   const hydrate = useAuth((s) => s.hydrate);
   const registrationChecked = useAuth((s) => s.registrationChecked);
   const isRegistered = useAuth((s) => s.isRegistered);
@@ -78,7 +79,8 @@ export default function App() {
     }
   }, [updateStatus]);
 
-  const logged = status === 'logged' && !!idToken;
+  // refreshToken wystarcza: przy starcie z pamięci podręcznej ID token dociąga się w tle (validIdToken).
+  const logged = status === 'logged' && (!!idToken || !!refreshToken);
   const registered = registrationChecked && isRegistered && isTermsConfirmed;
 
   useEffect(() => {

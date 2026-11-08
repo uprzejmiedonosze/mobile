@@ -207,6 +207,11 @@ export async function refreshIdToken(refreshToken: string): Promise<FbSession> {
   });
   if (!res.ok) {
     log.warn('auth', `refresh: HTTP ${res.status} – wymagane ponowne logowanie`);
+    // 4xx = Firebase odrzucił token (unieważniony/wygasły/konto wyłączone) – odróżniamy od awarii sieci i 5xx,
+    // bo tylko to uzasadnia wylogowanie (start z pamięci podręcznej nie może wylogować offline).
+    if (res.status >= 400 && res.status < 500) {
+      try { await fbErr(res); } catch (e: any) { e.tokenRejected = true; throw e; }
+    }
     await fbErr(res);
   }
   const j = (await res.json()) as any;
