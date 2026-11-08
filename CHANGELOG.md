@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+## v1.3.2 — 2026-11-08
+
 - Szybszy start: aplikacja od razu pokazuje ekran główny z ostatnio zapamiętanymi danymi, a konto i pulpit odświeża w tle, zamiast czekać na serwer. Brak internetu przy starcie nie wylogowuje.
 
 ## v1.3.1 — 2026-11-05
