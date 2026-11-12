@@ -21,8 +21,16 @@ const SECURE = firebaseEmulatorHost ? `${firebaseEmulatorHost}/securetoken.googl
 
 // Wymiana tokenu na sesję jest idempotentna – przy 502/503/504 i zerwanym połączeniu (fetch rzuca TypeError) ponawiamy.
 // Nie dla sendOobCode (drugi mail) ani signInWithEmailLink (kod jednorazowy mógł już zostać zużyty).
-const fbFetchRetry = (url: string, init: RequestInit) =>
-  retryTransient(() => logFetch('auth', url, init), { isTransientError: (e) => e instanceof TypeError });
+// Po wyczerpaniu prób TypeError oznacza brak sieci (UnknownHostException itp.) – oddajemy go jak OfflineError z udApi
+// (status 0 = oczekiwany, nie usterka do Sentry; duck typing, bo udApi importuje ten plik).
+const fbFetchRetry = async (url: string, init: RequestInit) => {
+  try {
+    return await retryTransient(() => logFetch('auth', url, init), { isTransientError: (e) => e instanceof TypeError });
+  } catch (e) {
+    if (e instanceof TypeError) throw Object.assign(new Error('Brak połączenia z internetem.'), { status: 0 });
+    throw e;
+  }
+};
 
 const K_REFRESH = 'udpro.fb.refresh';
 const K_EMAIL = 'udpro.fb.email';

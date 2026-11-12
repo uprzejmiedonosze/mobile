@@ -6,6 +6,7 @@ describe('isExpectedError', () => {
     expect(isExpectedError(Object.assign(new Error('Wybierz rodzaj wykroczenia'), { status: 422 }))).toBe(true);
     expect(isExpectedError(Object.assign(new Error('Limit zdjęć'), { status: 402 }))).toBe(true);
     expect(isExpectedError(Object.assign(new Error('Brak połączenia z internetem.'), { status: 0 }))).toBe(true);
+    expect(isExpectedError(Object.assign(new Error('Nie udało się pobrać pulpitu (HTTP 403).'), { status: 403 }))).toBe(true);
     expect(isExpectedError(Object.assign(new Error('Ta wersja aplikacji jest już nieobsługiwana.'), { status: 426 }))).toBe(true);
   });
 
