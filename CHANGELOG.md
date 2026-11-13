@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+- Nowe zgłoszenie: lokalizacja jest brana także ze zdjęcia kontekstowego, gdy zdjęcie auta nie ma GPS (jak na stronie). Ostrzeżenie o masie pojazdu jest teraz pod polem komentarza.
+
 ## v1.3.2 — 2026-11-08
 
 - Szybszy start: aplikacja od razu pokazuje ekran główny z ostatnio zapamiętanymi danymi, a konto i pulpit odświeża w tle, zamiast czekać na serwer. Brak internetu przy starcie nie wylogowuje.

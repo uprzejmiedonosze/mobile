@@ -11,7 +11,7 @@ import { isPhotoQuotaError } from '../api/udApi';
 import { pickPhotos } from './gallery';
 import { log } from './log';
 import { downscale, type Scaled } from './resize';
-import { exifToIso } from './reports';
+import { exifToIso, withFallbackGps } from './reports';
 import { BOTH_VEHICLES, canChooseBoth, chooseBothRoles, chooseRoles, firstDraftSlots, listVehicles, MIN_PHOTOS_BOTH, secondDraftSlots, splitVehicles, SLOT_ORDER, type Detection, type PhotoDetections, type Vehicle } from './roles';
 import { plateMatches } from './compose';
 import { defaultSlots, EMPTY_SLOTS, type Slot, type Slots, type Suggestion } from './suggest';
@@ -119,7 +119,8 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
             const p = photosRef.current.find((x) => x.id === want);
             if (!p?.serverId) { again.current = true; continue; } // zdjęcie jeszcze się wysyła (etap „wip”)
             // data/GPS ze zdjęcia auta serwer ma przy zdjęciu (wysłaliśmy je razem z plikiem) – ustawi je i użyje wyniku ALPR z analizy
-            const carMeta = slot === 'car' ? { gps: p.exif.lat != null && p.exif.lng != null, date: !!exifToIso(p.exif.datetimeOriginal) } : undefined;
+            const ctx = photosRef.current.find((x) => x.id === slotsRef.current.context);
+            const carMeta = slot === 'car' ? { gps: withFallbackGps(p, ctx).exif.lat != null, date: !!exifToIso(p.exif.datetimeOriginal) } : undefined;
             // jedno zdjęcie: auto = wycinek z oryginału (carCropId); gdy się nie udał – serwerowy `crop` z kopii 1600 px
             const fromOriginal = slot === 'car' && cropRef.current ? carCropId.current : null;
             const photoId = fromOriginal ?? p.serverId;
@@ -269,7 +270,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
     const both = chosen === BOTH_VEHICLES;
     const choice = applyChoice(both ? undefined : chosen, photosRef.current, both);
     const car = photosRef.current.find((p) => p.id === choice.slots.car);
-    if (car) onCarExif?.(car); // inne auto = inne zdjęcie auta = inna data/GPS
+    if (car) onCarExif?.(withFallbackGps(car, photosRef.current.find((p) => p.id === choice.slots.context))); // inne auto = inne zdjęcie auta = inna data/GPS
   }, [applyChoice, onCarExif]);
 
   // Gotowe zdjęcia (z galerii albo z poczekalni) → podgląd, wysyłka, ALPR, role, szkic.
@@ -324,7 +325,7 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
       onSuggestion({ slots: choice.slots, plate: choice.plate, categoryId: 0, markers: [], reasons: note ? [note] : [], confident: choice.vehicleFound });
       setNote(note);
       const car = picked.find((p) => p.id === choice.slots.car);
-      if (car) onCarExif?.(car); // rola auta ustalona – jeśli to inne zdjęcie niż zgadywane, popraw datę/GPS
+      if (car) onCarExif?.(withFallbackGps(car, picked.find((p) => p.id === choice.slots.context))); // rola auta ustalona – jeśli to inne zdjęcie niż zgadywane, popraw datę/GPS
       setPhase('ready'); // → efekt wyżej wysyła zdjęcia do szkicu
     } catch (e) {
       if (my === batch.current) { setPhotos([]); setSlots(EMPTY_SLOTS); setCrop(false); setVehicles([]); setPlate(null); setPlate2(null); bothRef.current = false; plateRef.current = null; detectionsRef.current = []; }

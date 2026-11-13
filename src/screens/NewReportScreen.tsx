@@ -518,7 +518,6 @@ export function NewReportScreen({ navigation, route }: any) {
         <L>Numer rejestracyjny</L>
         <TextInput {...inputColors} style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }, lock.photoFields && locked]} editable={!lock.photoFields} value={form.plateId} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => { edited.current.plate = true; setPlateTouched(true); set('plateId', t); }} />
         {fieldErr('plateId')}
-        {weightWarning ? <Text style={{ color: ud.warning, marginTop: 6 }}>{weightWarning}</Text> : null}
         <DuplicateWarning r={ownSameDayReport(recydywa, form.datetime, app?.id)} />
         {recydywa && recydywa.appsCnt > 0 ? (
           <Text style={{ color: ud.text, marginTop: 6 }}>❗ Ten pojazd był już zgłaszany: {plural(recydywa.appsCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}.</Text>
@@ -529,7 +528,6 @@ export function NewReportScreen({ navigation, route }: any) {
             <L>Drugi pojazd (to samo wykroczenie)</L>
             <TextInput {...inputColors} style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }, lock.photoFields && locked]} editable={!lock.photoFields} value={form.plateId2} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => set('plateId2', t)} />
             {fieldErr('plateId2')}
-            {weightWarning2 ? <Text style={{ color: ud.warning, marginTop: 6 }}>{weightWarning2}</Text> : null}
             <DuplicateWarning r={ownSameDayReport(recydywa2, form.datetime, app?.id)} />
             {recydywa2 && recydywa2.appsCnt > 0 ? (
               <Text style={{ color: ud.text, marginTop: 6 }}>❗ Drugi pojazd był już zgłaszany: {plural(recydywa2.appsCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}.</Text>
@@ -589,6 +587,9 @@ export function NewReportScreen({ navigation, route }: any) {
         <L>Komentarz{form.category === 0 ? ' (wymagany)' : ''}</L>
         <TextInput {...inputColors} style={[input, { minHeight: 80, textAlignVertical: 'top' }]} multiline value={form.comment} onChangeText={(t) => set('comment', t)} onEndEditing={() => { const w = !form.witness && commentWarning(form.comment); if (w) toast.info(`${w} Sprawdź opcję „świadek momentu parkowania”.`); }} placeholder="Dodatkowy opis wykroczenia" />
         {fieldErr('comment')}
+        {/* jak na webie: ostrzeżenie o masie pojazdu jest częścią pola komentarza; przy dwóch pojazdach z numerem tablicy */}
+        {weightWarning ? <Text style={{ color: ud.warning, marginTop: 6 }}>{form.plateId2 ? `${form.plateId}: ` : ''}{weightWarning}</Text> : null}
+        {form.plateId2 && weightWarning2 ? <Text style={{ color: ud.warning, marginTop: 6 }}>{form.plateId2}: {weightWarning2}</Text> : null}
 
         {Object.keys(exts).length ? (
           <>

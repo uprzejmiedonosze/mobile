@@ -74,6 +74,14 @@ export function reportBody(formal: string | undefined, comment: string | undefin
   return [formal, comment].filter((x) => x && x.trim()).join(' ');
 }
 
+// Jak na webie (images.js): lokalizacja bywa tylko na zdjęciu kontekstowym. Zdjęcie auta ma pierwszeństwo, a gdy nie ma GPS,
+// bierzemy współrzędne ze zdjęcia kontekstowego (data zostaje z auta). Zwraca auto z uzupełnionym GPS.
+export function withFallbackGps<P extends { exif: { lat: number | null; lng: number | null } }>(car: P, context?: P | null): P {
+  if (car.exif.lat != null && car.exif.lng != null) return car;
+  if (context?.exif.lat == null || context.exif.lng == null) return car;
+  return { ...car, exif: { ...car.exif, lat: context.exif.lat, lng: context.exif.lng } };
+}
+
 // EXIF "2026:09:10 19:43:00" → ISO "2026-09-10T19:43:00" (to samo robi web w images.js)
 export function exifToIso(s: string | null): string | null {
   const m = s ? /^(\d{4})[:-](\d{2})[:-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(s) : null;

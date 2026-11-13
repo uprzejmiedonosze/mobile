@@ -1,4 +1,4 @@
-import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor, hasRequiredPhotos, clearFieldError, formLocks, ownSameDayReport, plateHistory, imageVersion } from '../src/lib/reports';
+import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor, hasRequiredPhotos, clearFieldError, formLocks, ownSameDayReport, plateHistory, imageVersion, withFallbackGps } from '../src/lib/reports';
 
 describe('reports helpers', () => {
   it('formats dates like the web list', () => {
@@ -114,5 +114,22 @@ describe('imageVersion', () => {
     expect(imageVersion({ statusHistory: history })).toBe('1');
     expect(imageVersion({ statusHistory: [1, 2] }, 'carImage')).toBe('2');
     expect(imageVersion({})).toBe('0');
+  });
+});
+
+describe('withFallbackGps', () => {
+  const ph = (lat: number | null, lng: number | null, dt: string | null = null) => ({ id: 'x', exif: { lat, lng, datetimeOriginal: dt } });
+  it('zdjęcie auta z GPS ma pierwszeństwo', () => {
+    const car = ph(1, 2);
+    expect(withFallbackGps(car, ph(3, 4))).toBe(car);
+  });
+  it('bez GPS na aucie bierze współrzędne z kontekstu, datę zostawia z auta', () => {
+    const out = withFallbackGps(ph(null, null, '2026:01:01 10:00:00'), ph(3, 4));
+    expect(out.exif).toEqual({ lat: 3, lng: 4, datetimeOriginal: '2026:01:01 10:00:00' });
+  });
+  it('brak GPS na obu zdjęciach – bez zmian', () => {
+    const car = ph(null, null);
+    expect(withFallbackGps(car, ph(null, null))).toBe(car);
+    expect(withFallbackGps(car, null)).toBe(car);
   });
 });
