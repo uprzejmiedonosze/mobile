@@ -63,7 +63,7 @@ płatnicze. Moduł nie jest linkowany na Androidzie (`react-native.config.js`).
 **Zgłoszenie na gorąco (tuning, drift; wersja testowa).** `AdHocReportScreen` (wejście z „Nowe”) + `AdHocCameraScreen` (film tylko z aplikacji,
 720p, ≤25 s, ≤14 MB, z dźwiękiem): data = chwila zgłoszenia, miejsce = GPS telefonu, materiał opcjonalny (film / zdjęcie / sama relacja).
 Kategorie `adHoc` (31 hałas/wydech, 32 drift) nie mają `groups`; backend nie wymaga dla nich zdjęć, przyjmuje datę ≤24 h i wysyła zawsze na
-wojewódzką skrzynkę „Stop agresji drogowej” (`StopAgresji::guessVoivodeship`), wideo idzie osobnym załącznikiem (`POST /app/{id}/video`).
+wojewódzką skrzynkę „Stop agresji drogowej” (`StopAgresji::guessVoivodeship`), wideo (`POST /app/{id}/video`) ląduje na B2, a mail zawiera link do niego (`/cdn2/…`, nginx z dysku albo proxy z B2).
 Kategorie stanu technicznego (27–30) są na zwykłej liście przez `betaGroups`. Wszystko `beta` = tylko gdy `features.adHocReports`
 (GET /api/rest/user, na razie poza produkcją) – `lib/adHoc.ts` (`withFeatureCategories`). Podstawy prawne: `docs/TUNING-PRAWO.md`.
 

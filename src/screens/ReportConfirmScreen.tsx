@@ -135,7 +135,7 @@ export function ReportConfirmScreen({ navigation, route }: any) {
               </View>
               {c.video ? (
                 <Text style={{ color: ud.text, marginTop: 12, fontFamily: ud.fontBodyBold }}>
-                  🎬 Nagranie ({fmtMB(c.video.size)}) zostanie dołączone do wiadomości.
+                  🎬 Nagranie ({fmtMB(c.video.size)}) – link do niego trafi do wiadomości.
                 </Text>
               ) : null}
               {shots.map((x, i) => (

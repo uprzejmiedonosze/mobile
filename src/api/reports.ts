@@ -34,7 +34,7 @@ export type ReportForm = {
 export type Confirmation = {
   body: string; // tekst formalny kategorii + rozszerzenia + komentarz
   witness: string; // „Nie byłeś świadkiem parkowania.” / „Byłeś świadkiem parkowania.”; '' gdy kategoria nie dotyczy parkowania
-  video?: { size: number; mime: string | null } | null; // nagranie dołączane do maila (zgłoszenie „na gorąco”)
+  video?: { size: number; mime: string | null; url: string | null } | null; // nagranie zgłoszenia „na gorąco” – mail zawiera link do niego
   shortAddress: string;
   plateId: string | null;
   vehicleBox: { x: number; y: number; width: number; height: number } | null; // piksele zdjęcia auta

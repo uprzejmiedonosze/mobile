@@ -1,6 +1,7 @@
 // Zgłoszenie „na gorąco” (tuning: hałas/wydech, drift) – składane w chwili zdarzenia, z nagraniem z aplikacji, zdjęciem albo samą
 // relacją świadka. Backend (../uprzejmiedonosze: Category::isAdHoc(), updateApplication(), attachVideo()) wysyła je zawsze na
-// wojewódzką skrzynkę „Stop agresji drogowej”, nie wymaga zdjęć i przyjmuje datę najwyżej sprzed 24 h.
+// wojewódzką skrzynkę „Stop agresji drogowej”, nie wymaga zdjęć i przyjmuje datę najwyżej sprzed 24 h. Nagranie ląduje na B2,
+// a mail zawiera link do niego (nie załącznik).
 // Kategorie testowe (`beta`) są widoczne tylko gdy serwer zwraca `features.adHocReports` (GET /api/rest/user, poza produkcją).
 import type { ReportForm } from '../api/reports';
 import type { Category, GeoAddress } from '../types';
