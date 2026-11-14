@@ -33,7 +33,8 @@ export type ReportForm = {
 // przez płeć i sformatowane tak jak na www (potwierdz.html.twig), więc klient tylko je wyświetla.
 export type Confirmation = {
   body: string; // tekst formalny kategorii + rozszerzenia + komentarz
-  witness: string; // „Nie byłeś świadkiem parkowania.” / „Byłeś świadkiem parkowania.”
+  witness: string; // „Nie byłeś świadkiem parkowania.” / „Byłeś świadkiem parkowania.”; '' gdy kategoria nie dotyczy parkowania
+  video?: { size: number; mime: string | null } | null; // nagranie dołączane do maila (zgłoszenie „na gorąco”)
   shortAddress: string;
   plateId: string | null;
   vehicleBox: { x: number; y: number; width: number; height: number } | null; // piksele zdjęcia auta
@@ -81,6 +82,21 @@ export async function uploadPlateImage(appId: string, uri: string): Promise<UdAp
   form.append('image', new File(uri) as unknown as Blob); // expo/fetch (SDK 57) nie rozumie RN-owego {uri, name, type} w FormData – przyjmuje File
   const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/plate-image`, { method: 'POST', body: form }, { timeoutMs: UPLOAD_TIMEOUT_MS });
   return apiJson(res, 'Nie udało się wysłać wycinka tablicy');
+}
+
+// Nagranie do zgłoszenia „na gorąco” (≤ 15 MB, lib/adHoc.ts) – na komórkowym łączu trwa dłużej niż upload zdjęcia.
+export const VIDEO_UPLOAD_TIMEOUT_MS = 300_000;
+
+export async function uploadReportVideo(appId: string, uri: string): Promise<UdApp> {
+  const form = new FormData();
+  form.append('video', new File(uri) as unknown as Blob); // jak uploadPlateImage: expo/fetch przyjmuje File
+  const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/video`, { method: 'POST', body: form }, { timeoutMs: VIDEO_UPLOAD_TIMEOUT_MS });
+  return apiJson(res, 'Nie udało się wysłać nagrania');
+}
+
+export async function deleteReportVideo(appId: string): Promise<UdApp> {
+  const res = await authFetch(`/api/rest/app/${encodeURIComponent(appId)}/video`, { method: 'DELETE' });
+  return apiJson(res, 'Nie udało się usunąć nagrania');
 }
 
 export async function deleteReportImage(appId: string, type: PictureType): Promise<UdApp> {

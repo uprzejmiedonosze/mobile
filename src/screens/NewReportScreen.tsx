@@ -5,6 +5,7 @@ import { type UdApp, imageUrl } from '../api/apps';
 import { fetchConfig } from '../api/dashboard';
 import { fetchCategories, reverseGeocode } from '../api/geo';
 import { loadRecentCategories, pickTopCategories } from '../lib/recentCategories';
+import { isAdHocCategory, withFeatureCategories } from '../lib/adHoc';
 import { fetchRecydywa } from '../api/recydywa';
 import {
   createDraft, fetchReport, fetchVehicleDescription, saveReport, searchAddress, type ReportForm,
@@ -173,8 +174,12 @@ export function NewReportScreen({ navigation, route }: any) {
     fetchProfile().then((p) => { setBylam(p.bylam); setPatron(p.patronem); setMapStart(p.lastLocation); }).catch(() => {});
   }, []));
   useFocusEffect(useCallback(() => { refreshQuota(); }, [refreshQuota])); // licznik limitu zdjęć przy każdym wejściu na ekran
+  // kategorie testowe (`beta`) tylko gdy serwer na to pozwala; „na gorąco” mają własny ekran (lib/adHoc.ts)
+  const adHocEnabled = useAuth((s) => s.adHocReports);
   useEffect(() => {
-    fetchCategories().then(setCats);
+    fetchCategories().then((c) => setCats(withFeatureCategories(c, adHocEnabled)));
+  }, [adHocEnabled]);
+  useEffect(() => {
     loadRecentCategories().then(setRecentCats);
     fetchConfig<Groups>('category-groups').then(setGroups);
     fetchConfig<Record<string, Extension>>('extensions').then(setExts);
@@ -186,8 +191,10 @@ export function NewReportScreen({ navigation, route }: any) {
     const id = editId ?? (waitingIds ? null : draftId);
     if (!id) { setLoading(false); return; }
     fetchReport(id)
-      .then((a) => {
+      .then(async (a) => {
         if (!['draft', 'ready', 'confirmed'].includes(a.status)) throw new Error('nieedytowalne'); // jak isEditable() na webie
+        // zgłoszenie „na gorąco” (bez zdjęć, z nagraniem) edytuje się na własnym ekranie
+        if (editId && isAdHocCategory(await fetchCategories(), a.category)) { navigation.replace('AdHocReport', { editId }); return; }
         // GET oddaje też cudze zgłoszenia, a zapis już nie (403) – szkic zapisany na tym telefonie przez inne konto porzucamy.
         const me = useAuth.getState().email;
         if (a.email && me && a.email.toLowerCase() !== me.toLowerCase()) throw new Error('cudzy szkic');
@@ -496,6 +503,17 @@ export function NewReportScreen({ navigation, route }: any) {
           </Pressable>
         ) : null}
 
+        {adHocEnabled && !editId && !waitingIds ? (
+          <Pressable onPress={() => navigation.navigate('AdHocReport')} accessibilityRole="button" android_ripple={ripple}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, marginBottom: 12, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream, borderWidth: 1, borderColor: ud.accent }}>
+            <Text style={{ fontSize: 22 }}>🎬</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading }}>Zgłoś na gorąco (test)</Text>
+              <Text style={{ color: ud.text, marginTop: 2 }}>Głośny wydech, drift – nagraj film w aplikacji i wyślij do Policji.</Text>
+            </View>
+            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>›</Text>
+          </Pressable>
+        ) : null}
         <PhotoQuotaNotice quota={quota} patronem={patron} onMore={() => navigation.navigate('QuotaInfo')} />
         <PhotosSection
           tiles={tiles}

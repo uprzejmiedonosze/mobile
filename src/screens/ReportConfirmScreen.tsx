@@ -13,6 +13,7 @@ import { useNewReport } from '../store/useNewReport';
 import { toast } from '../store/useToast';
 import { ud } from '../theme';
 import { recordRecentCategory } from '../lib/recentCategories';
+import { fmtMB } from '../lib/adHoc';
 
 // Odpowiednik potwierdz.html.twig („Sprawdź przed wysłaniem” / „Sprawdź zgłoszenie”): podsumowanie zapisanego
 // zgłoszenia, a dopiero przycisk na dole je potwierdza (POST /app/{id}/finish) i – gdy odbiorca ma automatyczny
@@ -130,8 +131,13 @@ export function ReportConfirmScreen({ navigation, route }: any) {
               {many ? <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, fontSize: 18, marginTop: 24 }}>Zgłoszenie {n + 1}/{items.length} · {c.plateId}{finished.current.has(app.id) ? ' ✓' : ''}</Text> : null}
               <View style={{ marginTop: 12, backgroundColor: ud.surface, borderRadius: ud.radiusSm, padding: 14 }}>
                 <Text style={{ color: ud.text, lineHeight: 21 }}>{c.body}</Text>
-                <Text style={{ color: ud.text, marginTop: 8 }}>{c.witness}</Text>
+                {c.witness ? <Text style={{ color: ud.text, marginTop: 8 }}>{c.witness}</Text> : null}
               </View>
+              {c.video ? (
+                <Text style={{ color: ud.text, marginTop: 12, fontFamily: ud.fontBodyBold }}>
+                  🎬 Nagranie ({fmtMB(c.video.size)}) zostanie dołączone do wiadomości.
+                </Text>
+              ) : null}
               {shots.map((x, i) => (
                 <Shot key={x.key} uri={x.thumb!} natural={{ w: x.nat?.width, h: x.nat?.height }} box={x.key === 'car' ? c.vehicleBox : null} plate={x.key === 'car' ? c.plateId : null} onPress={() => setViewer({ item: n, index: i })} />
               ))}

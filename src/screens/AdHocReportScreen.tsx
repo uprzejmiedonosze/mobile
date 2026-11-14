@@ -1,0 +1,291 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import * as Location from 'expo-location';
+import type { UdApp } from '../api/apps';
+import { fetchCategories, reverseGeocode } from '../api/geo';
+import { stagePhoto } from '../api/photos';
+import { assignReportPhoto, createDraft, deleteReportVideo, fetchReport, saveReport, uploadReportVideo } from '../api/reports';
+import { ApiError, validIdToken } from '../api/udApi';
+import { fetchProfile } from '../api/user';
+import { HtmlText } from '../components/HtmlText';
+import { MapPicker, type PickedPlace } from '../components/MapPicker';
+import { MapPreview } from '../components/MapPreview';
+import { UdButton, UdHeader } from '../components/UD';
+import { udConfig } from '../config';
+import { adHocCategories, adHocMissing, adHocReportForm, fmtMB, localIso } from '../lib/adHoc';
+import { takePhoto } from '../lib/gallery';
+import { log } from '../lib/log';
+import { useAuth } from '../store/useAuth';
+import { toast } from '../store/useToast';
+import { ud, inputColors } from '../theme';
+import type { Category, GeoAddress } from '../types';
+
+type Place = { lat: number; lng: number; geo: GeoAddress };
+
+const parseLocal = (s?: string): Date | null => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):?(\d{2})?/.exec(s ?? '');
+  return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0)) : null;
+};
+
+// Zgłoszenie „na gorąco” (tuning: hałas/wydech, drift) – składane w chwili zdarzenia. Data = otwarcie ekranu, miejsce = GPS telefonu
+// (można poprawić na mapie), materiał: film nagrany w aplikacji (AdHocCamera), zdjęcie z aparatu albo sama relacja świadka.
+// Odbiorcę (wojewódzka skrzynka „Stop agresji drogowej”) i treść wybiera backend; dalej jak zwykle: ReportConfirm → wysyłka.
+// Szkic powstaje dopiero przy „Dalej”, więc porzucony formularz nie zostawia nic na serwerze.
+export function AdHocReportScreen({ navigation, route }: any) {
+  const editId: string | undefined = route?.params?.editId;
+  const videoParam: string | undefined = route?.params?.videoUri;
+  const videoSizeParam: number | null = route?.params?.videoSize ?? null;
+  const enabled = useAuth((s) => s.adHocReports);
+
+  const at = useRef(new Date());
+  const draft = useRef<UdApp | null>(null); // szkic po pierwszej (może nieudanej) próbie – ponowienie go nie dubluje
+  const sent = useRef({ video: '', photo: '' }); // co już jest w szkicu (uri), żeby ponowienie nie wysyłało drugi raz
+  const [cats, setCats] = useState<Category[]>([]);
+  const [info, setInfo] = useState<Category | null>(null);
+  const [category, setCategory] = useState<number | null>(null);
+  const [plateId, setPlateId] = useState('');
+  const [comment, setComment] = useState('');
+  const [address, setAddress] = useState('');
+  const [place, setPlace] = useState<Place | null>(null);
+  const [locating, setLocating] = useState<'wait' | 'off' | 'done'>('wait');
+  const [mapOpen, setMapOpen] = useState(false);
+  const [mapStart, setMapStart] = useState<{ lat: number; lng: number } | null>(null);
+  const [video, setVideo] = useState<{ uri: string | null; size: number | null } | null>(null); // uri null = nagranie już w szkicu (edycja)
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [loading, setLoading] = useState(!!editId);
+  const [submitting, setSubmitting] = useState('');
+  const [err, setErr] = useState<{ field?: string; text: string } | null>(null);
+
+  useEffect(() => { fetchCategories().then((c) => setCats(adHocCategories(c, true))); }, []);
+  useFocusEffect(useCallback(() => { fetchProfile().then((p) => setMapStart(p.lastLocation)).catch(() => {}); }, []));
+
+  // film wraca z AdHocCamera w parametrach trasy
+  useEffect(() => { if (videoParam) setVideo({ uri: videoParam, size: videoSizeParam }); }, [videoParam, videoSizeParam]);
+
+  const geocode = useCallback(async (lat: number, lng: number) => {
+    const geo = await reverseGeocode(lat, lng, await validIdToken());
+    if (!geo) throw new Error('Nie udało się ustalić adresu – wskaż miejsce na mapie.');
+    setPlace({ lat, lng, geo });
+    setAddress(geo.display);
+  }, []);
+
+  // Edycja zapisanego szkicu („← popraw” z potwierdzenia albo EDYTUJ) – bez ponownego GPS.
+  useEffect(() => {
+    if (!editId) return;
+    fetchReport(editId).then((a) => {
+      draft.current = a;
+      setCategory(Number(a.category));
+      setPlateId(a.carInfo?.plateId ?? '');
+      setComment(a.userComment ?? '');
+      setAddress(a.address?.address ?? '');
+      if (a.address?.lat != null && a.address?.lng != null) {
+        setPlace({ lat: a.address.lat, lng: a.address.lng, geo: { display: a.address.addressGPS ?? a.address.address ?? '', city: a.address.city, voivodeship: a.address.voivodeship, district: a.address.district, county: a.address.county, municipality: a.address.municipality, postcode: a.address.postcode } });
+      }
+      if (a.video?.url) setVideo({ uri: null, size: a.video.size ?? null });
+      at.current = parseLocal(a.date) ?? at.current;
+      setLocating('done');
+    }).catch((e) => { log.fail('na-goraco', e); toast.error(e?.message ?? 'Nie udało się wczytać zgłoszenia'); navigation.goBack(); })
+      .finally(() => setLoading(false));
+  }, [editId, navigation]);
+
+  // Nowe zgłoszenie: pozycja telefonu teraz (zdarzenie dzieje się tu i teraz).
+  useEffect(() => {
+    if (editId) return;
+    let stop = false;
+    (async () => {
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (!perm.granted) { if (!stop) setLocating('off'); return; }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      if (stop) return;
+      await geocode(pos.coords.latitude, pos.coords.longitude);
+      setLocating('done');
+    })().catch((e: any) => { log.warn('na-goraco', `GPS: ${String(e?.message ?? e).slice(0, 160)}`); if (!stop) setLocating('off'); });
+    return () => { stop = true; };
+  }, [editId, geocode]);
+
+  const onMapConfirm = async (p: PickedPlace) => {
+    setMapOpen(false);
+    try {
+      if (p.geo) { setPlace({ lat: p.lat, lng: p.lng, geo: p.geo }); setAddress(p.geo.display); }
+      else await geocode(p.lat, p.lng);
+      setLocating('done');
+      setErr(null);
+    } catch (e: any) { toast.error(e?.message ?? String(e)); }
+  };
+
+  const addPhoto = async () => {
+    try {
+      const uri = await takePhoto();
+      if (uri) setPhotoUri(uri);
+    } catch (e: any) { toast.error(e?.message ?? String(e)); }
+  };
+
+  const removeVideo = () => {
+    if (video?.uri) { setVideo(null); return; }
+    // nagranie zapisane już w szkicu – usuń je z serwera
+    Alert.alert('Usunąć nagranie?', 'Film zostanie usunięty ze zgłoszenia.', [
+      { text: 'Anuluj', style: 'cancel' },
+      { text: 'Usuń', style: 'destructive', onPress: () => {
+        if (!draft.current) return;
+        deleteReportVideo(draft.current.id).then(() => setVideo(null)).catch((e) => toast.error(e?.message ?? String(e)));
+      } },
+    ]);
+  };
+
+  const submit = async () => {
+    setErr(null);
+    const missing = adHocMissing({ category, plateId, address, hasPlace: !!place });
+    if (missing) { setErr({ text: missing }); toast.error(missing); return; }
+    try {
+      setSubmitting('Tworzę zgłoszenie…');
+      draft.current ??= await createDraft();
+      const id = draft.current.id;
+      if (photoUri && sent.current.photo !== photoUri) {
+        setSubmitting('Wysyłam zdjęcie…');
+        const staged = await stagePhoto(photoUri, { dateTime: localIso(at.current), lat: place!.lat, lng: place!.lng });
+        await assignReportPhoto(id, 'carImage', staged.photoId);
+        sent.current.photo = photoUri;
+      }
+      if (video?.uri && sent.current.video !== video.uri) {
+        setSubmitting(video.size ? `Wysyłam nagranie (${fmtMB(video.size)})…` : 'Wysyłam nagranie…');
+        await uploadReportVideo(id, video.uri);
+        sent.current.video = video.uri;
+      }
+      setSubmitting('Zapisuję…');
+      await saveReport(id, adHocReportForm({ category: category!, plateId, address, geo: place!.geo, lat: place!.lat, lng: place!.lng, comment, at: at.current }));
+      navigation.navigate('ReportConfirm', { appId: id });
+    } catch (e: any) {
+      log.fail('na-goraco', e);
+      const m = e?.message ?? String(e);
+      setErr({ field: e instanceof ApiError ? e.field : undefined, text: m });
+      toast.error(m);
+    } finally {
+      setSubmitting('');
+    }
+  };
+
+  if (!enabled) {
+    return (
+      <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
+        <UdHeader title="Na gorąco" onBack={() => navigation.goBack()} />
+        <Text style={{ color: ud.text, padding: 16, lineHeight: 21 }}>Zgłoszenia na gorąco są na razie dostępne tylko w wersji testowej.</Text>
+      </View>
+    );
+  }
+  if (loading) return <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}><UdHeader onBack={() => navigation.goBack()} /><ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} /></View>;
+
+  const label = { fontFamily: ud.fontBodyBold, color: ud.heading, marginTop: 18, marginBottom: 6 } as const;
+  const input = { backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusSm, padding: 10, marginTop: 4, color: ud.text, fontSize: 16 } as const;
+  const errFor = (f: string) => (err?.field === f ? <Text style={{ color: ud.plateVerified, marginTop: 4 }}>{err.text}</Text> : null);
+  const busy = !!submitting;
+
+  return (
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
+      <UdHeader onBack={() => navigation.goBack()} />
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+        <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>Zgłoszenie na gorąco</Text>
+        <Text style={{ color: ud.muted, marginTop: 6, lineHeight: 20 }}>
+          Tuning, hałas, drift – zgłoś teraz, w trakcie zdarzenia. Zgłoszenie trafi do wojewódzkiej skrzynki „Stop agresji drogowej” Policji
+          z prośbą o ukaranie kierującego i kontrolę stanu technicznego pojazdu. Wersja testowa.
+        </Text>
+
+        <Text style={label}>Co się dzieje?</Text>
+        <View style={{ gap: 10 }}>
+          {cats.map((c) => {
+            const on = category === c.id;
+            return (
+              <Pressable key={c.id} onPress={() => { setCategory(c.id); setErr(null); }} accessibilityRole="radio" accessibilityState={{ checked: on }}
+                style={{ flexDirection: 'row', gap: 12, alignItems: 'center', padding: 10, borderRadius: ud.radiusSm, backgroundColor: ud.surface, borderWidth: 2, borderColor: on ? ud.primary : 'transparent' }}>
+                <Image source={{ uri: `${udConfig.base}/img/${c.id}.jpg` }} style={{ width: 56, height: 56, borderRadius: ud.radiusButton, backgroundColor: ud.surfaceCream }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading }}>{c.title}</Text>
+                  {c.short ? <Text style={{ color: ud.text, marginTop: 2 }}>{c.short}</Text> : null}
+                  {c.price ? <Text style={{ color: ud.muted, marginTop: 2, fontSize: 13 }}>{c.price}</Text> : null}
+                </View>
+                <Pressable onPress={() => setInfo(c)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Więcej o: ${c.title}`}>
+                  <Text style={{ color: ud.primary, textDecorationLine: 'underline' }}>więcej</Text>
+                </Pressable>
+              </Pressable>
+            );
+          })}
+          {cats.length === 0 ? <ActivityIndicator color={ud.primary} /> : null}
+        </View>
+        {info ? (
+          <View style={{ marginTop: 10, padding: 12, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream }}>
+            <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading }}>{info.title}</Text>
+            {info.desc ? <HtmlText html={info.desc} /> : null}
+            {info.law ? <Text style={{ color: ud.muted, marginTop: 6, fontSize: 13 }}>{info.law}</Text> : null}
+            <Pressable onPress={() => setInfo(null)} style={{ marginTop: 6 }}><Text style={{ color: ud.primary }}>Zamknij</Text></Pressable>
+          </View>
+        ) : null}
+        {errFor('category')}
+
+        <Text style={label}>Numer rejestracyjny</Text>
+        <TextInput {...inputColors} value={plateId} onChangeText={(t) => setPlateId(t.toUpperCase())} autoCapitalize="characters" autoCorrect={false} placeholder="np. WX 12345" style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }]} />
+        {errFor('plateId')}
+
+        <Text style={label}>Dowody (opcjonalne)</Text>
+        <Text style={{ color: ud.muted, marginBottom: 8, lineHeight: 20 }}>Nagraj krótki film z dźwiękiem albo zrób zdjęcie. Możesz też zgłosić bez materiałów – wtedy liczy się Twoja relacja.</Text>
+        {video ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, borderRadius: ud.radiusSm, backgroundColor: ud.surface }}>
+            <Text style={{ color: ud.text, fontFamily: ud.fontBodyBold }}>🎬 Nagranie{video.size ? ` · ${fmtMB(video.size)}` : ''}{video.uri ? '' : ' (dołączone)'}</Text>
+            <View style={{ flexDirection: 'row', gap: 14 }}>
+              <Pressable onPress={() => navigation.navigate('AdHocCamera')} disabled={busy}><Text style={{ color: ud.primary }}>Nagraj ponownie</Text></Pressable>
+              <Pressable onPress={removeVideo} disabled={busy}><Text style={{ color: ud.plateVerified }}>Usuń</Text></Pressable>
+            </View>
+          </View>
+        ) : (
+          <UdButton title="🎬 Nagraj film" variant="accent" onPress={() => navigation.navigate('AdHocCamera')} disabled={busy} />
+        )}
+        {errFor('video')}
+        <View style={{ marginTop: 10 }}>
+          {photoUri ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Image source={{ uri: photoUri }} style={{ width: 72, height: 72, borderRadius: ud.radiusSm }} />
+              <Pressable onPress={addPhoto} disabled={busy}><Text style={{ color: ud.primary }}>Zrób inne</Text></Pressable>
+              <Pressable onPress={() => setPhotoUri(null)} disabled={busy}><Text style={{ color: ud.plateVerified }}>Usuń</Text></Pressable>
+            </View>
+          ) : (
+            <UdButton title="📷 Zrób zdjęcie" variant="outline" onPress={addPhoto} disabled={busy} />
+          )}
+        </View>
+
+        <Text style={label}>Miejsce</Text>
+        {locating === 'wait' && !place ? (
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}><ActivityIndicator color={ud.primary} /><Text style={{ color: ud.muted }}>Ustalam Twoją lokalizację…</Text></View>
+        ) : null}
+        {locating === 'off' && !place ? <Text style={{ color: ud.plateVerified }}>Brak lokalizacji z telefonu – wskaż miejsce na mapie.</Text> : null}
+        {place ? (
+          <>
+            <TextInput {...inputColors} value={address} onChangeText={setAddress} placeholder="Ulica 10, Miasto" style={input} />
+            <MapPreview lat={place.lat} lng={place.lng} hideLabel />
+          </>
+        ) : null}
+        <Pressable onPress={() => setMapOpen(true)} style={{ marginTop: 8 }} disabled={busy}>
+          <Text style={{ color: ud.primary, textDecorationLine: 'underline' }}>{place ? 'Popraw na mapie' : 'Wskaż na mapie'}</Text>
+        </Pressable>
+        {errFor('address')}
+
+        <Text style={label}>Opis (opcjonalny)</Text>
+        <TextInput {...inputColors} value={comment} onChangeText={setComment} multiline placeholder="np. kilkukrotne „strzały” z wydechu przy przejściu dla pieszych" style={{ ...input, minHeight: 80, textAlignVertical: 'top' }} />
+        {errFor('comment')}
+
+        <Text style={{ color: ud.muted, marginTop: 14, fontSize: 13 }}>
+          Czas zdarzenia: {localIso(at.current).replace('T', ', ').slice(0, 17)} – teraz, w chwili zgłoszenia. Zgłaszasz jako naoczny świadek.
+        </Text>
+        {errFor('datetime')}
+        {err && !err.field ? <Text style={{ color: ud.plateVerified, marginTop: 10 }}>{err.text}</Text> : null}
+
+        <View style={{ marginTop: 20 }}>
+          {busy ? (
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', padding: 12 }}><ActivityIndicator color={ud.primary} /><Text style={{ color: ud.text }}>{submitting}</Text></View>
+          ) : (
+            <UdButton title="Dalej" onPress={submit} />
+          )}
+        </View>
+      </ScrollView>
+      <MapPicker visible={mapOpen} initial={place ? { lat: place.lat, lng: place.lng } : null} fallback={mapStart} onConfirm={onMapConfirm} onClose={() => setMapOpen(false)} />
+    </KeyboardAvoidingView>
+  );
+}

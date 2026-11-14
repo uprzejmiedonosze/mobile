@@ -8,6 +8,7 @@ import { useFonts, BricolageGrotesque_700Bold } from '@expo-google-fonts/bricola
 import { PublicSans_400Regular, PublicSans_700Bold } from '@expo-google-fonts/public-sans';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { NewReportScreen } from './src/screens/NewReportScreen';
+import { AdHocReportScreen } from './src/screens/AdHocReportScreen';
 import { ReportConfirmScreen } from './src/screens/ReportConfirmScreen';
 import { ReportDoneScreen } from './src/screens/ReportDoneScreen';
 import { ReportsScreen } from './src/screens/ReportsScreen';
@@ -134,6 +135,9 @@ export default function App() {
           <Stack.Screen name="QuotaInfo" component={QuotaInfoScreen} options={{ title: 'Limity' }} />
           {/* leniwie: expo-camera przy imporcie wymaga modułu natywnego, a build bez niego ma działać (poza tym ekranem) */}
           <Stack.Screen name="WaitingCamera" getComponent={() => require('./src/screens/WaitingCameraScreen').WaitingCameraScreen} options={{ headerShown: false, title: 'Aparat' }} />
+          {/* zgłoszenie „na gorąco” (tuning, drift – lib/adHoc.ts); aparat leniwie z tego samego powodu co wyżej */}
+          <Stack.Screen name="AdHocReport" component={AdHocReportScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="AdHocCamera" getComponent={() => require('./src/screens/AdHocCameraScreen').AdHocCameraScreen} options={{ headerShown: false }} />
           <Stack.Screen name="WebPage" component={WebPageScreen} options={{ title: '' }} />
         </Stack.Navigator>
       )}
