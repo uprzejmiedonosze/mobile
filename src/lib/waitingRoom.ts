@@ -21,6 +21,12 @@ export type WaitingPhoto = {
   draftId?: string; // szkic, do którego trafiło zdjęcie
   usedAt?: number;
   owner?: string; // konto (e-mail, małymi literami), na którym zrobiono zdjęcie; brak = zdjęcie sprzed oznaczania kont
+  // Nagranie (tryb WIDEO w aparacie, tylko gdy włączone zgłoszenia „na gorąco”): plik .mp4 zamiast .jpg, okładka obok.
+  // Brak `kind` = zdjęcie (wpisy sprzed nagrań).
+  kind?: 'photo' | 'video';
+  durationMs?: number;
+  size?: number; // bajty
+  posterUri?: string; // okładka nagrania – liczona przy odczycie, nie zapisywana w JSON-ie
 };
 
 export const ownerKey = (email: string): string => email.trim().toLowerCase();
@@ -43,6 +49,15 @@ export function claimLegacy(all: WaitingPhoto[], owner: string): { photos: Waiti
   });
   return { photos, claimed };
 }
+
+
+export const isVideo = (p: Pick<WaitingPhoto, 'kind'>): boolean => p.kind === 'video';
+
+// Zgłoszenie „na gorąco” przyjmuje datę najwyżej sprzed 24 h (AD_HOC_MAX_AGE_HOURS w API.php); zapas na wypełnienie formularza.
+export const AD_HOC_MAX_AGE_MS = 24 * 3600_000;
+export const AD_HOC_FORM_SLACK_MS = 15 * 60_000;
+export const adHocEligible = (p: Pick<WaitingPhoto, 'takenAtMs'>, nowMs: number): boolean =>
+  nowMs - p.takenAtMs <= AD_HOC_MAX_AGE_MS - AD_HOC_FORM_SLACK_MS;
 
 export type Pack = { id: string; photos: WaitingPhoto[]; startMs: number; endMs: number };
 export type Fix = { lat: number; lng: number; accuracy: number | null; atMs: number };
@@ -88,10 +103,10 @@ export function splitOversized(photos: WaitingPhoto[], max: number = MAX_PACK): 
   return [...splitOversized(photos.slice(0, at), max), ...splitOversized(photos.slice(at), max)];
 }
 
-// Paczki od najnowszej, zdjęcia w paczce od najstarszego.
+// Paczki od najnowszej, zdjęcia w paczce od najstarszego. Nagrania nie wchodzą do paczek – mają własne karty.
 export function packPhotos(photos: WaitingPhoto[]): Pack[] {
   const byCar = new Map<number, WaitingPhoto[]>();
-  for (const p of photos) byCar.set(p.carSeq, [...(byCar.get(p.carSeq) ?? []), p]);
+  for (const p of photos) if (!isVideo(p)) byCar.set(p.carSeq, [...(byCar.get(p.carSeq) ?? []), p]);
   const packs: Pack[] = [];
   for (const list of byCar.values()) {
     const byId = new Map(list.map((p) => [p.id, p]));

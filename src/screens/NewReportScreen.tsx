@@ -503,17 +503,6 @@ export function NewReportScreen({ navigation, route }: any) {
           </Pressable>
         ) : null}
 
-        {adHocEnabled && !editId && !waitingIds ? (
-          <Pressable onPress={() => navigation.navigate('AdHocReport')} accessibilityRole="button" android_ripple={ripple}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, marginBottom: 12, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream, borderWidth: 1, borderColor: ud.accent }}>
-            <Text style={{ fontSize: 22 }}>🎬</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading }}>Zgłoś na gorąco (test)</Text>
-              <Text style={{ color: ud.text, marginTop: 2 }}>Głośny wydech, drift – nagraj film w aplikacji i wyślij do Policji.</Text>
-            </View>
-            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>›</Text>
-          </Pressable>
-        ) : null}
         <PhotoQuotaNotice quota={quota} patronem={patron} onMore={() => navigation.navigate('QuotaInfo')} />
         <PhotosSection
           tiles={tiles}

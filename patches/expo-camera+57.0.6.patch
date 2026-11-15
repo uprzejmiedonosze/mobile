@@ -1,0 +1,29 @@
+diff --git a/node_modules/expo-camera/android/src/main/java/expo/modules/camera/ExpoCameraView.kt b/node_modules/expo-camera/android/src/main/java/expo/modules/camera/ExpoCameraView.kt
+index 999a22c..5799c44 100644
+--- a/node_modules/expo-camera/android/src/main/java/expo/modules/camera/ExpoCameraView.kt
++++ b/node_modules/expo-camera/android/src/main/java/expo/modules/camera/ExpoCameraView.kt
+@@ -118,6 +118,7 @@ class ExpoCameraView(
+ 
+         imageAnalysisUseCase?.targetRotation = rotation
+         imageCaptureUseCase?.targetRotation = rotation
++        videoCaptureUseCase?.targetRotation = rotation
+       }
+     }
+   }
+@@ -128,6 +129,7 @@ class ExpoCameraView(
+   private var cameraProvider: ProcessCameraProvider? = null
+   private var imageCaptureUseCase: ImageCapture? = null
+   private var imageAnalysisUseCase: ImageAnalysis? = null
++  private var videoCaptureUseCase: VideoCapture<Recorder>? = null
+   private var recorder: Recorder? = null
+   private var barcodeFormats: List<BarcodeType> = emptyList()
+   private var glSurfaceTexture: SurfaceTexture? = null
+@@ -513,7 +515,7 @@ class ExpoCameraView(
+ 
+     imageCaptureUseCase = imageCaptureBuilder.build()
+ 
+-    val videoCapture = createVideoCapture()
++    val videoCapture = createVideoCapture().also { videoCaptureUseCase = it }
+     imageAnalysisUseCase = createImageAnalyzer()
+ 
+     val useCases = UseCaseGroup.Builder().apply {

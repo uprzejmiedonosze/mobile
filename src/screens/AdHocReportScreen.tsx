@@ -18,6 +18,7 @@ import { takePhoto } from '../lib/gallery';
 import { log } from '../lib/log';
 import { downscale } from '../lib/resize';
 import { useAuth } from '../store/useAuth';
+import { useWaitingRoom } from '../store/useWaitingRoom';
 import { toast } from '../store/useToast';
 import { ud, inputColors } from '../theme';
 import type { Category, GeoAddress } from '../types';
@@ -29,8 +30,9 @@ const parseLocal = (s?: string): Date | null => {
   return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] ?? 0)) : null;
 };
 
-// Zgłoszenie „na gorąco” (tuning: hałas/wydech, drift) – składane w chwili zdarzenia. Data = otwarcie ekranu, miejsce = GPS telefonu
-// (można poprawić na mapie), materiał: film nagrany w aplikacji (AdHocCamera), zdjęcie z aparatu albo sama relacja świadka.
+// Zgłoszenie „na gorąco” (tuning: hałas/wydech, drift). Zwykle z nagrania z poczekalni (`waitingVideoId`, aparat z pulpitu w trybie WIDEO):
+// data = chwila nagrania, miejsce = GPS zapisany przy nagraniu. Bez niego (edycja, film z AdHocCamera) data = otwarcie ekranu, miejsce = GPS
+// telefonu teraz; wszystko można poprawić na mapie. Materiał: film, zdjęcie albo klatka z filmu, ewentualnie sama relacja świadka.
 // Odbiorcę (wojewódzka skrzynka „Stop agresji drogowej”) i treść wybiera backend; dalej jak zwykle: ReportConfirm → wysyłka.
 // Szkic powstaje dopiero przy „Dalej”, więc porzucony formularz nie zostawia nic na serwerze.
 export function AdHocReportScreen({ navigation, route }: any) {
@@ -38,9 +40,13 @@ export function AdHocReportScreen({ navigation, route }: any) {
   const videoParam: string | undefined = route?.params?.videoUri;
   const videoSizeParam: number | null = route?.params?.videoSize ?? null;
   const frameParam: string | undefined = route?.params?.frameUri; // klatka z nagrania (AdHocFrame) = zdjęcie auta
+  const waitingVideoId: string | undefined = route?.params?.waitingVideoId;
+  // nagranie z poczekalni (store jest już wczytany – wchodzimy z WaitingRoom)
+  const [waitingVideo] = useState(() => (waitingVideoId ? useWaitingRoom.getState().photos.find((p) => p.id === waitingVideoId) : undefined));
+  const videoFix = waitingVideo?.lat != null && waitingVideo?.lng != null ? { lat: waitingVideo.lat, lng: waitingVideo.lng } : null;
   const enabled = useAuth((s) => s.adHocReports);
 
-  const at = useRef(new Date());
+  const at = useRef(new Date(waitingVideo?.takenAtMs ?? Date.now()));
   const draft = useRef<UdApp | null>(null); // szkic po pierwszej (może nieudanej) próbie – ponowienie go nie dubluje
   const sent = useRef({ video: '', photo: '' }); // co już jest w szkicu (uri), żeby ponowienie nie wysyłało drugi raz
   const [cats, setCats] = useState<Category[]>([]);
@@ -53,7 +59,8 @@ export function AdHocReportScreen({ navigation, route }: any) {
   const [locating, setLocating] = useState<'wait' | 'off' | 'done'>('wait');
   const [mapOpen, setMapOpen] = useState(false);
   const [mapStart, setMapStart] = useState<{ lat: number; lng: number } | null>(null);
-  const [video, setVideo] = useState<{ uri: string | null; size: number | null } | null>(null); // uri null = nagranie już w szkicu (edycja)
+  const [video, setVideo] = useState<{ uri: string | null; size: number | null } | null>( // uri null = nagranie już w szkicu (edycja)
+    waitingVideo ? { uri: waitingVideo.uri, size: waitingVideo.size ?? null } : null);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoFromVideo, setPhotoFromVideo] = useState(false);
   // Zdjęcie (albo klatka) idzie na serwer od razu po wyborze i przechodzi ALPR – numer wpisujemy, gdy pole jest puste.
@@ -96,9 +103,16 @@ export function AdHocReportScreen({ navigation, route }: any) {
       .finally(() => setLoading(false));
   }, [editId, navigation]);
 
-  // Nowe zgłoszenie: pozycja telefonu teraz (zdarzenie dzieje się tu i teraz).
+  // Nagranie z poczekalni z GPS: miejsce nagrania, nie obecna pozycja telefonu.
   useEffect(() => {
-    if (editId) return;
+    if (editId || !videoFix) return;
+    geocode(videoFix.lat, videoFix.lng).then(() => setLocating('done'))
+      .catch((e: any) => { log.warn('na-goraco', `adres nagrania: ${String(e?.message ?? e).slice(0, 160)}`); setLocating('off'); });
+  }, [editId, geocode, videoFix?.lat, videoFix?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Nowe zgłoszenie bez GPS z nagrania: pozycja telefonu teraz (zdarzenie dzieje się tu i teraz).
+  useEffect(() => {
+    if (editId || videoFix) return;
     let stop = false;
     (async () => {
       const perm = await Location.requestForegroundPermissionsAsync();
@@ -175,6 +189,8 @@ export function AdHocReportScreen({ navigation, route }: any) {
       setSubmitting('Tworzę zgłoszenie…');
       draft.current ??= await createDraft();
       const id = draft.current.id;
+      // nagranie z poczekalni → „W szkicach”; po wysłaniu ReportDone je usuwa (removeDrafts), a szkic da się otworzyć z poczekalni
+      if (waitingVideo) useWaitingRoom.getState().markUsed([waitingVideo.id], id);
       if (photoUri && sent.current.photo !== photoUri) {
         setSubmitting('Wysyłam zdjęcie…');
         // wysłane już przy wyborze (także w trakcie odczytu tablicy) – nie wysyłamy drugi raz; nieudana wysyłka = ponowienie tutaj
@@ -222,7 +238,7 @@ export function AdHocReportScreen({ navigation, route }: any) {
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
         <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>Zgłoszenie na gorąco</Text>
         <Text style={{ color: ud.muted, marginTop: 6, lineHeight: 20 }}>
-          Tuning, hałas, drift – zgłoś teraz, w trakcie zdarzenia. Zgłoszenie trafi do wojewódzkiej skrzynki „Stop agresji drogowej” Policji
+          Tuning, hałas, drift – zdarzenie z ostatnich 24 godzin. Zgłoszenie trafi do wojewódzkiej skrzynki „Stop agresji drogowej” Policji
           z prośbą o ukaranie kierującego i kontrolę stanu technicznego pojazdu. Wersja testowa.
         </Text>
 
@@ -267,7 +283,7 @@ export function AdHocReportScreen({ navigation, route }: any) {
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, borderRadius: ud.radiusSm, backgroundColor: ud.surface }}>
             <Text style={{ color: ud.text, fontFamily: ud.fontBodyBold }}>🎬 Nagranie{video.size ? ` · ${fmtMB(video.size)}` : ''}{video.uri ? '' : ' (dołączone)'}</Text>
             <View style={{ flexDirection: 'row', gap: 14 }}>
-              <Pressable onPress={() => navigation.navigate('AdHocCamera')} disabled={busy}><Text style={{ color: ud.primary }}>Nagraj ponownie</Text></Pressable>
+              {waitingVideo ? null : <Pressable onPress={() => navigation.navigate('AdHocCamera')} disabled={busy}><Text style={{ color: ud.primary }}>Nagraj ponownie</Text></Pressable>}
               <Pressable onPress={removeVideo} disabled={busy}><Text style={{ color: ud.plateVerified }}>Usuń</Text></Pressable>
             </View>
           </View>
@@ -334,7 +350,7 @@ export function AdHocReportScreen({ navigation, route }: any) {
         {errFor('comment')}
 
         <Text style={{ color: ud.muted, marginTop: 14, fontSize: 13 }}>
-          Czas zdarzenia: {localIso(at.current).replace('T', ', ').slice(0, 17)} – teraz, w chwili zgłoszenia. Zgłaszasz jako naoczny świadek.
+          Czas zdarzenia: {localIso(at.current).replace('T', ', ').slice(0, 17)} – {waitingVideo ? 'chwila nagrania' : 'teraz, w chwili zgłoszenia'}. Zgłaszasz jako naoczny świadek.
         </Text>
         {errFor('datetime')}
         {err && !err.field ? <Text style={{ color: ud.plateVerified, marginTop: 10 }}>{err.text}</Text> : null}

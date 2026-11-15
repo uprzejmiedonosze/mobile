@@ -12,11 +12,13 @@ export const waitingRoomEnabled = Platform.OS === 'android' || Platform.OS === '
 // Zdjęcia z aparatu w appce żyją w jej prywatnym katalogu: <id>.jpg + <id>.json (metadane). Osobny plik na zdjęcie, żeby awaria w trakcie
 // zapisu kosztowała najwyżej jedno zdjęcie. W JSON-ie nie ma uri: ścieżka katalogu appki może się zmienić po aktualizacji.
 const dir = () => new Directory(Paths.document, 'waiting-room');
-const image = (id: string) => new File(dir(), `${id}.jpg`);
+// Nagrania (kind: 'video'): <id>.mp4 + okładka <id>.poster.jpg. Wpis bez `kind` to zdjęcie (sprzed nagrań).
+const media = (id: string, kind?: WaitingPhoto['kind']) => new File(dir(), `${id}.${kind === 'video' ? 'mp4' : 'jpg'}`);
+const poster = (id: string) => new File(dir(), `${id}.poster.jpg`);
 const meta = (id: string) => new File(dir(), `${id}.json`);
-const save = ({ uri: _uri, ...p }: WaitingPhoto) => meta(p.id).write(JSON.stringify(p));
+const save = ({ uri: _uri, posterUri: _poster, ...p }: WaitingPhoto) => meta(p.id).write(JSON.stringify(p));
 
-type Shot = { uri: string; takenAtMs: number; fix: Fix | null; carSeq: number };
+type Shot = { uri: string; takenAtMs: number; fix: Fix | null; carSeq: number; kind?: 'photo' | 'video'; durationMs?: number; size?: number };
 
 const currentOwner = () => ownerKey(useAuth.getState().email);
 
@@ -26,6 +28,7 @@ type WaitingRoom = {
   hydrated: boolean;
   hydrate: () => void;
   add: (shot: Shot) => WaitingPhoto;
+  setPoster: (id: string, uri: string) => void; // okładka nagrania (generowana po zapisie, może się nie udać)
   remove: (ids: string[]) => void;
   markUsed: (ids: string[], draftId: string) => void; // zdjęcia są już w szkicu, ale zostają: szkic trzeba móc otworzyć (nie ma go na liście zgłoszeń)
   restore: (ids: string[]) => void; // z powrotem do poczekalni
@@ -55,8 +58,10 @@ export const useWaitingRoom = create<WaitingRoom>((set, get) => {
         if (!(f instanceof File) || !f.name.endsWith('.json')) continue;
         try {
           const p = JSON.parse(f.textSync()) as WaitingPhoto;
-          const img = image(p.id);
-          if (img.exists) photos.push({ ...p, uri: img.uri });
+          const file = media(p.id, p.kind);
+          if (!file.exists) continue;
+          const cover = p.kind === 'video' ? poster(p.id) : null;
+          photos.push({ ...p, uri: file.uri, ...(cover?.exists ? { posterUri: cover.uri } : {}) });
         } catch (e: any) {
           log.warn('poczekalnia', `uszkodzony wpis ${f.name}: ${String(e?.message ?? e).slice(0, 120)}`);
         }
@@ -67,23 +72,34 @@ export const useWaitingRoom = create<WaitingRoom>((set, get) => {
     set({ hydrated: true });
     commit(photos.sort((a, b) => a.takenAtMs - b.takenAtMs));
   },
-  add: ({ uri, takenAtMs, fix, carSeq }) => {
+  add: ({ uri, takenAtMs, fix, carSeq, kind, durationMs, size }) => {
     const id = `${takenAtMs}-${Math.random().toString(36).slice(2, 8)}`;
     dir().create({ intermediates: true, idempotent: true });
     // expo-camera zapisuje do cache, który system może wyczyścić – przenosimy od razu
-    const target = image(id);
+    const target = media(id, kind);
     new File(uri).moveSync(target);
     const photo: WaitingPhoto = {
       id, uri: target.uri, takenAtMs, datetimeOriginal: exifDate(takenAtMs),
       lat: fix?.lat ?? null, lng: fix?.lng ?? null, accuracy: fix?.accuracy ?? null, carSeq, owner: currentOwner() || undefined,
+      ...(kind === 'video' ? { kind, durationMs, size } : {}),
     };
     save(photo);
     commit([...get().all, photo]);
     return photo;
   },
+  setPoster: (id, uri) => {
+    try {
+      const target = poster(id);
+      if (target.exists) target.delete();
+      new File(uri).moveSync(target);
+      set({ photos: get().photos.map((p) => (p.id === id ? { ...p, posterUri: target.uri } : p)) });
+    } catch (e: any) {
+      log.warn('poczekalnia', `okładka ${id}: ${String(e?.message ?? e).slice(0, 120)}`);
+    }
+  },
   remove: (ids) => {
     for (const id of ids) {
-      for (const f of [image(id), meta(id)]) {
+      for (const f of [media(id, 'photo'), media(id, 'video'), poster(id), meta(id)]) {
         try { if (f.exists) f.delete(); } catch (e: any) { log.warn('poczekalnia', `usuwanie ${id}: ${String(e?.message ?? e).slice(0, 120)}`); }
       }
     }

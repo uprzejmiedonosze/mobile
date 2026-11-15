@@ -60,8 +60,12 @@ RevenueCat; SDK konfigurujemy leniwie, z `appUserId` z backendu (`GET /api/rest/
 produktów muszą być zgodne z backendem (`config.php: IAP_PRODUCTS`) i App Store Connect. `WebPageScreen` blokuje na iOS odnośniki
 płatnicze. Moduł nie jest linkowany na Androidzie (`react-native.config.js`).
 
-**Zgłoszenie na gorąco (tuning, drift; wersja testowa).** `AdHocReportScreen` (wejście z „Nowe”) + `AdHocCameraScreen` (film tylko z aplikacji,
-720p, ≤25 s, ≤14 MB, z dźwiękiem): data = chwila zgłoszenia, miejsce = GPS telefonu, materiał opcjonalny (film / zdjęcie / sama relacja).
+**Zgłoszenie na gorąco (tuning, drift; wersja testowa).** Pulpit (Android) ma jedno główne CTA „Zrób zdjęcie lub film” → `WaitingCameraScreen`
+z przełącznikiem ZDJĘCIE/WIDEO (WIDEO tylko przy `features.adHocReports`; mikrofon pytany dopiero przy przełączeniu; 720p, ≤25 s, ≤14 MB, z dźwiękiem).
+Nagranie czeka w poczekalni (`kind: 'video'`, `<id>.mp4` + okładka `<id>.poster.jpg`, poza paczkami zdjęć) i z jej karty otwiera `AdHocReportScreen`
+(`waitingVideoId`): data = chwila nagrania (≤24 h, `adHocEligible`), miejsce = GPS nagrania; „Nowe” nie ma już wejścia „na gorąco”. Obrót nagrań w poziomie
+przy appce zablokowanej w pionie daje łatka `patches/expo-camera+*.patch` (patch-package w `postinstall`; bez niej film wychodzi obrócony).
+`AdHocCameraScreen` zostaje tylko do nagrania z formularza bez filmu. Materiał opcjonalny (film / zdjęcie / sama relacja).
 Kategorie `adHoc` (31 hałas/wydech, 32 drift) nie mają `groups`; backend nie wymaga dla nich zdjęć, przyjmuje datę ≤24 h i wysyła zawsze na
 wojewódzką skrzynkę „Stop agresji drogowej” (`StopAgresji::guessVoivodeship`), wideo (`POST /app/{id}/video`) ląduje na B2, a mail zawiera link do niego (`/cdn2/…`, nginx z dysku albo proxy z B2).
 Z filmu można wybrać klatkę z czytelną tablicą (`AdHocFrameScreen`, `expo-video` – klatka dokładna, nie kluczowa): klatka albo zdjęcie idzie od razu na `/photos` + ALPR (`bestPlate`), numer wpisuje się, gdy pole jest puste, a zdjęcie trafia do slotu `carImage`.

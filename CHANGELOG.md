@@ -19,6 +19,7 @@
 - Logowanie i Konto: przy otwartej klawiaturze (iPhone) można przewinąć formularz do końca, klawiatura nie zasłania już przycisków pod polem.
 - Poczekalnia: zdjęcia są przypisane do konta – po zalogowaniu na inne konto nie widać cudzych zdjęć. Android: w Koncie jest opcja zapisywania kopii zdjęć z aparatu w galerii (album „Uprzejmie Donoszę”), domyślnie wyłączona; kopia zapasowa zdjęć poczekalni w chmurze Google jest wyłączona.
 - Logowanie: usunięta informacja o wersji beta z ekranu logowania.
+- Ekran główny (Android): najważniejszy przycisk to teraz „Zrób zdjęcie” – zdjęcia trafiają do poczekalni, a zgłoszenie przygotujesz później. Nowe zgłoszenie i poczekalnia są w dolnym menu.
 
 ## v1.3.2 — 2026-11-08
 

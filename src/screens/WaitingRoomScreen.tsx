@@ -5,8 +5,10 @@ import { validIdToken } from '../api/udApi';
 import { ImageViewer } from '../components/ImageViewer';
 import { UdButton, UdTabs } from '../components/UD';
 import { goTab } from '../lib/goTab';
+import { fmtMB } from '../lib/adHoc';
 import { plural } from '../lib/reports';
-import { bestFix, packPhotos, type Pack, type WaitingPhoto } from '../lib/waitingRoom';
+import { adHocEligible, bestFix, isVideo, packPhotos, type Pack, type WaitingPhoto } from '../lib/waitingRoom';
+import { useAuth } from '../store/useAuth';
 import { useWaitingRoom } from '../store/useWaitingRoom';
 import { ud } from '../theme';
 
@@ -25,10 +27,20 @@ function gpsLabel(photos: WaitingPhoto[]) {
   return { text: acc.length ? `GPS ±${Math.round(Math.min(...acc))} m` : 'GPS', color: ud.muted };
 }
 
-function Thumb({ photo, on, onPress, onLongPress }: { photo: WaitingPhoto; on: boolean; onPress?: () => void; onLongPress: () => void }) {
+// Nagranie: okładka (albo ciemny kafelek) z 🎬 – plik .mp4 nie nadaje się do <Image> ani do podglądu zdjęć.
+function VideoTile({ video, dim }: { video: WaitingPhoto; dim?: boolean }) {
   return (
-    <Pressable onPress={onPress} onLongPress={onLongPress} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={`Zdjęcie z ${hhmm(photo.takenAtMs)}`} style={{ flex: 1, maxWidth: '33%', aspectRatio: 1, borderRadius: ud.radiusSm, overflow: 'hidden', borderWidth: 3, borderColor: on ? ud.primary : ud.hairline }}>
-      <Image source={{ uri: photo.uri }} resizeMethod="resize" style={{ flex: 1, opacity: on ? 1 : 0.35 }} />
+    <View style={{ flex: 1, backgroundColor: '#222', alignItems: 'center', justifyContent: 'center', opacity: dim ? 0.35 : 1 }}>
+      {video.posterUri ? <Image source={{ uri: video.posterUri }} resizeMethod="resize" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} /> : null}
+      <Text style={{ fontSize: 22 }}>🎬</Text>
+    </View>
+  );
+}
+
+function Thumb({ photo, on, onPress, onLongPress }: { photo: WaitingPhoto; on: boolean; onPress?: () => void; onLongPress?: () => void }) {
+  return (
+    <Pressable onPress={onPress} onLongPress={onLongPress} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={`${isVideo(photo) ? 'Nagranie' : 'Zdjęcie'} z ${hhmm(photo.takenAtMs)}`} style={{ flex: 1, maxWidth: '33%', aspectRatio: 1, borderRadius: ud.radiusSm, overflow: 'hidden', borderWidth: 3, borderColor: on ? ud.primary : ud.hairline }}>
+      {isVideo(photo) ? <VideoTile video={photo} dim={!on} /> : <Image source={{ uri: photo.uri }} resizeMethod="resize" style={{ flex: 1, opacity: on ? 1 : 0.35 }} />}
       {on ? <View style={{ position: 'absolute', top: 4, right: 4, width: 22, height: 22, borderRadius: 11, backgroundColor: ud.primary, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#fff', fontSize: 13 }}>✓</Text></View> : null}
     </Pressable>
   );
@@ -111,9 +123,16 @@ export function WaitingRoomScreen({ navigation }: any) {
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [viewer, setViewer] = useState<number | null>(null);
   const [viewerUrls, setViewerUrls] = useState<string[]>([]);
+  const videoEnabled = useAuth((s) => s.adHocReports);
 
   const waiting = useMemo(() => photos.filter((p) => !p.draftId), [photos]);
   const packs = useMemo(() => packPhotos(waiting), [waiting]);
+  const videos = useMemo(() => waiting.filter(isVideo), [waiting]);
+  // jedna oś czasu: paczki zdjęć i nagrania, od najnowszych
+  const items = useMemo(() => [
+    ...packs.map((pack) => ({ kind: 'pack' as const, key: pack.id, at: pack.startMs, pack })),
+    ...videos.map((video) => ({ kind: 'video' as const, key: video.id, at: video.takenAtMs, video })),
+  ].sort((a, b) => b.at - a.at), [packs, videos]);
   // szkice nie są na liście zgłoszeń, więc te utworzone stąd da się otworzyć tylko stąd
   const drafts = useMemo(() => {
     const m = new Map<string, WaitingPhoto[]>();
@@ -122,7 +141,13 @@ export function WaitingRoomScreen({ navigation }: any) {
   }, [photos]);
 
   const toggle = (id: string) => setExcluded((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const zoom = (list: WaitingPhoto[], i: number) => { setViewerUrls(list.map((p) => p.uri)); setViewer(i); };
+  // podgląd tylko zdjęć (nagrania nie są obrazkami)
+  const zoom = (list: WaitingPhoto[], i: number) => {
+    if (isVideo(list[i])) return;
+    const pics = list.filter((p) => !isVideo(p));
+    setViewerUrls(pics.map((p) => p.uri));
+    setViewer(pics.indexOf(list[i]));
+  };
   const chosen = (pack: Pack) => pack.photos.filter((p) => !excluded.has(p.id));
 
   const confirmRemove = (pack: Pack, back?: () => void) => {
@@ -133,26 +158,76 @@ export function WaitingRoomScreen({ navigation }: any) {
     ]);
   };
 
+  const confirmRemoveVideo = (video: WaitingPhoto, back?: () => void) => {
+    Alert.alert('Usunąć nagranie?', 'Tego filmu nie ma nigdzie indziej – nie da się go odzyskać.', [
+      { text: 'Anuluj', style: 'cancel', onPress: back },
+      { text: 'Usuń', style: 'destructive', onPress: () => { remove([video.id]); back?.(); } },
+    ]);
+  };
+
+  const dayHeader = (at: number) => {
+    const day = dayLabel(at);
+    const show = day !== lastDay;
+    lastDay = day;
+    return show ? <Text style={{ fontFamily: ud.fontBodyBold, color: ud.muted, fontSize: 12, letterSpacing: 1, marginTop: 20, marginBottom: 2 }}>{day.toUpperCase()}</Text> : null;
+  };
+
+  const card = { backgroundColor: ud.surface, borderRadius: ud.radiusCard, padding: 12, borderWidth: 1, borderColor: '#e6e3dc' } as const;
   let lastDay = '';
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
-        <UdButton title="Zrób zdjęcia" onPress={() => navigation.replace('WaitingCamera')} />
+        <UdButton title={videoEnabled ? 'Zrób zdjęcie lub film' : 'Zrób zdjęcia'} onPress={() => navigation.replace('WaitingCamera')} />
         {!photos.length ? (
-          <Text style={{ color: ud.muted, marginTop: 16, lineHeight: 21 }}>Zdjęcia zrobione w aplikacji poczekają tutaj, poza rolką aparatu. Zostają tylko na tym telefonie: odinstalowanie aplikacji je usunie.</Text>
+          <Text style={{ color: ud.muted, marginTop: 16, lineHeight: 21 }}>{videoEnabled ? 'Zdjęcia i filmy' : 'Zdjęcia'} zrobione w aplikacji poczekają tutaj, poza rolką aparatu. Zostają tylko na tym telefonie: odinstalowanie aplikacji je usunie.</Text>
         ) : null}
 
-        {packs.map((pack) => {
-          const day = dayLabel(pack.startMs);
-          const showDay = day !== lastDay;
-          lastDay = day;
+        {items.map((item) => {
+          if (item.kind === 'video') {
+            const v = item.video;
+            const fresh = adHocEligible(v, Date.now());
+            const gps = gpsLabel([v]);
+            const facts = [v.durationMs ? `${Math.round(v.durationMs / 1000)} s` : '', v.size ? fmtMB(v.size) : ''].filter(Boolean).join(' · ');
+            return (
+              <View key={item.key}>
+                {dayHeader(v.takenAtMs)}
+                <SwipeToRemove onRemove={(back) => confirmRemoveVideo(v, back)}>
+                  <View style={card}>
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      <View style={{ width: 96, height: 72, borderRadius: ud.radiusSm, overflow: 'hidden' }}><VideoTile video={v} /></View>
+                      <View style={{ flex: 1, paddingRight: 20 }}>
+                        <Text style={{ color: ud.heading, fontFamily: ud.fontBodyBold }}>
+                          🎬 {hhmm(v.takenAtMs)} · <Text style={{ color: gps.color, fontFamily: ud.fontBody }}>{gps.text}</Text>
+                        </Text>
+                        {facts ? <Text style={{ color: ud.muted, marginTop: 2 }}>{facts}</Text> : null}
+                        <PackAddress photos={[v]} />
+                      </View>
+                    </View>
+                    <Pressable onPress={() => confirmRemoveVideo(v)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Usuń nagranie" style={{ position: 'absolute', top: 8, right: 8, width: 26, height: 26, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: ud.muted, fontSize: 16 }}>✕</Text>
+                    </Pressable>
+                    <View style={{ marginTop: 10 }}>
+                      {videoEnabled && fresh ? (
+                        <UdButton title="Zgłoś na gorąco" onPress={() => navigation.push('AdHocReport', { waitingVideoId: v.id })} />
+                      ) : (
+                        <Text style={{ color: ud.muted, lineHeight: 20 }}>
+                          {videoEnabled ? 'Nagranie jest starsze niż 24 godziny – zgłoszenie na gorąco przyjmuje tylko świeże zdarzenia.' : 'Zgłoszenia z nagraniem są na razie dostępne tylko w wersji testowej.'}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </SwipeToRemove>
+              </View>
+            );
+          }
+          const pack = item.pack;
           const sel = chosen(pack);
           const gps = gpsLabel(sel.length ? sel : pack.photos);
           return (
             <View key={pack.id}>
-              {showDay ? <Text style={{ fontFamily: ud.fontBodyBold, color: ud.muted, fontSize: 12, letterSpacing: 1, marginTop: 20, marginBottom: 2 }}>{day.toUpperCase()}</Text> : null}
+              {dayHeader(pack.startMs)}
               <SwipeToRemove onRemove={(back) => confirmRemove(pack, back)}>
-              <View style={{ backgroundColor: ud.surface, borderRadius: ud.radiusCard, padding: 12, borderWidth: 1, borderColor: '#e6e3dc' }}>
+              <View style={card}>
                 <View style={{ paddingRight: 24 }}>
                   <Text style={{ color: ud.heading, fontFamily: ud.fontBodyBold }}>
                     {timeRange(pack.startMs, pack.endMs)} · <Text style={{ color: gps.color, fontFamily: ud.fontBody }}>{gps.text}</Text>

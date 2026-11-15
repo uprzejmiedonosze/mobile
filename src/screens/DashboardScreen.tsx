@@ -13,6 +13,7 @@ import type { PhotoQuota } from '../api/udApi';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { UdButton, UdTabs } from '../components/UD';
 import { goTab } from '../lib/goTab';
+import { useAuth } from '../store/useAuth';
 import { useWaitingRoom, waitingRoomEnabled } from '../store/useWaitingRoom';
 import { ripple, rippleOnDark, ud } from '../theme';
 
@@ -121,6 +122,7 @@ export function DashboardScreen({ navigation }: any) {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (waitingRoomEnabled) useWaitingRoom.getState().hydrate(); }, []);
   const waitingCount = useWaitingRoom((st) => st.photos.filter((p) => !p.draftId).length);
+  const videoEnabled = useAuth((st) => st.adHocReports);
 
   const s = d?.stats ?? {};
   const myBadges = s.badges ?? [];
@@ -147,14 +149,21 @@ export function DashboardScreen({ navigation }: any) {
           <>
             <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 26 }}>Cześć{d.name ? ` ${d.name}` : ''},</Text>
             <Text style={{ color: ud.text, marginTop: 6, lineHeight: 21 }}>{stripHtml(d.introMsg)}</Text>
+            {/* Android: najkrótsza droga to aparat → poczekalnia (zgłoszenie przygotowuje się potem); „Nowe” i „Poczekalnia” są w dolnym menu.
+                iOS nie ma poczekalni – zostaje „Nowe zgłoszenie”. */}
             <View style={{ marginTop: 14 }}>
-              <UdButton title="Nowe zgłoszenie" onPress={() => go('NewReport')} />
               {waitingRoomEnabled ? (
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <View style={{ flex: 1 }}><UdButton title="Zrób zdjęcia" variant="outline" pill onPress={() => go('WaitingCamera')} /></View>
-                  <View style={{ flex: 1 }}><UdButton title={`Poczekalnia (${waitingCount})`} variant="outline" pill onPress={() => go('WaitingRoom')} /></View>
-                </View>
-              ) : null}
+                <>
+                  <UdButton title={videoEnabled ? '📷 Zrób zdjęcie lub film' : '📷 Zrób zdjęcie'} onPress={() => go('WaitingCamera')} />
+                  <Pressable onPress={() => go('WaitingRoom')} accessibilityRole="link" style={{ alignSelf: 'center', paddingVertical: 4 }}>
+                    <Text style={{ color: ud.muted, textAlign: 'center' }}>
+                      Trafi do poczekalni – zgłoszenie przygotujesz później.{waitingCount ? <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>{` Czeka: ${waitingCount} →`}</Text> : null}
+                    </Text>
+                  </Pressable>
+                </>
+              ) : (
+                <UdButton title="Nowe zgłoszenie" onPress={() => go('NewReport')} />
+              )}
             </View>
 
             {d.rank ? (
