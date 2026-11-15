@@ -4,18 +4,19 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import type { UdApp } from '../api/apps';
 import { fetchCategories, reverseGeocode } from '../api/geo';
-import { stagePhoto } from '../api/photos';
+import { analyzePhotoAlpr, stagePhoto } from '../api/photos';
 import { assignReportPhoto, createDraft, deleteReportVideo, fetchReport, saveReport, uploadReportVideo } from '../api/reports';
-import { ApiError, validIdToken } from '../api/udApi';
+import { ApiError, isPhotoQuotaError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { HtmlText } from '../components/HtmlText';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
 import { MapPreview } from '../components/MapPreview';
 import { UdButton, UdHeader } from '../components/UD';
 import { udConfig } from '../config';
-import { adHocCategories, adHocMissing, adHocReportForm, fmtMB, localIso } from '../lib/adHoc';
+import { adHocCategories, adHocMissing, adHocReportForm, bestPlate, fmtMB, localIso } from '../lib/adHoc';
 import { takePhoto } from '../lib/gallery';
 import { log } from '../lib/log';
+import { downscale } from '../lib/resize';
 import { useAuth } from '../store/useAuth';
 import { toast } from '../store/useToast';
 import { ud, inputColors } from '../theme';
@@ -36,6 +37,7 @@ export function AdHocReportScreen({ navigation, route }: any) {
   const editId: string | undefined = route?.params?.editId;
   const videoParam: string | undefined = route?.params?.videoUri;
   const videoSizeParam: number | null = route?.params?.videoSize ?? null;
+  const frameParam: string | undefined = route?.params?.frameUri; // klatka z nagrania (AdHocFrame) = zdjęcie auta
   const enabled = useAuth((s) => s.adHocReports);
 
   const at = useRef(new Date());
@@ -53,6 +55,11 @@ export function AdHocReportScreen({ navigation, route }: any) {
   const [mapStart, setMapStart] = useState<{ lat: number; lng: number } | null>(null);
   const [video, setVideo] = useState<{ uri: string | null; size: number | null } | null>(null); // uri null = nagranie już w szkicu (edycja)
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [photoFromVideo, setPhotoFromVideo] = useState(false);
+  // Zdjęcie (albo klatka) idzie na serwer od razu po wyborze i przechodzi ALPR – numer wpisujemy, gdy pole jest puste.
+  // `staged` pamięta photoId, więc „Dalej” nie wysyła go drugi raz (a serwerowy wycinek tablicy korzysta z tego odczytu).
+  const staged = useRef<{ uri: string; photoId: Promise<string> } | null>(null);
+  const [alpr, setAlpr] = useState<{ uri: string; state: 'busy' | 'done' | 'none' | 'error'; plate?: string; text?: string } | null>(null);
   const [loading, setLoading] = useState(!!editId);
   const [submitting, setSubmitting] = useState('');
   const [err, setErr] = useState<{ field?: string; text: string } | null>(null);
@@ -114,12 +121,39 @@ export function AdHocReportScreen({ navigation, route }: any) {
     } catch (e: any) { toast.error(e?.message ?? String(e)); }
   };
 
+  const readPlate = useCallback(async (uri: string) => {
+    setAlpr({ uri, state: 'busy' });
+    try {
+      const photoId = stagePhoto(uri, { dateTime: localIso(at.current), lat: place?.lat, lng: place?.lng }).then((s) => s.photoId);
+      staged.current = { uri, photoId };
+      const plate = bestPlate(await analyzePhotoAlpr(await photoId));
+      log.info('na-goraco', `ALPR ${plate ?? '—'}`);
+      if (plate) setPlateId((prev) => (prev.replace(/\s/g, '') ? prev : plate));
+      setAlpr((a) => (a?.uri === uri ? { uri, state: plate ? 'done' : 'none', plate: plate ?? undefined } : a));
+    } catch (e: any) {
+      log.warn('na-goraco', `ALPR: ${String(e?.message ?? e).slice(0, 160)}`);
+      const text = isPhotoQuotaError(e) ? 'Limit analizy zdjęć jest wyczerpany – wpisz numer ręcznie.' : 'Nie udało się odczytać tablicy – wpisz numer ręcznie.';
+      setAlpr((a) => (a?.uri === uri ? { uri, state: 'error', text } : a));
+    }
+  }, [place?.lat, place?.lng]);
+
+  const applyPhoto = (uri: string, fromVideo: boolean) => {
+    setPhotoUri(uri);
+    setPhotoFromVideo(fromVideo);
+    void readPlate(uri);
+  };
+
+  // klatka wraca z AdHocFrame w parametrach trasy
+  useEffect(() => { if (frameParam) applyPhoto(frameParam, true); }, [frameParam]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const addPhoto = async () => {
     try {
       const uri = await takePhoto();
-      if (uri) setPhotoUri(uri);
+      if (uri) applyPhoto((await downscale(uri)).uri, false); // serwer przyjmuje ≤ 3 MB – jak zdjęcia w zwykłym formularzu (lib/resize.ts)
     } catch (e: any) { toast.error(e?.message ?? String(e)); }
   };
+
+  const removePhoto = () => { setPhotoUri(null); setAlpr(null); staged.current = null; };
 
   const removeVideo = () => {
     if (video?.uri) { setVideo(null); return; }
@@ -143,8 +177,10 @@ export function AdHocReportScreen({ navigation, route }: any) {
       const id = draft.current.id;
       if (photoUri && sent.current.photo !== photoUri) {
         setSubmitting('Wysyłam zdjęcie…');
-        const staged = await stagePhoto(photoUri, { dateTime: localIso(at.current), lat: place!.lat, lng: place!.lng });
-        await assignReportPhoto(id, 'carImage', staged.photoId);
+        // wysłane już przy wyborze (także w trakcie odczytu tablicy) – nie wysyłamy drugi raz; nieudana wysyłka = ponowienie tutaj
+        const early = staged.current?.uri === photoUri ? await staged.current.photoId.catch(() => null) : null;
+        const photoId = early ?? (await stagePhoto(photoUri, { dateTime: localIso(at.current), lat: place!.lat, lng: place!.lng })).photoId;
+        await assignReportPhoto(id, 'carImage', photoId);
         sent.current.photo = photoUri;
       }
       if (video?.uri && sent.current.video !== video.uri) {
@@ -239,12 +275,38 @@ export function AdHocReportScreen({ navigation, route }: any) {
           <UdButton title="🎬 Nagraj film" variant="accent" onPress={() => navigation.navigate('AdHocCamera')} disabled={busy} />
         )}
         {errFor('video')}
+        {/* klatki da się wyciągnąć tylko z nagrania na telefonie – przy edycji film jest już na serwerze */}
+        {video?.uri && !photoUri ? (
+          <View style={{ marginTop: 10 }}>
+            <UdButton title="🖼️ Wybierz klatkę z tablicą" variant="outline" onPress={() => navigation.navigate('AdHocFrame', { videoUri: video.uri })} disabled={busy} />
+          </View>
+        ) : null}
         <View style={{ marginTop: 10 }}>
           {photoUri ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <Image source={{ uri: photoUri }} style={{ width: 72, height: 72, borderRadius: ud.radiusSm }} />
-              <Pressable onPress={addPhoto} disabled={busy}><Text style={{ color: ud.primary }}>Zrób inne</Text></Pressable>
-              <Pressable onPress={() => setPhotoUri(null)} disabled={busy}><Text style={{ color: ud.plateVerified }}>Usuń</Text></Pressable>
+            <View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Image source={{ uri: photoUri }} style={{ width: 96, height: 72, borderRadius: ud.radiusSm, backgroundColor: '#000' }} resizeMode="contain" />
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Text style={{ color: ud.muted, fontSize: 13 }}>{photoFromVideo ? 'Klatka z nagrania' : 'Zdjęcie'}</Text>
+                  <View style={{ flexDirection: 'row', gap: 14, flexWrap: 'wrap' }}>
+                    {photoFromVideo && video?.uri
+                      ? <Pressable onPress={() => navigation.navigate('AdHocFrame', { videoUri: video.uri })} disabled={busy}><Text style={{ color: ud.primary }}>Inna klatka</Text></Pressable>
+                      : <Pressable onPress={addPhoto} disabled={busy}><Text style={{ color: ud.primary }}>Zrób inne</Text></Pressable>}
+                    <Pressable onPress={removePhoto} disabled={busy}><Text style={{ color: ud.plateVerified }}>Usuń</Text></Pressable>
+                  </View>
+                </View>
+              </View>
+              {alpr?.uri === photoUri ? (
+                alpr.state === 'busy' ? (
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 8 }}><ActivityIndicator color={ud.primary} /><Text style={{ color: ud.muted }}>Odczytuję tablicę…</Text></View>
+                ) : alpr.state === 'done' && alpr.plate ? (
+                  alpr.plate === plateId.replace(/\s/g, '')
+                    ? <Text style={{ color: ud.text, marginTop: 8 }}>Odczytano tablicę: <Text style={{ fontFamily: ud.fontBodyBold }}>{alpr.plate}</Text> – sprawdź numer powyżej.</Text>
+                    : <Text style={{ color: ud.text, marginTop: 8 }}>Odczyt ze zdjęcia: <Text style={{ fontFamily: ud.fontBodyBold }}>{alpr.plate}</Text>{'  '}<Text onPress={() => setPlateId(alpr.plate!)} style={{ color: ud.primary, textDecorationLine: 'underline' }}>Użyj</Text></Text>
+                ) : (
+                  <Text style={{ color: ud.muted, marginTop: 8 }}>{alpr.text ?? 'Nie odczytano tablicy – wybierz ostrzejszą klatkę albo wpisz numer.'}</Text>
+                )
+              ) : null}
             </View>
           ) : (
             <UdButton title="📷 Zrób zdjęcie" variant="outline" onPress={addPhoto} disabled={busy} />

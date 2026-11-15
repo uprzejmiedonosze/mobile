@@ -27,6 +27,7 @@
     "expo-sharing": "~57.0.27",
     "expo-splash-screen": "~57.0.12",
     "expo-status-bar": "~57.0.1",
+    "expo-video": "~57.0.5",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-passkey": "^3.6.2",

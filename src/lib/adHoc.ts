@@ -80,3 +80,20 @@ export function adHocMissing(s: { category: number | null; plateId: string; addr
   if (!s.hasPlace || s.address.trim().length <= 10) return 'Poczekaj na lokalizację albo wskaż miejsce na mapie.';
   return null;
 }
+
+// Klatka z nagrania jako zdjęcie auta: użytkownik zatrzymuje film tam, gdzie tablica jest ostra (AdHocFrameScreen), a klatka
+// idzie zwykłą ścieżką zdjęcia (POST /photos → ALPR → slot carImage). Krok „±” przy szukaniu ostrej klatki: ~3 klatki przy 30 fps.
+export const FRAME_STEP_S = 0.1;
+
+export const clampFrameTime = (t: number, duration: number): number =>
+  Math.max(0, Math.min(Number.isFinite(duration) && duration > 0 ? duration : t, Number.isFinite(t) ? t : 0));
+
+// Tablica z odczytów ALPR jednego zdjęcia: kandydat serwera (`winner`), a bez niego odczyt o największej pewności.
+// Odczyty krótsze niż 4 znaki to zwykle szum (fragment napisu, naklejka).
+export function bestPlate(detections: { text: string; score: number | null; winner?: boolean }[]): string | null {
+  const ok = detections
+    .map((d) => ({ ...d, text: (d.text ?? '').replace(/\s+/g, '').toUpperCase() }))
+    .filter((d) => d.text.length >= 4);
+  const pick = ok.find((d) => d.winner) ?? [...ok].sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
+  return pick?.text ?? null;
+}

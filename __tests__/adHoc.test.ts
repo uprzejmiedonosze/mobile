@@ -86,3 +86,21 @@ describe('adHocMissing', () => {
     expect(adHocMissing({ ...ok, hasPlace: false })).toMatch(/lokalizację/);
   });
 });
+
+describe('klatka z nagrania', () => {
+  const { bestPlate, clampFrameTime } = require('../src/lib/adHoc');
+  test('bestPlate: kandydat serwera wygrywa z wyższą pewnością', () => {
+    expect(bestPlate([{ text: 'WX 12345', score: 0.95 }, { text: 'zs1234a', score: 0.7, winner: true }])).toBe('ZS1234A');
+  });
+  test('bestPlate: bez kandydata – największa pewność, szum odrzucony', () => {
+    expect(bestPlate([{ text: 'AB', score: 0.99 }, { text: 'KR 1A', score: 0.6 }, { text: 'PO12345', score: 0.9 }])).toBe('PO12345');
+    expect(bestPlate([])).toBeNull();
+    expect(bestPlate([{ text: 'X1', score: 1 }])).toBeNull();
+  });
+  test('clampFrameTime: w granicach filmu', () => {
+    expect(clampFrameTime(-0.1, 10)).toBe(0);
+    expect(clampFrameTime(10.3, 10)).toBe(10);
+    expect(clampFrameTime(4.2, 10)).toBe(4.2);
+    expect(clampFrameTime(3, 0)).toBe(3); // czas trwania jeszcze nieznany
+  });
+});
