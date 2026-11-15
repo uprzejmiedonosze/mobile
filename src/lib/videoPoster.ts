@@ -21,3 +21,26 @@ export async function videoPoster(uri: string, durationMs?: number): Promise<str
     return null;
   }
 }
+
+// Poprawka obrotu nagrania (lib/mp4Rotation.ts) na pliku w miejscu – FileHandle, bez wczytywania całych megabajtów.
+// Błąd = film zostaje jak był (obrócony, ale cały).
+export function fixVideoRotation(uri: string, ui: 0 | 90 | -90): void {
+  if (ui === 0) return;
+  try {
+    const { File, FileMode } = require('expo-file-system') as typeof import('expo-file-system');
+    const { fixRotation } = require('./mp4Rotation') as typeof import('./mp4Rotation');
+    const handle = new File(uri).open(FileMode.ReadWrite);
+    try {
+      const res = fixRotation({
+        size: handle.size ?? 0,
+        read: (offset, length) => { handle.offset = offset; return handle.readBytes(length); },
+        write: (offset, bytes) => { handle.offset = offset; handle.writeBytes(bytes); },
+      }, ui);
+      log.info('aparat', res ? `obrót nagrania ${res.from}° → ${res.to}° (telefon ${ui})` : `obrót nagrania bez zmian (telefon ${ui})`);
+    } finally {
+      handle.close();
+    }
+  } catch (e: any) {
+    log.warn('aparat', `obrót nagrania: ${String(e?.message ?? e).slice(0, 160)}`);
+  }
+}

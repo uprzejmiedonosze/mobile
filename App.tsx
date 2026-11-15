@@ -137,7 +137,6 @@ export default function App() {
           <Stack.Screen name="WaitingCamera" getComponent={() => require('./src/screens/WaitingCameraScreen').WaitingCameraScreen} options={{ headerShown: false, title: 'Aparat' }} />
           {/* zgłoszenie „na gorąco” (tuning, drift – lib/adHoc.ts); aparat leniwie z tego samego powodu co wyżej */}
           <Stack.Screen name="AdHocReport" component={AdHocReportScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="AdHocCamera" getComponent={() => require('./src/screens/AdHocCameraScreen').AdHocCameraScreen} options={{ headerShown: false }} />
           <Stack.Screen name="AdHocFrame" getComponent={() => require('./src/screens/AdHocFrameScreen').AdHocFrameScreen} options={{ headerShown: false }} />
           <Stack.Screen name="WebPage" component={WebPageScreen} options={{ title: '' }} />
         </Stack.Navigator>

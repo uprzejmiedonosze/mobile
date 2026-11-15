@@ -13,7 +13,7 @@ import { SESS_GAP_S } from '../lib/grouping';
 import { log } from '../lib/log';
 import { plural } from '../lib/reports';
 import { freshFix, uiRotation, type Fix, type UiRotation } from '../lib/waitingRoom';
-import { videoPoster } from '../lib/videoPoster';
+import { fixVideoRotation, videoPoster } from '../lib/videoPoster';
 import { useAuth } from '../store/useAuth';
 import { toast } from '../store/useToast';
 import { useWaitingRoom } from '../store/useWaitingRoom';
@@ -33,13 +33,16 @@ const TILT_INTERVAL_MS = 250;
 // (dla nagrań dopiero z łatką patches/expo-camera+*.patch – bez niej film w poziomie wychodził obrócony).
 // Tryb WIDEO (tylko gdy serwer włączył zgłoszenia „na gorąco”): ten sam aparat nagrywa film z dźwiękiem (limity z lib/adHoc.ts), który
 // czeka w poczekalni jak zdjęcia; zgodę na mikrofon pytamy dopiero przy przełączeniu na WIDEO.
-export function WaitingCameraScreen({ navigation }: any) {
+// To jedyny aparat do filmów: formularz „na gorąco” otwiera go z `{ mode: 'video', returnTo: 'AdHocReport' }` – wtedy bez przełącznika,
+// a po nagraniu wraca do formularza z `waitingVideoId` (film i tak leży w poczekalni).
+export function WaitingCameraScreen({ navigation, route }: any) {
+  const returnTo: string | undefined = route?.params?.returnTo;
   const insets = useSafeAreaInsets();
   const focused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
   const [mic, requestMic] = useMicrophonePermissions();
   const videoEnabled = useAuth((s) => s.adHocReports);
-  const [mode, setMode] = useState<'photo' | 'video'>('photo');
+  const [mode, setMode] = useState<'photo' | 'video'>(route?.params?.mode === 'video' && videoEnabled ? 'video' : 'photo');
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [ready, setReady] = useState(false);
@@ -52,6 +55,7 @@ export function WaitingCameraScreen({ navigation }: any) {
   const [busy, setBusy] = useState(false);
   const [torch, setTorch] = useState(false);
   const [rotation, setRotation] = useState<UiRotation>(0);
+  const rotationRef = useRef<UiRotation>(0); rotationRef.current = rotation;
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [zoom, setZoom] = useState(0);
   const zoomRef = useRef(0); zoomRef.current = zoom;
@@ -111,26 +115,36 @@ export function WaitingCameraScreen({ navigation }: any) {
   const recordingRef = useRef(false); recordingRef.current = recording;
   useEffect(() => navigation.addListener('blur', () => { if (recordingRef.current) camera.current?.stopRecording(); }), [navigation]);
 
+  // Zgoda na mikrofon – dopiero gdy potrzebna (tryb WIDEO); po odmowie „nie pytaj” zostają ustawienia systemu.
+  const ensureMic = async (): Promise<boolean> => {
+    if (mic?.granted) return true;
+    const r = mic?.canAskAgain === false ? mic : await requestMic();
+    log.info('aparat', `mikrofon: ${r?.status}, canAskAgain=${r?.canAskAgain}`);
+    if (r?.granted) return true;
+    Alert.alert('Mikrofon', 'Film nagrywamy z dźwiękiem – to ważny dowód przy hałasie. Włącz zgodę na mikrofon w ustawieniach aplikacji.', [
+      { text: 'Anuluj', style: 'cancel' },
+      ...(r?.canAskAgain === false ? [{ text: 'Otwórz ustawienia', onPress: () => { Linking.openSettings().catch(() => {}); } }] : []),
+    ]);
+    return false;
+  };
+
+  // Start od razu w trybie WIDEO (z formularza): o mikrofon pytamy po zgodzie na aparat – dwa okna naraz to wyścig.
+  useEffect(() => {
+    if (mode === 'video' && permission?.granted && mic && !mic.granted && mic.canAskAgain) void ensureMic();
+  }, [permission?.granted, mic?.granted]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const switchMode = async (next: 'photo' | 'video') => {
     if (recording || next === mode) return;
-    if (next === 'video' && !mic?.granted) {
-      const r = mic?.canAskAgain === false ? mic : await requestMic();
-      log.info('aparat', `mikrofon: ${r?.status}, canAskAgain=${r?.canAskAgain}`);
-      if (!r?.granted) {
-        Alert.alert('Mikrofon', 'Film nagrywamy z dźwiękiem – to ważny dowód przy hałasie. Włącz zgodę na mikrofon w ustawieniach aplikacji.', [
-          { text: 'Anuluj', style: 'cancel' },
-          ...(r?.canAskAgain === false ? [{ text: 'Otwórz ustawienia', onPress: () => { Linking.openSettings().catch(() => {}); } }] : []),
-        ]);
-        return;
-      }
-    }
+    if (next === 'video' && !(await ensureMic())) return;
     setMode(next); // gotowości nie zerujemy: nie wiadomo, czy onCameraReady przyjdzie po zmianie trybu (nieudany start = komunikat z record)
   };
 
   const record = async () => {
     if (!camera.current || recording || !ready) return;
+    if (!(await ensureMic())) return;
     const startedMs = Date.now();
     const startFix = freshFix(fix.current, startedMs);
+    const startRotation = rotationRef.current; // położenie telefonu na starcie: z niego poprawiamy obrót pliku (lib/mp4Rotation.ts)
     setSeconds(0);
     setRecording(true);
     try {
@@ -147,11 +161,13 @@ export function WaitingCameraScreen({ navigation }: any) {
         try { new File(res.uri).delete(); } catch { /* cache */ }
         return;
       }
+      fixVideoRotation(res.uri, startRotation);
       const durationMs = Date.now() - startedMs;
       const video = add({ uri: res.uri, takenAtMs: startedMs, fix: startFix ?? freshFix(fix.current, Date.now()), carSeq, kind: 'video', durationMs, size });
       setLastUri(null);
       setLastIsVideo(true);
       videoPoster(video.uri, durationMs).then((uri) => { if (uri) { setPoster(video.id, uri); setLastUri(uri); } });
+      if (returnTo) navigation.navigate({ name: returnTo, params: { waitingVideoId: video.id }, merge: true });
     } catch (e: any) {
       log.fail('aparat', e);
       toast.error('Nie udało się nagrać filmu.');
@@ -197,7 +213,10 @@ export function WaitingCameraScreen({ navigation }: any) {
   };
 
   const nextCar = () => { setCarSeq((n) => n + 1); setCarShots(0); };
-  const close = () => { if (recording) camera.current?.stopRecording(); goTab(navigation, 'WaitingRoom'); };
+  const close = () => {
+    if (recording) camera.current?.stopRecording();
+    if (returnTo) navigation.goBack(); else goTab(navigation, 'WaitingRoom');
+  };
 
   // Pełnoekranowy aparat bez nagłówka; pytanie o zgodę ma zwykły nagłówek ze strzałką.
   const needsPermission = !!permission && !permission.granted;
@@ -221,7 +240,7 @@ export function WaitingCameraScreen({ navigation }: any) {
   const topBar = insets.top + 56;
   const video = mode === 'video';
   const aspect = video ? 16 / 9 : 4 / 3; // 720p nagrania to 16:9, zdjęcie – cała matryca 4:3
-  const SWITCH_H = videoEnabled ? 44 : 0; // pas na przełącznik ZDJĘCIE/WIDEO między podglądem a migawką
+  const SWITCH_H = videoEnabled && !returnTo ? 44 : 0; // pas na przełącznik ZDJĘCIE/WIDEO między podglądem a migawką
   const previewH = box.w ? Math.min(box.w * aspect, Math.max(0, box.h - topBar - 150 - SWITCH_H)) : 0;
   const previewTop = box.w ? Math.min(topBar, (box.h - previewH) * 0.3) : 0;
   const previewBottom = previewTop + previewH;
@@ -267,7 +286,7 @@ export function WaitingCameraScreen({ navigation }: any) {
     </Pressable>
   )) : null;
   // Przełącznik trybu jak w aparacie systemowym: nad migawką, zablokowany w trakcie nagrania.
-  const modeSwitch = videoEnabled ? (
+  const modeSwitch = videoEnabled && !returnTo ? (
     <View style={{ flexDirection: 'row', gap: 4, backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: ud.radiusPill, padding: 3, opacity: recording ? 0.4 : 1 }}>
       {(['photo', 'video'] as const).map((m) => (
         <Pressable key={m} onPress={() => switchMode(m)} disabled={recording} accessibilityRole="radio" accessibilityState={{ checked: mode === m, disabled: recording }}
@@ -298,7 +317,8 @@ export function WaitingCameraScreen({ navigation }: any) {
             <>
               <View style={cw ? { position: 'absolute', right: 12, top: cornerTop } : { position: 'absolute', left: 12, bottom: cornerBottom }}>{torchBtn}</View>
               <View style={cw ? { position: 'absolute', left: 12, top: cornerTop } : { position: 'absolute', right: 12, bottom: cornerBottom }}>{gpsChip}</View>
-              {carChip ? <View style={{ ...center, top: previewBottom - 50 - W.car }}>{carChip}</View> : null}
+              {/* w tej samej linii co GPS (dla patrzącego: tuż na prawo od niego, przy dolnej krawędzi) – nie na środku podglądu */}
+              {carChip ? <View style={cw ? { position: 'absolute', left: 12, top: cornerTop + W.gps + GAP } : { position: 'absolute', right: 12, bottom: cornerBottom + W.gps + GAP }}>{carChip}</View> : null}
             </>
           ) : (
             <>

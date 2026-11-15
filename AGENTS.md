@@ -65,7 +65,7 @@ z przełącznikiem ZDJĘCIE/WIDEO (WIDEO tylko przy `features.adHocReports`; mik
 Nagranie czeka w poczekalni (`kind: 'video'`, `<id>.mp4` + okładka `<id>.poster.jpg`, poza paczkami zdjęć) i z jej karty otwiera `AdHocReportScreen`
 (`waitingVideoId`): data = chwila nagrania (≤24 h, `adHocEligible`), miejsce = GPS nagrania; „Nowe” nie ma już wejścia „na gorąco”. Obrót nagrań w poziomie
 przy appce zablokowanej w pionie daje łatka `patches/expo-camera+*.patch` (patch-package w `postinstall`; bez niej film wychodzi obrócony).
-`AdHocCameraScreen` zostaje tylko do nagrania z formularza bez filmu. Nagranie jest wymagane (`adHocMissing`; hałas i drift tylko z filmem, bez wejścia „bez nagrania”), zdjęcie/klatka – dodatkowo.
+Jeden aparat do filmów: formularz otwiera `WaitingCamera` z `{ mode: 'video', returnTo: 'AdHocReport' }`. Obrót pliku po nagraniu poprawia `lib/mp4Rotation.ts` (macierz `tkhd` z akcelerometru), bo CameraX zapisywał poziome filmy jako pionowe. Nagranie jest wymagane (`adHocMissing`; hałas i drift tylko z filmem, bez wejścia „bez nagrania”), zdjęcie/klatka – dodatkowo.
 Kategorie `adHoc` (31 hałas/wydech, 32 drift) nie mają `groups`; backend nie wymaga dla nich zdjęć, przyjmuje datę ≤24 h i wysyła zawsze na
 wojewódzką skrzynkę „Stop agresji drogowej” (`StopAgresji::guessVoivodeship`), wideo (`POST /app/{id}/video`) ląduje na B2, a mail zawiera link do niego (`/cdn2/…`, nginx z dysku albo proxy z B2).
 Z filmu można wybrać klatkę z czytelną tablicą (`AdHocFrameScreen`, `expo-video` – klatka dokładna, nie kluczowa): klatka albo zdjęcie idzie od razu na `/photos` + ALPR (`bestPlate`), numer wpisuje się, gdy pole jest puste, a zdjęcie trafia do slotu `carImage`.

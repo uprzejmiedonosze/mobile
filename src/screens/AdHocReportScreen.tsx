@@ -31,18 +31,17 @@ const parseLocal = (s?: string): Date | null => {
 };
 
 // Zgłoszenie „na gorąco” (tuning: hałas/wydech, drift). Zwykle z nagrania z poczekalni (`waitingVideoId`, aparat z pulpitu w trybie WIDEO):
-// data = chwila nagrania, miejsce = GPS zapisany przy nagraniu. Bez niego (edycja, film z AdHocCamera) data = otwarcie ekranu, miejsce = GPS
+// data = chwila nagrania, miejsce = GPS zapisany przy nagraniu. „Nagraj film/ponownie” otwiera ten sam aparat (WaitingCamera w trybie WIDEO,
+// `returnTo`), który zapisuje film w poczekalni i wraca tu z nowym `waitingVideoId`. Bez nagrania z GPS data = otwarcie ekranu, miejsce = GPS
 // telefonu teraz; wszystko można poprawić na mapie. Materiał: film, zdjęcie albo klatka z filmu, ewentualnie sama relacja świadka.
 // Odbiorcę (wojewódzka skrzynka „Stop agresji drogowej”) i treść wybiera backend; dalej jak zwykle: ReportConfirm → wysyłka.
 // Szkic powstaje dopiero przy „Dalej”, więc porzucony formularz nie zostawia nic na serwerze.
 export function AdHocReportScreen({ navigation, route }: any) {
   const editId: string | undefined = route?.params?.editId;
-  const videoParam: string | undefined = route?.params?.videoUri;
-  const videoSizeParam: number | null = route?.params?.videoSize ?? null;
   const frameParam: string | undefined = route?.params?.frameUri; // klatka z nagrania (AdHocFrame) = zdjęcie auta
   const waitingVideoId: string | undefined = route?.params?.waitingVideoId;
-  // nagranie z poczekalni (store jest już wczytany – wchodzimy z WaitingRoom)
-  const [waitingVideo] = useState(() => (waitingVideoId ? useWaitingRoom.getState().photos.find((p) => p.id === waitingVideoId) : undefined));
+  // nagranie z poczekalni (store jest już wczytany – wchodzimy z WaitingRoom albo wracamy z aparatu)
+  const waitingVideo = useWaitingRoom((s) => (waitingVideoId ? s.photos.find((p) => p.id === waitingVideoId) : undefined));
   const videoFix = waitingVideo?.lat != null && waitingVideo?.lng != null ? { lat: waitingVideo.lat, lng: waitingVideo.lng } : null;
   const enabled = useAuth((s) => s.adHocReports);
 
@@ -74,8 +73,12 @@ export function AdHocReportScreen({ navigation, route }: any) {
   useEffect(() => { fetchCategories().then((c) => setCats(adHocCategories(c, true))); }, []);
   useFocusEffect(useCallback(() => { fetchProfile().then((p) => setMapStart(p.lastLocation)).catch(() => {}); }, []));
 
-  // film wraca z AdHocCamera w parametrach trasy
-  useEffect(() => { if (videoParam) setVideo({ uri: videoParam, size: videoSizeParam }); }, [videoParam, videoSizeParam]);
+  // nowe nagranie z aparatu (powrót z WaitingCamera): film i chwila zdarzenia z nagrania
+  useEffect(() => {
+    if (!waitingVideo) return;
+    setVideo({ uri: waitingVideo.uri, size: waitingVideo.size ?? null });
+    at.current = new Date(waitingVideo.takenAtMs);
+  }, [waitingVideo?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const geocode = useCallback(async (lat: number, lng: number) => {
     const geo = await reverseGeocode(lat, lng, await validIdToken());
@@ -168,6 +171,9 @@ export function AdHocReportScreen({ navigation, route }: any) {
   };
 
   const removePhoto = () => { setPhotoUri(null); setAlpr(null); staged.current = null; };
+
+  // ten sam aparat co z pulpitu, od razu w trybie WIDEO; nagranie trafia do poczekalni i wraca tu jako waitingVideoId
+  const recordVideo = () => navigation.navigate('WaitingCamera', { mode: 'video', returnTo: 'AdHocReport' });
 
   const removeVideo = () => {
     if (video?.uri) { setVideo(null); return; }
@@ -283,12 +289,12 @@ export function AdHocReportScreen({ navigation, route }: any) {
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, borderRadius: ud.radiusSm, backgroundColor: ud.surface }}>
             <Text style={{ color: ud.text, fontFamily: ud.fontBodyBold }}>🎬 Nagranie{video.size ? ` · ${fmtMB(video.size)}` : ''}{video.uri ? '' : ' (dołączone)'}</Text>
             <View style={{ flexDirection: 'row', gap: 14 }}>
-              {waitingVideo ? null : <Pressable onPress={() => navigation.navigate('AdHocCamera')} disabled={busy}><Text style={{ color: ud.primary }}>Nagraj ponownie</Text></Pressable>}
+              <Pressable onPress={recordVideo} disabled={busy}><Text style={{ color: ud.primary }}>Nagraj ponownie</Text></Pressable>
               <Pressable onPress={removeVideo} disabled={busy}><Text style={{ color: ud.plateVerified }}>Usuń</Text></Pressable>
             </View>
           </View>
         ) : (
-          <UdButton title="🎬 Nagraj film" variant="accent" onPress={() => navigation.navigate('AdHocCamera')} disabled={busy} />
+          <UdButton title="🎬 Nagraj film" variant="accent" onPress={recordVideo} disabled={busy} />
         )}
         {errFor('video')}
         {/* klatki da się wyciągnąć tylko z nagrania na telefonie – przy edycji film jest już na serwerze */}
