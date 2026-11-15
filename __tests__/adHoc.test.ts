@@ -76,9 +76,12 @@ describe('adHocReportForm', () => {
 });
 
 describe('adHocMissing', () => {
-  const ok = { category: 31, plateId: 'WX12345', address: 'Marszałkowska 1, Warszawa', hasPlace: true };
-  it('materiał jest opcjonalny – wystarczą kategoria, numer i miejsce', () => {
+  const ok = { category: 31, plateId: 'WX12345', address: 'Marszałkowska 1, Warszawa', hasPlace: true, hasVideo: true };
+  it('wystarczą nagranie, kategoria, numer i miejsce', () => {
     expect(adHocMissing(ok)).toBeNull();
+  });
+  it('bez nagrania nie wyślesz', () => {
+    expect(adHocMissing({ ...ok, hasVideo: false })).toMatch(/nagranie/);
   });
   it('wskazuje pierwszy brak', () => {
     expect(adHocMissing({ ...ok, category: null })).toMatch(/Wybierz/);

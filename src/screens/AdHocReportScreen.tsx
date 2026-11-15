@@ -183,7 +183,7 @@ export function AdHocReportScreen({ navigation, route }: any) {
 
   const submit = async () => {
     setErr(null);
-    const missing = adHocMissing({ category, plateId, address, hasPlace: !!place });
+    const missing = adHocMissing({ category, plateId, address, hasPlace: !!place, hasVideo: !!video });
     if (missing) { setErr({ text: missing }); toast.error(missing); return; }
     try {
       setSubmitting('Tworzę zgłoszenie…');
@@ -277,8 +277,8 @@ export function AdHocReportScreen({ navigation, route }: any) {
         <TextInput {...inputColors} value={plateId} onChangeText={(t) => setPlateId(t.toUpperCase())} autoCapitalize="characters" autoCorrect={false} placeholder="np. WX 12345" style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }]} />
         {errFor('plateId')}
 
-        <Text style={label}>Dowody (opcjonalne)</Text>
-        <Text style={{ color: ud.muted, marginBottom: 8, lineHeight: 20 }}>Nagraj krótki film z dźwiękiem albo zrób zdjęcie. Możesz też zgłosić bez materiałów – wtedy liczy się Twoja relacja.</Text>
+        <Text style={label}>Nagranie</Text>
+        <Text style={{ color: ud.muted, marginBottom: 8, lineHeight: 20 }}>Zgłoszenie opiera się na filmie z dźwiękiem. Klatka z tablicą albo dodatkowe zdjęcie pomogą odczytać numer.</Text>
         {video ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, borderRadius: ud.radiusSm, backgroundColor: ud.surface }}>
             <Text style={{ color: ud.text, fontFamily: ud.fontBodyBold }}>🎬 Nagranie{video.size ? ` · ${fmtMB(video.size)}` : ''}{video.uri ? '' : ' (dołączone)'}</Text>

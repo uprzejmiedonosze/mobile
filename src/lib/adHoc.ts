@@ -73,8 +73,10 @@ export function adHocReportForm(i: AdHocInput): ReportForm {
   };
 }
 
-// Co blokuje „Dalej” (null = można wysłać). Materiał (film/zdjęcie) jest opcjonalny – wystarczy relacja świadka.
-export function adHocMissing(s: { category: number | null; plateId: string; address: string; hasPlace: boolean }): string | null {
+// Co blokuje „Dalej” (null = można wysłać). Zgłoszenie na gorąco wymaga nagrania (decyzja produktowa: hałas i drift tylko z filmem;
+// serwer na razie przyjmuje też bez) – zdjęcie albo klatka są dodatkiem do odczytu tablicy.
+export function adHocMissing(s: { category: number | null; plateId: string; address: string; hasPlace: boolean; hasVideo: boolean }): string | null {
+  if (!s.hasVideo) return 'Dołącz nagranie – zgłoszenie na gorąco wymaga filmu.';
   if (!s.category) return 'Wybierz, co się dzieje.';
   if (s.plateId.replace(/\s/g, '').length < 3) return 'Podaj numer rejestracyjny.';
   if (!s.hasPlace || s.address.trim().length <= 10) return 'Poczekaj na lokalizację albo wskaż miejsce na mapie.';
