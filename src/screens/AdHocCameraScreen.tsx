@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions, useMicrophonePermissions } from 'expo-camera';
 import { File } from 'expo-file-system';
 import { useIsFocused } from '@react-navigation/native';
@@ -76,8 +76,14 @@ export function AdHocCameraScreen({ navigation }: any) {
           <Text style={{ color: ud.text, lineHeight: 21 }}>
             Do nagrania filmu potrzebna jest zgoda na aparat i mikrofon. Dźwięk jest ważnym dowodem przy zgłoszeniu hałasu.
           </Text>
-          {!cam.granted ? <UdButton title="Zezwól na aparat" onPress={requestCam} /> : null}
-          {cam.granted && !mic.granted ? <UdButton title="Zezwól na mikrofon" onPress={requestMic} /> : null}
+          {/* „nie pytaj ponownie” (albo uprawnienia brak w manifeście): systemowe okno się nie pokaże – tylko ustawienia */}
+          {(!cam.granted && !cam.canAskAgain) || (cam.granted && !mic.granted && !mic.canAskAgain) ? (
+            <>
+              <Text style={{ color: ud.muted, lineHeight: 20 }}>Zgoda została wcześniej odrzucona – włącz ją w ustawieniach aplikacji (Uprawnienia).</Text>
+              <UdButton title="Otwórz ustawienia" onPress={() => { Linking.openSettings().catch(() => {}); }} />
+            </>
+          ) : !cam.granted ? <UdButton title="Zezwól na aparat" onPress={() => { requestCam().then((r) => log.info('nagranie', `aparat: ${r.status}`)); }} />
+            : <UdButton title="Zezwól na mikrofon" onPress={() => { requestMic().then((r) => log.info('nagranie', `mikrofon: ${r.status}, canAskAgain=${r.canAskAgain}`)); }} />}
         </View>
       </View>
     );
