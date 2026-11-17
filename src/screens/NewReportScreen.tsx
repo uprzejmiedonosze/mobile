@@ -5,10 +5,10 @@ import { type UdApp, imageUrl } from '../api/apps';
 import { fetchConfig } from '../api/dashboard';
 import { fetchCategories, reverseGeocode } from '../api/geo';
 import { loadRecentCategories, pickTopCategories } from '../lib/recentCategories';
-import { isAdHocCategory, withFeatureCategories } from '../lib/adHoc';
+import { availableCategories, fmtMB, framePhoto, MAX_PHOTOS_WITH_VIDEO, maxPhotos, requiresVideo, videoEnabled } from '../lib/video';
 import { fetchRecydywa } from '../api/recydywa';
 import {
-  createDraft, fetchReport, fetchVehicleDescription, saveReport, searchAddress, type ReportForm,
+  createDraft, deleteReportVideo, fetchReport, fetchVehicleDescription, saveReport, searchAddress, uploadReportVideo, type ReportForm,
 } from '../api/reports';
 import { ApiError, isPhotoQuotaError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
@@ -27,7 +27,7 @@ import { usePhotoQuota } from '../lib/usePhotoQuota';
 import { ensureAiConsent } from '../lib/aiConsent';
 import { PATRONEM_DEFAULT } from '../lib/sex';
 import { usePhotoBatch } from '../lib/usePhotoBatch';
-import { toPhotoItem } from '../lib/waitingRoom';
+import { isVideo, toPhotoItem } from '../lib/waitingRoom';
 import { useWaitingRoom } from '../store/useWaitingRoom';
 import { SLOT_ORDER } from '../lib/roles';
 import type { Slot, Suggestion } from '../lib/suggest';
@@ -121,6 +121,14 @@ export function NewReportScreen({ navigation, route }: any) {
   // Paczka z poczekalni: osobny szkic, którego id pamiętają zdjęcia – zapamiętany `draftId` zwykłego formularza zostaje nietknięty
   // (szkiców nie ma na liście zgłoszeń, więc nadpisanie go oznaczałoby utratę dostępu do niego).
   const waitingIds: string[] | undefined = route?.params?.waitingIds;
+  // Film: z karty w poczekalni albo nagrany z formularza (WaitingCamera z `returnTo: 'NewReport'` wraca tu z nowym `waitingVideoId`).
+  // Klatka z tablicą (VideoFrameScreen) wraca jako `frameUri` + `frameAtS` i staje się zdjęciem jak z galerii.
+  const waitingVideoId: string | undefined = route?.params?.waitingVideoId;
+  const frameUri: string | undefined = route?.params?.frameUri;
+  const frameAtS: number | undefined = route?.params?.frameAtS;
+  // Otwarte z poczekalni (paczka albo film) = osobny szkic, bez zapamiętanego `draftId`. Liczy się chwila otwarcia ekranu: film nagrany
+  // z formularza też przychodzi jako `waitingVideoId`, a wtedy zostajemy przy szkicu formularza.
+  const fromWaiting = useRef(!!waitingIds || !!waitingVideoId).current;
   const { draftId, hydrated, hydrate, setDraftId } = useNewReport();
 
   const [app, setApp] = useState<UdApp | null>(null);
@@ -174,11 +182,10 @@ export function NewReportScreen({ navigation, route }: any) {
     fetchProfile().then((p) => { setBylam(p.bylam); setPatron(p.patronem); setMapStart(p.lastLocation); }).catch(() => {});
   }, []));
   useFocusEffect(useCallback(() => { refreshQuota(); }, [refreshQuota])); // licznik limitu zdjęć przy każdym wejściu na ekran
-  // kategorie testowe (`beta`) tylko gdy serwer na to pozwala; „na gorąco” mają własny ekran (lib/adHoc.ts)
-  const adHocEnabled = useAuth((s) => s.adHocReports);
+  // bez filmu (iOS) nie ma kategorii, które go wymagają (lib/video.ts)
   useEffect(() => {
-    fetchCategories().then((c) => setCats(withFeatureCategories(c, adHocEnabled)));
-  }, [adHocEnabled]);
+    fetchCategories().then((c) => setCats(availableCategories(c)));
+  }, []);
   useEffect(() => {
     loadRecentCategories().then(setRecentCats);
     fetchConfig<Groups>('category-groups').then(setGroups);
@@ -188,13 +195,11 @@ export function NewReportScreen({ navigation, route }: any) {
   // Wejście: tryb edycji (?editId) albo wznowienie szkicu z poprzedniej sesji – jak `$_SESSION['newAppId']`.
   useEffect(() => {
     if (!hydrated) return;
-    const id = editId ?? (waitingIds ? null : draftId);
+    const id = editId ?? (fromWaiting ? null : draftId);
     if (!id) { setLoading(false); return; }
     fetchReport(id)
-      .then(async (a) => {
+      .then((a) => {
         if (!['draft', 'ready', 'confirmed'].includes(a.status)) throw new Error('nieedytowalne'); // jak isEditable() na webie
-        // zgłoszenie „na gorąco” (bez zdjęć, z nagraniem) edytuje się na własnym ekranie
-        if (editId && isAdHocCategory(await fetchCategories(), a.category)) { navigation.replace('AdHocReport', { editId }); return; }
         // GET oddaje też cudze zgłoszenia, a zapis już nie (403) – szkic zapisany na tym telefonie przez inne konto porzucamy.
         const me = useAuth.getState().email;
         if (a.email && me && a.email.toLowerCase() !== me.toLowerCase()) throw new Error('cudzy szkic');
@@ -203,6 +208,11 @@ export function NewReportScreen({ navigation, route }: any) {
         setApp(a);
         setForm(formFromApp(a));
         if (!editId) setDraftId(a.id);
+        // film z poczekalni związany z tym szkicem, ale jeszcze niewysłany (leci dopiero przy „Dalej”) – wraca do formularza
+        if (!a.video?.url) {
+          const v = useWaitingRoom.getState().photos.find((p) => p.draftId === a.id && isVideo(p));
+          if (v) setVideoId(v.id);
+        }
       })
       .catch(() => { if (!editId) setDraftId(null); })
       .finally(() => setLoading(false));
@@ -322,7 +332,7 @@ export function NewReportScreen({ navigation, route }: any) {
     draftRef.current ??= createDraft().then((a) => {
       appRef.current = a;
       setApp(a);
-      if (!editId && !waitingIds) setDraftId(a.id);
+      if (!editId && !fromWaiting) setDraftId(a.id);
       return a;
     });
     return draftRef.current;
@@ -360,7 +370,16 @@ export function NewReportScreen({ navigation, route }: any) {
       ...(iso ? { datetime: iso, dtFromPicture: true } : {}),
     }));
   }, []);
-  const batch = usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError: fail, onCarExif: applyCarExif });
+  // Film (jeden): lokalny z poczekalni (wysyłany przy „Dalej”) albo już dołączony do szkicu (`app.video`).
+  // Wpis z poczekalni czytamy na żywo: okładka filmu dochodzi chwilę po nagraniu (videoPoster).
+  const [videoId, setVideoId] = useState<string | null>(waitingVideoId ?? null);
+  useEffect(() => { if (waitingVideoId) setVideoId(waitingVideoId); }, [waitingVideoId]);
+  const video = useWaitingRoom((st) => (videoId ? st.photos.find((p) => p.id === videoId) : undefined)) ?? null;
+  const serverVideo = app?.video?.url ? app.video : null;
+  const hasVideo = !!video || !!serverVideo;
+  const sentVideo = useRef(''); // uri filmu, który już leży w szkicu
+  const [videoBusy, setVideoBusy] = useState<string | null>(null);
+  const batch = usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError: fail, onCarExif: applyCarExif, maxPhotos: maxPhotos(hasVideo) });
   const photosOk = hasRequiredPhotos(app);
   const waitingLoaded = useRef(false);
   useEffect(() => {
@@ -383,6 +402,16 @@ export function NewReportScreen({ navigation, route }: any) {
     useWaitingRoom.getState().markUsed(waitingIds.filter((id) => batch.photos.some((p) => p.id === id)), app.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [app?.id]);
+  // Film z poczekalni wiążemy ze szkicem jak zdjęcia; zastąpiony albo usunięty wraca do poczekalni (to wciąż materiał użytkownika).
+  const markedVideo = useRef<string | null>(null);
+  useEffect(() => {
+    const id = app?.id && video?.id ? video.id : null;
+    if (markedVideo.current === id) return;
+    const room = useWaitingRoom.getState();
+    if (markedVideo.current) room.restore([markedVideo.current]);
+    if (id) room.markUsed([id], app!.id);
+    markedVideo.current = id;
+  }, [app?.id, video?.id]);
   useEffect(() => { if (photosOk) setErr((e) => clearFieldError(e, 'images')); }, [photosOk]); // zdjęcia dodane → znika „Dodaj zdjęcie auta…”
   const uploading = batch.busy;
   // „Zacznij od nowa”: zapominamy bieżący szkic i otwieramy formularz od zera (nowy szkic powstanie przy pierwszym zdjęciu). Zablokowane w trakcie
@@ -390,6 +419,27 @@ export function NewReportScreen({ navigation, route }: any) {
   const startOver = () => Alert.alert('Zacznij od nowa?', 'Usunę zdjęcia i dane wpisane w tym zgłoszeniu.', [
     { text: 'Anuluj', style: 'cancel' },
     { text: 'Zacznij od nowa', style: 'destructive', onPress: () => { setDraftId(null); navigation.replace('NewReport'); } },
+  ]);
+  // Klatka z filmu → zdjęcie z datą i GPS nagrania (lib/video.ts: framePhoto) → zwykła ścieżka zdjęć (ALPR, kontekst + wycinek auta).
+  const frameSeen = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!frameUri || frameSeen.current === frameUri) return;
+    frameSeen.current = frameUri;
+    void batch.load([framePhoto(frameUri, frameAtS ?? 0, video ?? {})]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frameUri]);
+  const recordVideo = () => navigation.navigate('WaitingCamera', { mode: 'video', returnTo: 'NewReport' });
+  const pickFrame = () => { if (video) navigation.navigate('VideoFrame', { videoUri: video.uri }); };
+  const removeVideo = () => Alert.alert('Usunąć film ze zgłoszenia?', video ? 'Film wróci do poczekalni.' : 'Film zostanie usunięty ze zgłoszenia.', [
+    { text: 'Anuluj', style: 'cancel' },
+    { text: 'Usuń', style: 'destructive', onPress: () => {
+      setVideoId(null);
+      sentVideo.current = '';
+      if (app?.video?.url) {
+        setVideoBusy('Usuwam film…');
+        deleteReportVideo(app.id).then(setApp).catch(fail).finally(() => setVideoBusy(null));
+      }
+    } },
   ]);
   const lock = formLocks({ hasCarPhoto: !!app?.carImage?.thumb, uploading, hasLocation: form.lat != null && form.lng != null, geoBusy: geoBusy > 0 });
   // Odpowiedź „Oba” (albo wybór jednego pojazdu / nowe zdjęcia) ustawia drugą tablicę; ręczna poprawka zostaje do następnego wyboru.
@@ -455,7 +505,18 @@ export function NewReportScreen({ navigation, route }: any) {
 
   const submit = async () => {
     setErr(null);
-    if (!hasRequiredPhotos(app)) { setErr({ field: 'images', text: 'Dodaj zdjęcie auta z widocznym numerem rejestracyjnym i zdjęcie kontekstu.' }); toast.error('Dodaj zdjęcie auta z widocznym numerem rejestracyjnym i zdjęcie kontekstu.'); return; }
+    if (!hasRequiredPhotos(app)) {
+      const text = video && !tiles.length ? 'Wybierz klatkę filmu, na której widać tablicę rejestracyjną, albo dodaj zdjęcia.' : 'Dodaj zdjęcie auta z widocznym numerem rejestracyjnym i zdjęcie kontekstu.';
+      setErr({ field: 'images', text }); toast.error(text); return;
+    }
+    if (requiresVideo(cats, form.category) && !hasVideo) {
+      const text = 'Dołącz film – to wykroczenie zgłaszamy tylko z nagraniem.';
+      setErr({ field: 'video', text }); toast.error(text); return;
+    }
+    if (hasVideo && tiles.length > MAX_PHOTOS_WITH_VIDEO) {
+      const text = `Z filmem możesz dołączyć najwyżej ${MAX_PHOTOS_WITH_VIDEO} zdjęcia – usuń jedno.`;
+      setErr({ field: 'images', text }); toast.error(text); return;
+    }
     if (form.address.trim().length <= 10) { fail(new ApiError('Podaj adres lub wskaż go na mapie', 422, 'address')); return; }
     setSubmitting(true);
     try {
@@ -469,6 +530,12 @@ export function NewReportScreen({ navigation, route }: any) {
         datetime: form.datetime || nowIso(), dtFromPicture: form.dtFromPicture, category: form.category,
         extensions: form.extensions, comment: form.comment.trim(), witness: form.witness, stopAgresji: unit,
       };
+      // film przed zapisem formularza: serwer sprawdza go przy zapisie (hałas/drift, limit zdjęć)
+      if (video && sentVideo.current !== video.uri) {
+        setVideoBusy(video.size ? `Wysyłam film (${fmtMB(video.size)})…` : 'Wysyłam film…');
+        try { setApp(await uploadReportVideo(app.id, video.uri)); } finally { setVideoBusy(null); }
+        sentVideo.current = video.uri;
+      }
       await saveReport(app.id, body);
       const appIds = [app.id];
       const plate2 = form.plateId2.trim();
@@ -497,7 +564,7 @@ export function NewReportScreen({ navigation, route }: any) {
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-        {!editId && !waitingIds && tiles.length > 0 ? (
+        {!editId && !fromWaiting && (tiles.length > 0 || !!video) ? (
           <Pressable onPress={startOver} disabled={uploading} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 10, opacity: uploading ? 0.5 : 1 }}>
             <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, textDecorationLine: 'underline' }}>Zacznij od nowa</Text>
           </Pressable>
@@ -526,11 +593,31 @@ export function NewReportScreen({ navigation, route }: any) {
           onVehicle={batch.chooseVehicle}
           onRemove={batch.remove}
           showRepick={!!editId}
+          maxPhotos={maxPhotos(hasVideo)}
+          emptyHint={video ? 'albo wskaż w filmie poniżej klatkę z tablicą rejestracyjną' : null}
         />
         {batch.failed.length ? (
           <Pressable onPress={batch.retry}><Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, marginTop: 8 }}>Nie wszystkie zdjęcia zostały wysłane – spróbuj ponownie</Text></Pressable>
         ) : null}
         {fieldErr('images')}
+
+        {videoEnabled ? (
+          <VideoSection
+            video={video}
+            server={serverVideo}
+            busy={videoBusy}
+            disabled={uploading || submitting}
+            tooManyPhotos={tiles.length > MAX_PHOTOS_WITH_VIDEO}
+            // sama klatka, na której nie odczytano tablicy: zachęta do innej klatki
+            frameNote={video && batch.phase === 'ready' && batch.photos.length === 1 && batch.photos[0].id.startsWith('frame-') && !batch.slots.car ? 'Na tej klatce nie odczytaliśmy tablicy – wybierz inną.' : null}
+            canPickFrame={!!video && (tiles.length === 0 || (batch.photos.length === 1 && batch.photos[0].id.startsWith('frame-')))}
+            hasFrame={batch.photos.length === 1 && batch.photos[0].id.startsWith('frame-')}
+            onRecord={recordVideo}
+            onRemove={removeVideo}
+            onPickFrame={pickFrame}
+          />
+        ) : null}
+        {fieldErr('video')}
 
         <L>Numer rejestracyjny</L>
         <TextInput {...inputColors} style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }, lock.photoFields && locked]} editable={!lock.photoFields} value={form.plateId} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => { edited.current.plate = true; setPlateTouched(true); set('plateId', t); }} />
@@ -626,7 +713,7 @@ export function NewReportScreen({ navigation, route }: any) {
         </View>
 
         <View style={{ marginTop: 20 }}>
-          <UdButton title={submitting ? 'Zapisuję…' : 'Dalej'} onPress={submit} disabled={submitting || uploading || geoBusy > 0} />
+          <UdButton title={submitting ? (videoBusy ?? 'Zapisuję…') : 'Dalej'} onPress={submit} disabled={submitting || uploading || geoBusy > 0 || !!videoBusy} />
         </View>
         <Text style={{ color: ud.muted, fontSize: 12, marginTop: 6 }}>{nextStepHint({ photosOk, uploading, geoBusy: geoBusy > 0, address: form.address, category: form.category, comment: form.comment })}</Text>
       </ScrollView>
@@ -634,6 +721,61 @@ export function NewReportScreen({ navigation, route }: any) {
       <MapPicker visible={mapOpen} initial={form.lat != null && form.lng != null ? { lat: form.lat, lng: form.lng } : null} fallback={mapStart} onConfirm={onMapConfirm} onClose={() => setMapOpen(false)} />
       {kbd ? null : <UdTabs current="NewReport" navigate={go} />}
     </KeyboardAvoidingView>
+  );
+}
+
+// Film w zgłoszeniu (Android, lib/video.ts): nagranie aparatem appki, podgląd, „Nagraj ponownie”/„Usuń” i wybór klatki z tablicą,
+// która zastępuje zdjęcia, gdy zgłoszenie opiera się na samym filmie.
+function VideoSection({ video, server, busy, disabled, tooManyPhotos, frameNote, canPickFrame, hasFrame, onRecord, onRemove, onPickFrame }: {
+  video: { uri: string; size?: number; durationMs?: number; posterUri?: string } | null;
+  server: { size?: number } | null;
+  busy: string | null;
+  disabled: boolean;
+  tooManyPhotos: boolean;
+  frameNote: string | null;
+  canPickFrame: boolean;
+  hasFrame: boolean;
+  onRecord: () => void;
+  onRemove: () => void;
+  onPickFrame: () => void;
+}) {
+  if (!video && !server) {
+    return (
+      <View style={{ marginTop: 16 }}>
+        <UdButton title="🎬 Nagraj film" variant="outline" onPress={onRecord} disabled={disabled || tooManyPhotos} />
+        <Text style={{ color: ud.muted, fontSize: 12, marginTop: 6 }}>
+          {tooManyPhotos
+            ? `Z filmem możesz dołączyć najwyżej ${MAX_PHOTOS_WITH_VIDEO} zdjęcia – usuń jedno, żeby nagrać film.`
+            : 'Do 25 s, z dźwiękiem. Wymagany przy hałasie i drifcie; przy innych wykroczeniach – jeśli pomaga pokazać sytuację.'}
+        </Text>
+      </View>
+    );
+  }
+  const size = video?.size ?? server?.size;
+  const facts = [video?.durationMs ? `${Math.round(video.durationMs / 1000)} s` : '', size ? fmtMB(size) : ''].filter(Boolean).join(' · ');
+  return (
+    <View style={{ marginTop: 16 }}>
+      <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center', backgroundColor: ud.surface, borderRadius: ud.radiusSm, padding: 10, borderWidth: 1, borderColor: ud.hairline }}>
+        <View style={{ width: 72, height: 54, borderRadius: 6, overflow: 'hidden', backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }}>
+          {video?.posterUri ? <Image source={{ uri: video.posterUri }} style={{ width: '100%', height: '100%' }} /> : <Text style={{ fontSize: 22 }}>🎬</Text>}
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: ud.text, fontFamily: ud.fontBodyBold }}>{`Film${facts ? ` · ${facts}` : ''}`}</Text>
+          <Text style={{ color: ud.muted, fontSize: 12, marginTop: 2 }}>{busy ?? (video ? 'Wyślę go po „Dalej”; w mailu będzie link do filmu.' : 'Dołączony do zgłoszenia.')}</Text>
+          <View style={{ flexDirection: 'row', gap: 18, marginTop: 6 }}>
+            <Pressable onPress={onRecord} disabled={disabled || !!busy} hitSlop={6}><Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>Nagraj ponownie</Text></Pressable>
+            <Pressable onPress={onRemove} disabled={disabled || !!busy} hitSlop={6}><Text style={{ color: ud.plateVerified, fontFamily: ud.fontBodyBold }}>Usuń</Text></Pressable>
+          </View>
+        </View>
+      </View>
+      {canPickFrame ? (
+        <View style={{ marginTop: 10 }}>
+          <UdButton title={hasFrame ? '🖼️ Wybierz inną klatkę' : '🖼️ Wybierz klatkę z tablicą'} variant={hasFrame ? 'outline' : undefined} onPress={onPickFrame} disabled={disabled} />
+          {!hasFrame ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 6 }}>Bez zdjęć zatrzymaj film tam, gdzie tablica rejestracyjna jest ostra – ta klatka będzie zdjęciem pojazdu.</Text> : null}
+        </View>
+      ) : null}
+      {frameNote ? <Text style={{ color: ud.warning, marginTop: 6 }}>{frameNote}</Text> : null}
+    </View>
   );
 }
 

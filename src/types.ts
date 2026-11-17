@@ -76,9 +76,7 @@ export type Category = {
   groups?: number[]; // 0 = „Najczęstsze wykroczenia”
   order?: number;
   stopAgresjiOnly?: boolean; // wymusza Policję
-  adHoc?: boolean; // zgłoszenie „na gorąco” (lib/adHoc.ts) – nie na zwykłej liście
-  beta?: boolean; // kategoria w fazie testów – tylko gdy serwer zwraca features.adHocReports
-  betaGroups?: number[]; // grupy kategorii testowej (zamiast `groups`, żeby starsze wersje appki jej nie pokazywały)
+  requiresVideo?: boolean; // hałas, drift: tylko z nagraniem, zawsze wojewódzka skrzynka SAD (lib/video.ts)
   contextImageHint?: string;
   carImageHint?: string;
   // okienko „więcej…” przy kategorii (jak #category-popup-{id} na webie)

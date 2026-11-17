@@ -5,10 +5,9 @@ import { validIdToken } from '../api/udApi';
 import { ImageViewer } from '../components/ImageViewer';
 import { UdButton, UdTabs } from '../components/UD';
 import { goTab } from '../lib/goTab';
-import { fmtMB } from '../lib/adHoc';
+import { fmtMB, videoEnabled } from '../lib/video';
 import { plural } from '../lib/reports';
-import { adHocEligible, bestFix, isVideo, packPhotos, type Pack, type WaitingPhoto } from '../lib/waitingRoom';
-import { useAuth } from '../store/useAuth';
+import { bestFix, isVideo, packPhotos, type Pack, type WaitingPhoto } from '../lib/waitingRoom';
 import { useWaitingRoom } from '../store/useWaitingRoom';
 import { ud } from '../theme';
 
@@ -123,7 +122,6 @@ export function WaitingRoomScreen({ navigation }: any) {
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [viewer, setViewer] = useState<number | null>(null);
   const [viewerUrls, setViewerUrls] = useState<string[]>([]);
-  const videoEnabled = useAuth((s) => s.adHocReports);
 
   const waiting = useMemo(() => photos.filter((p) => !p.draftId), [photos]);
   const packs = useMemo(() => packPhotos(waiting), [waiting]);
@@ -185,7 +183,6 @@ export function WaitingRoomScreen({ navigation }: any) {
         {items.map((item) => {
           if (item.kind === 'video') {
             const v = item.video;
-            const fresh = adHocEligible(v, Date.now());
             const gps = gpsLabel([v]);
             const facts = [v.durationMs ? `${Math.round(v.durationMs / 1000)} s` : '', v.size ? fmtMB(v.size) : ''].filter(Boolean).join(' · ');
             return (
@@ -207,13 +204,7 @@ export function WaitingRoomScreen({ navigation }: any) {
                       <Text style={{ color: ud.muted, fontSize: 16 }}>✕</Text>
                     </Pressable>
                     <View style={{ marginTop: 10 }}>
-                      {videoEnabled && fresh ? (
-                        <UdButton title="Zgłoś na gorąco" onPress={() => navigation.push('AdHocReport', { waitingVideoId: v.id })} />
-                      ) : (
-                        <Text style={{ color: ud.muted, lineHeight: 20 }}>
-                          {videoEnabled ? 'Nagranie jest starsze niż 24 godziny – zgłoszenie na gorąco przyjmuje tylko świeże zdarzenia.' : 'Zgłoszenia z nagraniem są na razie dostępne tylko w wersji testowej.'}
-                        </Text>
-                      )}
+                      <UdButton title="Zgłoszenie z filmem" onPress={() => navigation.push('NewReport', { waitingVideoId: v.id, fromWaiting: true })} />
                     </View>
                   </View>
                 </SwipeToRemove>

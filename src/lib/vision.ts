@@ -5,7 +5,7 @@
 // VisionPhoto jako lustro kontraktu odpowiedzi POST /api/rest/vision/candidate.
 // Każda zmiana promptu/markerów w Vision.php MUSI podbić SCHEMA tu i VISION_SCHEMA tam.
 
-export const SCHEMA = 10; // = VISION_SCHEMA w backendzie; wersja kontraktu API (X-UD-Schema, bramka 426 w dół) i klucz cache analizy
+export const SCHEMA = 11; // = VISION_SCHEMA w backendzie; wersja kontraktu API (X-UD-Schema, bramka 426 w dół) i klucz cache analizy
 // SCHEMA 10: POST /api/rest/demo-login (konto demo recenzentów); kształt odpowiedzi bez zmian względem 9. Podbite przed
 // premierą prod, żeby backend (426) odciął testowe buildy staging ≤ 1.1.7 (SCHEMA 9) – testerzy przechodzą na wydanie prod.
 

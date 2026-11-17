@@ -42,7 +42,7 @@ export type UdApp = {
   contextImage?: AppImage;
   carImage?: AppImage;
   thirdImage?: AppImage;
-  video?: { url?: string; mime?: string; size?: number }; // nagranie zgłoszenia „na gorąco” (POST /app/{id}/video)
+  video?: { url?: string; mime?: string; size?: number }; // nagranie zgłoszenia (POST /app/{id}/video, lib/video.ts)
   statements?: { witness?: boolean };
   sent?: { date?: string; to?: string };
   statusHistory?: unknown[] | Record<string, unknown>; // PHP: tablica asocjacyjna (klucz = data) → w JSON obiekt

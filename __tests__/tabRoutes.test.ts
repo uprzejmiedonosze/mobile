@@ -1,4 +1,4 @@
-import { tabRoutes } from '../src/lib/tabRoutes';
+import { isProcessParams, tabRoutes } from '../src/lib/tabRoutes';
 
 const home = { key: 'd', name: 'Dashboard' };
 
@@ -20,6 +20,10 @@ describe('tabRoutes – przełączanie zakładek bez dokładania ekranów', () =
   });
   it('edycja zgłoszenia nie liczy się jako zakładka „Nowe”', () => {
     expect(tabRoutes([home, { key: 'e', name: 'NewReport', params: { editId: '1' } }], 'NewReport')).toEqual([home, { name: 'NewReport', params: undefined }]);
+  });
+  it('film z poczekalni to ekran procesu, a film nagrany z zakładki „Nowe” jej nie zmienia', () => {
+    expect(isProcessParams({ waitingVideoId: 'v', fromWaiting: true })).toBe(true);
+    expect(isProcessParams({ waitingVideoId: 'v' })).toBe(false);
   });
   it('bez Startu na spodzie dokłada go', () => {
     expect(tabRoutes([{ name: 'ReportDone' }], 'Reports')[0]).toEqual({ name: 'Dashboard' });

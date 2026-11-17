@@ -121,7 +121,7 @@ describe('poczekalnia: zdjęcia per konto', () => {
 });
 
 describe('nagrania w poczekalni', () => {
-  const { adHocEligible, isVideo, AD_HOC_MAX_AGE_MS } = require('../src/lib/waitingRoom');
+  const { isVideo } = require('../src/lib/waitingRoom');
   test('packPhotos pomija nagrania, wpis bez kind to zdjęcie', () => {
     const photo = mk('a', 0);
     const video = { ...mk('v', 5), kind: 'video' as const };
@@ -129,11 +129,5 @@ describe('nagrania w poczekalni', () => {
     expect(isVideo(video)).toBe(true);
     expect(packPhotos([photo, video]).flatMap((p) => p.photos.map((x) => x.id))).toEqual(['a']);
     expect(packPhotos([video])).toEqual([]);
-  });
-  test('na gorąco tylko świeże nagrania (24 h minus zapas na formularz)', () => {
-    const now = 1_800_000_000_000;
-    expect(adHocEligible({ takenAtMs: now - 3600_000 }, now)).toBe(true);
-    expect(adHocEligible({ takenAtMs: now - AD_HOC_MAX_AGE_MS + 60_000 }, now)).toBe(false);
-    expect(adHocEligible({ takenAtMs: now - AD_HOC_MAX_AGE_MS - 1 }, now)).toBe(false);
   });
 });

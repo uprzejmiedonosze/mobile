@@ -60,7 +60,6 @@ type Auth = {
   isRegistered: boolean;
   isTermsConfirmed: boolean;
   isPatron: boolean; // odznaka 'patron' ze stats z GET /api/rest/user/ (logo „PRO” w nagłówku)
-  adHocReports: boolean; // features.adHocReports z GET /api/rest/user/ – zgłoszenia „na gorąco” i kategorie testowe (lib/adHoc.ts)
   appLinkSent: boolean; // ostatni mail ma link otwierający appkę (inaczej link trzeba skopiować, nie klikać)
   linkCode: string; // kod z klikniętego linku, gdy nie wiadomo, na jaki e-mail przyszedł – trafia do pola „wklej kod”
   setEmail: (e: string) => void;
@@ -89,7 +88,6 @@ export const useAuth = create<Auth>((set, get) => ({
   isRegistered: false,
   isTermsConfirmed: false,
   isPatron: false,
-  adHocReports: false,
   appLinkSent: false,
   linkCode: '',
   setEmail: (email) => set({ email }),
@@ -229,7 +227,7 @@ export const useAuth = create<Auth>((set, get) => ({
         return;
       }
       const j = (await res.json()) as any;
-      set({ registrationChecked: true, isRegistered: !!j.isRegistered, isTermsConfirmed: !!j.isTermsConfirmed, isPatron: !!j.stats?.badges?.includes('patron'), adHocReports: !!j.features?.adHocReports });
+      set({ registrationChecked: true, isRegistered: !!j.isRegistered, isTermsConfirmed: !!j.isTermsConfirmed, isPatron: !!j.stats?.badges?.includes('patron') });
       const { name, email, isRegistered, isTermsConfirmed, isPatron } = get();
       if (isRegistered && isTermsConfirmed) {
         useCacheFor(udEnv, email);
@@ -296,7 +294,7 @@ export const useAuth = create<Auth>((set, get) => ({
         // non-fatal
       }
     }
-    set({ status: 'idle', idToken: '', refreshToken: '', expiresAt: 0, name: '', error: null, registrationChecked: false, isRegistered: false, isTermsConfirmed: false, isPatron: false, adHocReports: false });
+    set({ status: 'idle', idToken: '', refreshToken: '', expiresAt: 0, name: '', error: null, registrationChecked: false, isRegistered: false, isTermsConfirmed: false, isPatron: false });
     log.info('auth', 'wylogowano');
     await leaveDemo(); // konto demo → z powrotem na prod (restart appki)
   },

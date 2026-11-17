@@ -46,9 +46,10 @@ type Deps = {
   onSuggestion: (s: Suggestion) => void; // kategoria / tablica z analizy
   onError: (e: unknown) => void;
   onCarExif?: (photo: PhotoItem) => void; // metadane (GPS, data) zdjęcia auta wyczytane lokalnie – od razu, bez czekania na analizę i upload
+  maxPhotos?: number; // limit wyboru z galerii (z filmem 2 – lib/video.ts), domyślnie MAX_BATCH
 };
 
-export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError, onCarExif }: Deps) {
+export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onError, onCarExif, maxPhotos = MAX_BATCH }: Deps) {
   const [photos, setPhotos] = useState<LocalPhoto[]>([]);
   const [slots, setSlots] = useState<Slots>(EMPTY_SLOTS);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -339,14 +340,14 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
     let picked: LocalPhoto[];
     try {
       if (!(await ensureAiConsent())) return; // zdjęcia idą do AI (OpenAI, Plate Recognizer) – na iOS najpierw zgoda, patrz lib/aiConsent.ts
-      picked = (await pickPhotos(MAX_BATCH, MIN_PHOTOS)) as LocalPhoto[];
+      picked = (await pickPhotos(maxPhotos, MIN_PHOTOS)) as LocalPhoto[];
     } catch (e) {
       setPhase('idle');
       onError(e);
       return;
     }
     await load(picked);
-  }, [load, onError]);
+  }, [load, onError, maxPhotos]);
 
   // Usunięcie zdjęcia (np. innego auta) przelicza role dla pozostałych; wskazany pojazd zostaje, jeśli jeszcze jest na zdjęciach.
   const remove = useCallback((id: string) => {

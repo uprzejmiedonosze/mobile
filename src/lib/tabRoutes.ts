@@ -3,10 +3,11 @@
 export type TabName = 'Dashboard' | 'NewReport' | 'Reports' | 'WaitingRoom' | 'Account';
 export type StackRoute = { key?: string; name: string; params?: object };
 
-// NewReport z `editId` / `waitingIds` to ekran procesu (edycja, paczka z poczekalni) wjeżdżający nad zakładkę, a nie zakładka „Nowe”.
+// NewReport z `editId` / `waitingIds` / `fromWaiting` to ekran procesu (edycja, paczka lub film z poczekalni; samo
+// `waitingVideoId` wraca też z aparatu do zakładki „Nowe”, więc o niczym nie przesądza) wjeżdżający nad zakładkę, a nie zakładka „Nowe”.
 export const isProcessParams = (params?: object) => {
-  const p = params as { editId?: string; waitingIds?: string[] } | undefined;
-  return !!(p?.editId || p?.waitingIds);
+  const p = params as { editId?: string; waitingIds?: string[]; fromWaiting?: boolean } | undefined;
+  return !!(p?.editId || p?.waitingIds || p?.fromWaiting);
 };
 
 export function tabRoutes(routes: StackRoute[], name: TabName, params?: object): StackRoute[] {

@@ -34,7 +34,7 @@ export type ReportForm = {
 export type Confirmation = {
   body: string; // tekst formalny kategorii + rozszerzenia + komentarz
   witness: string; // „Nie byłeś świadkiem parkowania.” / „Byłeś świadkiem parkowania.”; '' gdy kategoria nie dotyczy parkowania
-  video?: { size: number; mime: string | null; url: string | null } | null; // nagranie zgłoszenia „na gorąco” – mail zawiera link do niego
+  video?: { size: number; mime: string | null; url: string | null } | null; // nagranie zgłoszenia – mail zawiera link do niego
   shortAddress: string;
   plateId: string | null;
   vehicleBox: { x: number; y: number; width: number; height: number } | null; // piksele zdjęcia auta
@@ -84,7 +84,7 @@ export async function uploadPlateImage(appId: string, uri: string): Promise<UdAp
   return apiJson(res, 'Nie udało się wysłać wycinka tablicy');
 }
 
-// Nagranie do zgłoszenia „na gorąco” (≤ 15 MB, lib/adHoc.ts) – na komórkowym łączu trwa dłużej niż upload zdjęcia.
+// Nagranie zgłoszenia (≤ 15 MB, lib/video.ts) – na komórkowym łączu trwa dłużej niż upload zdjęcia.
 export const VIDEO_UPLOAD_TIMEOUT_MS = 300_000;
 
 export async function uploadReportVideo(appId: string, uri: string): Promise<UdApp> {

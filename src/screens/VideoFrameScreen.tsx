@@ -3,20 +3,20 @@ import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { UdButton, UdHeader } from '../components/UD';
-import { clampFrameTime, FRAME_STEP_S } from '../lib/adHoc';
+import { UdButton } from '../components/UD';
+import { clampFrameTime, FRAME_STEP_S } from '../lib/video';
 import { log } from '../lib/log';
 import { toast } from '../store/useToast';
 import { ud } from '../theme';
 
 const fmtS = (s: number) => `${s.toFixed(1).replace('.', ',')} s`;
 
-// Wybór klatki z nagrania „na gorąco”, na której tablica jest czytelna – ta klatka staje się zdjęciem auta i przechodzi
-// zwykły ALPR (AdHocReport). Natywny odtwarzacz expo-video daje suwak; przyciski „±” przesuwają o ułamek sekundy.
+// Wybór klatki filmu, na której tablica jest czytelna – wraca do formularza (NewReport: `frameUri`, `frameAtS`) i staje się zdjęciem
+// jak z galerii: ALPR, kontekst + wycinek auta, data i GPS z nagrania (lib/video.ts: framePhoto). Natywny odtwarzacz expo-video daje suwak; przyciski „±” przesuwają o ułamek sekundy.
 // Klatkę wyciąga expo-video (Android: MediaMetadataRetriever.OPTION_CLOSEST, iOS: tolerancja 0 – dokładnie ta chwila,
 // nie najbliższa klatka kluczowa), a expo-image-manipulator zapisuje ją jako JPEG. Ekran ładowany leniwie (App.tsx):
 // starszy dev client bez modułu ExpoVideo nie wywraca się przy starcie.
-export function AdHocFrameScreen({ navigation, route }: any) {
+export function VideoFrameScreen({ navigation, route }: any) {
   const uri: string = route.params.videoUri;
   const insets = useSafeAreaInsets();
   const player = useVideoPlayer(uri, (p) => { p.muted = true; p.loop = false; p.timeUpdateEventInterval = 0.1; });
@@ -47,7 +47,8 @@ export function AdHocFrameScreen({ navigation, route }: any) {
       const img = await ImageManipulator.ImageManipulator.manipulate(thumb).renderAsync();
       const out = await img.saveAsync({ format: ImageManipulator.SaveFormat.JPEG, compress: 0.92 });
       log.info('klatka', `${fmtS(at)} → ${out.width}×${out.height}`);
-      navigation.navigate({ name: 'AdHocReport', params: { frameUri: out.uri }, merge: true });
+      // popTo: wracamy do formularza, który otworzył wybór klatki (navigate w React Navigation 7 dołożyłby nowy)
+      navigation.popTo('NewReport', { frameUri: out.uri, frameAtS: at }, { merge: true });
     } catch (e: any) {
       log.fail('klatka', e);
       toast.error(e?.message ?? 'Nie udało się pobrać klatki.');
@@ -64,7 +65,6 @@ export function AdHocFrameScreen({ navigation, route }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader title="Klatka z tablicą" onBack={() => navigation.goBack()} />
       <VideoView player={player} nativeControls contentFit="contain" style={{ flex: 1, backgroundColor: '#000' }} />
       <View style={{ padding: 16, paddingBottom: insets.bottom + 16, gap: 12 }}>
         <Text style={{ color: ud.text, lineHeight: 20 }}>

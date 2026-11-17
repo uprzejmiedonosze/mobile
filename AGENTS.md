@@ -60,17 +60,20 @@ RevenueCat; SDK konfigurujemy leniwie, z `appUserId` z backendu (`GET /api/rest/
 produktów muszą być zgodne z backendem (`config.php: IAP_PRODUCTS`) i App Store Connect. `WebPageScreen` blokuje na iOS odnośniki
 płatnicze. Moduł nie jest linkowany na Androidzie (`react-native.config.js`).
 
-**Zgłoszenie na gorąco (tuning, drift; wersja testowa).** Pulpit (Android) ma jedno główne CTA „Zrób zdjęcie lub film” → `WaitingCameraScreen`
-z przełącznikiem ZDJĘCIE/WIDEO (WIDEO tylko przy `features.adHocReports`; mikrofon pytany dopiero przy przełączeniu; 720p, ≤25 s, ≤14 MB, z dźwiękiem).
-Nagranie czeka w poczekalni (`kind: 'video'`, `<id>.mp4` + okładka `<id>.poster.jpg`, poza paczkami zdjęć) i z jej karty otwiera `AdHocReportScreen`
-(`waitingVideoId`): data = chwila nagrania (≤24 h, `adHocEligible`), miejsce = GPS nagrania; „Nowe” nie ma już wejścia „na gorąco”. Obrót nagrań w poziomie
-przy appce zablokowanej w pionie daje łatka `patches/expo-camera+*.patch` (patch-package w `postinstall`; bez niej film wychodzi obrócony).
-Jeden aparat do filmów: formularz otwiera `WaitingCamera` z `{ mode: 'video', returnTo: 'AdHocReport' }`. Obrót pliku po nagraniu poprawia `lib/mp4Rotation.ts` (macierz `tkhd` z akcelerometru), bo CameraX zapisywał poziome filmy jako pionowe. Nagranie jest wymagane (`adHocMissing`; hałas i drift tylko z filmem, bez wejścia „bez nagrania”), zdjęcie/klatka – dodatkowo.
-Kategorie `adHoc` (31 hałas/wydech, 32 drift) nie mają `groups`; backend nie wymaga dla nich zdjęć, przyjmuje datę ≤24 h i wysyła zawsze na
-wojewódzką skrzynkę „Stop agresji drogowej” (`StopAgresji::guessVoivodeship`), wideo (`POST /app/{id}/video`) ląduje na B2, a mail zawiera link do niego (`/cdn2/…`, nginx z dysku albo proxy z B2).
-Z filmu można wybrać klatkę z czytelną tablicą (`AdHocFrameScreen`, `expo-video` – klatka dokładna, nie kluczowa): klatka albo zdjęcie idzie od razu na `/photos` + ALPR (`bestPlate`), numer wpisuje się, gdy pole jest puste, a zdjęcie trafia do slotu `carImage`.
-Kategorie stanu technicznego (27–30) są na zwykłej liście przez `betaGroups`. Wszystko `beta` = tylko gdy `features.adHocReports`
-(GET /api/rest/user, na razie poza produkcją) – `lib/adHoc.ts` (`withFeatureCategories`). Podstawy prawne: `docs/TUNING-PRAWO.md`.
+**Film w zgłoszeniu (Android; hałas i drift tylko z filmem).** Nie ma osobnego zgłoszenia „na gorąco” – wszystko idzie przez `NewReportScreen`, bez limitu 24 h
+(zwykłe 7 miesięcy). Pulpit (Android) ma jedno główne CTA „Zrób zdjęcie lub film” → `WaitingCameraScreen` z przełącznikiem ZDJĘCIE/WIDEO (mikrofon pytany
+dopiero przy przełączeniu; 720p, ≤25 s, ≤14 MB, z dźwiękiem). Nagranie czeka w poczekalni (`kind: 'video'`, `<id>.mp4` + okładka `<id>.poster.jpg`, poza paczkami)
+i z jej karty otwiera formularz z `waitingVideoId`; w formularzu „Nagraj film” otwiera ten sam aparat z `{ mode: 'video', returnTo: 'NewReport' }`.
+Zgłoszenie ma najwyżej jeden film i zdjęcia: do 3, a z filmem do 2 (`lib/video.ts`: `maxPhotos`; serwer odrzuca film + `thirdImage`). Zdjęcia są zawsze wymagane:
+przy samym filmie użytkownik wskazuje klatkę z tablicą (`VideoFrameScreen`, `expo-video` – klatka dokładna, nie kluczowa), która wraca jako `frameUri`/`frameAtS`
+i idzie zwykłą ścieżką `usePhotoBatch.load` jako jedno zdjęcie (kontekst + wycinek auta, ALPR) z datą i GPS nagrania (`framePhoto`). Film leci na serwer
+przy „Dalej”, przed zapisem formularza (`POST /app/{id}/video`, B2, w mailu link `/cdn2/…`); po potwierdzeniu znika z poczekalni (`removeDrafts`).
+Kategorie 31 (hałas/wydech) i 32 (drift) mają `requiresVideo` i są w grupie 6 razem ze stanem technicznym (27–30); bez filmu serwer zwraca 422 `video`,
+z filmem wysyła zawsze na wojewódzką skrzynkę „Stop agresji drogowej” (`StopAgresji::guessVoivodeship`). Web i MCP ich nie pokazują, iOS też nie
+(`availableCategories`; na iOS nie ma filmu). Flag testowych (`beta`, `features.adHocReports`) już nie ma; wydane 1.3.x nie umieją dołączyć filmu, więc
+backend z tą zmianą idzie na produkcję dopiero po wydaniu appki z `SCHEMA` 11 (426 dla starszych – docs/NFR.md).
+Obrót nagrań w poziomie przy appce zablokowanej w pionie: łatka `patches/expo-camera+*.patch` (patch-package w `postinstall`) i poprawka pliku po nagraniu
+w `lib/mp4Rotation.ts` (macierz `tkhd` z akcelerometru). Podstawy prawne: `docs/TUNING-PRAWO.md`.
 
 ## Non-functional requirements
 

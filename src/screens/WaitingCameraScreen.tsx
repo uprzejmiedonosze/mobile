@@ -8,13 +8,12 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UdButton } from '../components/UD';
 import { goTab } from '../lib/goTab';
-import { fmtMB, videoTooLarge, VIDEO_BITRATE, VIDEO_MAX_DURATION_S, VIDEO_QUALITY, VIDEO_RECORD_MAX_BYTES } from '../lib/adHoc';
+import { fmtMB, videoEnabled, videoTooLarge, VIDEO_BITRATE, VIDEO_MAX_DURATION_S, VIDEO_QUALITY, VIDEO_RECORD_MAX_BYTES } from '../lib/video';
 import { SESS_GAP_S } from '../lib/grouping';
 import { log } from '../lib/log';
 import { plural } from '../lib/reports';
 import { freshFix, uiRotation, type Fix, type UiRotation } from '../lib/waitingRoom';
 import { fixVideoRotation, videoPoster } from '../lib/videoPoster';
-import { useAuth } from '../store/useAuth';
 import { toast } from '../store/useToast';
 import { useWaitingRoom } from '../store/useWaitingRoom';
 import { saveCopyToGallery } from '../lib/galleryCopy';
@@ -31,9 +30,9 @@ const TILT_INTERVAL_MS = 250;
 // Praca w poziomie jak w aparatach systemowych: appka zostaje zablokowana w pionie (podgląd się nie przeładowuje, działa też z blokadą obrotu
 // w telefonie), a obracamy samą nakładkę. Plik i tak wychodzi poziomy: CameraX ustawia obrót zdjęcia z czujnika niezależnie od blokady
 // (dla nagrań dopiero z łatką patches/expo-camera+*.patch – bez niej film w poziomie wychodził obrócony).
-// Tryb WIDEO (tylko gdy serwer włączył zgłoszenia „na gorąco”): ten sam aparat nagrywa film z dźwiękiem (limity z lib/adHoc.ts), który
-// czeka w poczekalni jak zdjęcia; zgodę na mikrofon pytamy dopiero przy przełączeniu na WIDEO.
-// To jedyny aparat do filmów: formularz „na gorąco” otwiera go z `{ mode: 'video', returnTo: 'AdHocReport' }` – wtedy bez przełącznika,
+// Tryb WIDEO (Android, lib/video.ts): ten sam aparat nagrywa film z dźwiękiem, który czeka w poczekalni jak zdjęcia; zgodę na mikrofon
+// pytamy dopiero przy przełączeniu na WIDEO.
+// To jedyny aparat do filmów: formularz zgłoszenia otwiera go z `{ mode: 'video', returnTo: 'NewReport' }` – wtedy bez przełącznika,
 // a po nagraniu wraca do formularza z `waitingVideoId` (film i tak leży w poczekalni).
 export function WaitingCameraScreen({ navigation, route }: any) {
   const returnTo: string | undefined = route?.params?.returnTo;
@@ -41,7 +40,6 @@ export function WaitingCameraScreen({ navigation, route }: any) {
   const focused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
   const [mic, requestMic] = useMicrophonePermissions();
-  const videoEnabled = useAuth((s) => s.adHocReports);
   const [mode, setMode] = useState<'photo' | 'video'>(route?.params?.mode === 'video' && videoEnabled ? 'video' : 'photo');
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -167,7 +165,8 @@ export function WaitingCameraScreen({ navigation, route }: any) {
       setLastUri(null);
       setLastIsVideo(true);
       videoPoster(video.uri, durationMs).then((uri) => { if (uri) { setPoster(video.id, uri); setLastUri(uri); } });
-      if (returnTo) navigation.navigate({ name: returnTo, params: { waitingVideoId: video.id }, merge: true });
+      // popTo, nie navigate: w React Navigation 7 navigate dołożyłby drugi formularz zamiast wrócić do tego, który otworzył aparat
+      if (returnTo) navigation.popTo(returnTo, { waitingVideoId: video.id }, { merge: true });
     } catch (e: any) {
       log.fail('aparat', e);
       toast.error('Nie udało się nagrać filmu.');

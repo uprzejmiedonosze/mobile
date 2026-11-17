@@ -13,7 +13,7 @@ import { useNewReport } from '../store/useNewReport';
 import { toast } from '../store/useToast';
 import { ud } from '../theme';
 import { recordRecentCategory } from '../lib/recentCategories';
-import { fmtMB } from '../lib/adHoc';
+import { fmtMB } from '../lib/video';
 
 // Odpowiednik potwierdz.html.twig („Sprawdź przed wysłaniem” / „Sprawdź zgłoszenie”): podsumowanie zapisanego
 // zgłoszenia, a dopiero przycisk na dole je potwierdza (POST /app/{id}/finish) i – gdy odbiorca ma automatyczny

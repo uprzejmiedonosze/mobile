@@ -50,7 +50,7 @@ export const CROP_TILE_ID = '__car_crop';
 // Pole na 2–3 kafelki (jedno zdjęcie też daje dwa: oryginał + wycinek auta – układ się nie przestawia). Bez podpisów ról; zdjęcie auta
 // wyróżnia miniatura tablicy rejestracyjnej pod nim. Role wynikają z analizy ALPR (lib/roles.ts) i nie są do ręcznej zmiany; jedyny wybór
 // użytkownika to „którego pojazdu dotyczy zgłoszenie”, gdy wykryto kilka pewnych pojazdów.
-export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, cropPreview, pending, plateUri, vehicles, vehicleIdx, canBoth, both, second, carBox, carNatural, onPick, onVehicle, onRemove, showRepick = true }: {
+export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, cropPreview, pending, plateUri, vehicles, vehicleIdx, canBoth, both, second, carBox, carNatural, onPick, onVehicle, onRemove, showRepick = true, maxPhotos = 3, emptyHint }: {
   tiles: Tile[];
   slots: Slots;
   phase: Phase;
@@ -72,6 +72,8 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
   onVehicle?: (plate: string) => void; // tablica albo BOTH_VEHICLES
   onRemove: (id: string) => void;
   showRepick?: boolean; // link „wybierz zdjęcia ponownie” (w nowym zgłoszeniu zastąpiony przez „Zacznij od nowa”)
+  maxPhotos?: number; // z filmem 2 (lib/video.ts)
+  emptyHint?: string | null; // podpis pod pustym polem (np. „albo wskaż klatkę z filmu”)
 }) {
   const analyzing = phase === 'preparing' || phase === 'analyzing';
   const [viewer, setViewer] = useState<number | null>(null); // dotknięcie zdjęcia otwiera galerię (zoom, swipe)
@@ -80,7 +82,8 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
     <View style={{ marginTop: 14 }}>
       {tiles.length === 0 ? (
         <Pressable onPress={onPick} style={{ marginTop: 8, height: 150, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>＋ Dodaj od 1 do 3 zdjęć z galerii</Text>
+          <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>{`＋ Dodaj ${maxPhotos > 1 ? `od 1 do ${maxPhotos} zdjęć` : 'zdjęcie'} z galerii`}</Text>
+          {emptyHint ? <Text style={{ color: ud.muted, marginTop: 6, textAlign: 'center', paddingHorizontal: 12 }}>{emptyHint}</Text> : null}
         </Pressable>
       ) : (
         <>
