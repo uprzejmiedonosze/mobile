@@ -6,6 +6,7 @@ describe('isExpectedError', () => {
     expect(isExpectedError(Object.assign(new Error('Wybierz rodzaj wykroczenia'), { status: 422 }))).toBe(true);
     expect(isExpectedError(Object.assign(new Error('Limit zdjęć'), { status: 402 }))).toBe(true);
     expect(isExpectedError(Object.assign(new Error('Brak połączenia z internetem.'), { status: 0 }))).toBe(true);
+    expect(isExpectedError(new Error('Google: fetch failed: java.net.ConnectException: Failed to connect to identitytoolkit.googleapis.com/172.217.119.4:443'))).toBe(true);
     expect(isExpectedError(Object.assign(new Error('Ta wersja aplikacji jest już nieobsługiwana.'), { status: 426 }))).toBe(true);
   });
 

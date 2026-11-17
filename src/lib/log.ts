@@ -47,8 +47,12 @@ export class UserError extends Error {}
 // Oczekiwane błędy: UserError, odpowiedzi API z walidacją (422), limitem zdjęć (402) albo wymuszoną aktualizacją (426 –
 // ekran blokujący, useAppUpdate) oraz brak sieci/timeout (ApiError ze statusem 0 – telefon bez zasięgu, nie usterka) –
 // duck typing po `status`, żeby log.ts nie importował api/udApi (cykl importów).
+// Surowy błąd łączności z natywnego fetch (Android: „fetch failed: java.net.ConnectException…”) to też brak sieci.
+const CONNECTIVITY = /java\.net\.(ConnectException|UnknownHostException|SocketTimeoutException|SocketException|NoRouteToHostException)/;
 export const isExpectedError = (e: unknown): boolean =>
-  e instanceof UserError || [0, 402, 422, 426].includes((e as { status?: unknown } | null)?.status as number);
+  e instanceof UserError ||
+  [0, 402, 422, 426].includes((e as { status?: unknown } | null)?.status as number) ||
+  CONNECTIVITY.test(String((e as { message?: unknown } | null)?.message ?? ''));
 
 export const log = {
   debug: (tag: string, msg: string) => emit('debug', tag, msg),
