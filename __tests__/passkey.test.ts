@@ -1,7 +1,7 @@
 jest.mock('expo-secure-store', () => ({ getItem: () => null })); // config.ts czyta flagę konta demo
 jest.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 
-import { passkeysAllowed, isPasskeyCancelled, isPasskeyUnavailable, webAuthnRequest } from '../src/lib/passkey';
+import { passkeysAllowed, isPasskeyCancelled, isPasskeyUnavailable, isPasskeyTimeout, webAuthnRequest } from '../src/lib/passkey';
 
 describe('passkeysAllowed', () => {
   it('włączone tylko na prod z natywnym modułem', () => {
@@ -27,6 +27,14 @@ describe('webAuthnRequest', () => {
   it('opcje bez opakowania zostawia bez zmian', () => {
     const inner = { challenge: 'abc', rpId: 'uprzejmiedonosze.net' };
     expect(webAuthnRequest(inner)).toBe(inner);
+  });
+});
+
+describe('isPasskeyTimeout', () => {
+  it('rozpoznaje timeout okna Credential Managera', () => {
+    expect(isPasskeyTimeout(new Error("Request doesn't finish on time!"))).toBe(true);
+    expect(isPasskeyTimeout(new Error('fetch failed'))).toBe(false);
+    expect(isPasskeyTimeout(null)).toBe(false);
   });
 });
 
