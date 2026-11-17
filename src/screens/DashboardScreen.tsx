@@ -14,7 +14,7 @@ import { ErrorScreen } from '../components/ErrorScreen';
 import { UdButton, UdTabs } from '../components/UD';
 import { goTab } from '../lib/goTab';
 import { useWaitingRoom, waitingRoomEnabled } from '../store/useWaitingRoom';
-import { videoEnabled } from '../lib/video';
+import { useVideoEnabled } from '../lib/useVideoEnabled';
 import { ripple, rippleOnDark, ud } from '../theme';
 
 const Eyebrow = ({ children }: { children: string }) => (
@@ -122,6 +122,7 @@ export function DashboardScreen({ navigation }: any) {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (waitingRoomEnabled) useWaitingRoom.getState().hydrate(); }, []);
   const waitingCount = useWaitingRoom((st) => st.photos.filter((p) => !p.draftId).length);
+  const videoEnabled = useVideoEnabled();
 
   const s = d?.stats ?? {};
   const myBadges = s.badges ?? [];

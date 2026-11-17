@@ -8,7 +8,11 @@ import type { Category, PhotoItem } from '../types';
 
 // Nagrywamy tylko własnym aparatem (Android: poprawka obrotu z akcelerometru, lib/mp4Rotation.ts; poczekalnia też jest tylko tu).
 // Na iOS nie ma filmu – i nie ma kategorii, które go wymagają.
-export const videoEnabled = Platform.OS === 'android';
+export const videoPlatform = Platform.OS === 'android';
+// Backend przyjmuje film od schematu 11 (POST /app/{id}/video). Starszy (bez X-UD-Server-Schema) – film schowany, bo wysyłka by padła.
+export const VIDEO_SERVER_SCHEMA = 11;
+export const videoSupported = (serverSchema: number | null, platformOk: boolean = videoPlatform): boolean =>
+  platformOk && serverSchema != null && serverSchema >= VIDEO_SERVER_SCHEMA;
 
 // Limit serwera: MAX_VIDEO_UPLOAD_BYTES w src/inc/API.php (15 MB). Nagrywamy z zapasem: 720p, ~3,5 Mb/s obrazu + dźwięk
 // ≈ 0,45 MB/s, więc 25 s to ok. 11–12 MB. `maxFileSize` (Android) zatrzymuje nagrywanie przed limitem także przy innym bitrate.
@@ -30,8 +34,8 @@ export const maxPhotos = (hasVideo: boolean): number => (hasVideo ? MAX_PHOTOS_W
 export const requiresVideo = (cats: Category[], id: number | string | undefined): boolean =>
   id != null && cats.some((c) => c.id === Number(id) && c.requiresVideo);
 
-// Kategorie, które ten klient może zgłosić: bez filmu (iOS) znikają te, które go wymagają.
-export const availableCategories = (cats: Category[], withVideo: boolean = videoEnabled): Category[] =>
+// Kategorie, które ten klient może zgłosić: bez filmu (iOS, starszy backend) znikają te, które go wymagają.
+export const availableCategories = (cats: Category[], withVideo: boolean): Category[] =>
   withVideo ? cats : cats.filter((c) => !c.requiresVideo);
 
 // Szukanie ostrej klatki: krok „±” ~3 klatki przy 30 fps.

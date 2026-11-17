@@ -5,7 +5,8 @@ import { validIdToken } from '../api/udApi';
 import { ImageViewer } from '../components/ImageViewer';
 import { UdButton, UdTabs } from '../components/UD';
 import { goTab } from '../lib/goTab';
-import { fmtMB, videoEnabled } from '../lib/video';
+import { fmtMB } from '../lib/video';
+import { useVideoEnabled } from '../lib/useVideoEnabled';
 import { plural } from '../lib/reports';
 import { bestFix, isVideo, packPhotos, type Pack, type WaitingPhoto } from '../lib/waitingRoom';
 import { useWaitingRoom } from '../store/useWaitingRoom';
@@ -122,6 +123,7 @@ export function WaitingRoomScreen({ navigation }: any) {
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [viewer, setViewer] = useState<number | null>(null);
   const [viewerUrls, setViewerUrls] = useState<string[]>([]);
+  const videoEnabled = useVideoEnabled();
 
   const waiting = useMemo(() => photos.filter((p) => !p.draftId), [photos]);
   const packs = useMemo(() => packPhotos(waiting), [waiting]);
@@ -204,7 +206,12 @@ export function WaitingRoomScreen({ navigation }: any) {
                       <Text style={{ color: ud.muted, fontSize: 16 }}>✕</Text>
                     </Pressable>
                     <View style={{ marginTop: 10 }}>
-                      <UdButton title="Zgłoszenie z filmem" onPress={() => navigation.push('NewReport', { waitingVideoId: v.id, fromWaiting: true })} />
+                      {videoEnabled ? (
+                        <UdButton title="Zgłoszenie z filmem" onPress={() => navigation.push('NewReport', { waitingVideoId: v.id, fromWaiting: true })} />
+                      ) : (
+                        // backend bez obsługi filmów (schemat < 11, lib/video.ts) – film czeka, aż serwer zostanie zaktualizowany
+                        <Text style={{ color: ud.muted, lineHeight: 20 }}>Serwer nie przyjmuje jeszcze zgłoszeń z filmem – nagranie poczeka tutaj.</Text>
+                      )}
                     </View>
                   </View>
                 </SwipeToRemove>

@@ -8,7 +8,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UdButton } from '../components/UD';
 import { goTab } from '../lib/goTab';
-import { fmtMB, videoEnabled, videoTooLarge, VIDEO_BITRATE, VIDEO_MAX_DURATION_S, VIDEO_QUALITY, VIDEO_RECORD_MAX_BYTES } from '../lib/video';
+import { fmtMB, videoTooLarge, VIDEO_BITRATE, VIDEO_MAX_DURATION_S, VIDEO_QUALITY, VIDEO_RECORD_MAX_BYTES } from '../lib/video';
+import { useVideoEnabled } from '../lib/useVideoEnabled';
 import { SESS_GAP_S } from '../lib/grouping';
 import { log } from '../lib/log';
 import { plural } from '../lib/reports';
@@ -40,6 +41,7 @@ export function WaitingCameraScreen({ navigation, route }: any) {
   const focused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
   const [mic, requestMic] = useMicrophonePermissions();
+  const videoEnabled = useVideoEnabled();
   const [mode, setMode] = useState<'photo' | 'video'>(route?.params?.mode === 'video' && videoEnabled ? 'video' : 'photo');
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);

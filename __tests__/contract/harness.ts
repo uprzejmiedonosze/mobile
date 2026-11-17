@@ -7,11 +7,11 @@ export type Session = { env: 'local' | 'staging'; base: string; email: string; i
 
 export const envName = (process.env.UD_E2E_ENV === 'staging' ? 'staging' : 'local') as Session['env'];
 
-// SCHEMA appki z src/lib/vision.ts (regex zamiast importu – plik ciągnie zależności RN).
+// API_SCHEMA appki z src/lib/apiSchema.ts (regex zamiast importu – jak przy innych plikach z zależnościami RN).
 export function appSchema(): number {
-  const src = readFileSync(resolve(__dirname, '../../src/lib/vision.ts'), 'utf8');
-  const m = src.match(/export const SCHEMA\s*=\s*(\d+)/);
-  if (!m) throw new Error('Nie znalazłem SCHEMA w src/lib/vision.ts');
+  const src = readFileSync(resolve(__dirname, '../../src/lib/apiSchema.ts'), 'utf8');
+  const m = src.match(/export const API_SCHEMA\s*=\s*(\d+)/);
+  if (!m) throw new Error('Nie znalazłem API_SCHEMA w src/lib/apiSchema.ts');
   return Number(m[1]);
 }
 

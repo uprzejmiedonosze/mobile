@@ -73,18 +73,19 @@ check-branch-main:
 	@echo "==> Checking if current branch is main"
 	@test "$$(git rev-parse --abbrev-ref HEAD)" = "main" || ( echo "Not on branch main." && exit 1 )
 
-# SCHEMA zmieniony od ostatniego tagu = zmiana kontraktu API: najpierw build w sklepach, dopiero potem backend z podbitym
-# VISION_SCHEMA (docs/NFR.md, ../uprzejmiedonosze/API.md) – inaczej backend zablokuje (426) appki, które jeszcze są w sklepach.
+# API_SCHEMA zmieniony od ostatniego tagu = zmiana kontraktu API: najpierw build w sklepach, dopiero potem backend z podbitym
+# API_SCHEMA (docs/NFR.md, ../uprzejmiedonosze/API.md) – inaczej backend zablokuje (426) appki, które jeszcze są w sklepach.
+# Tagi sprzed 11 trzymają numer jako `SCHEMA` w src/lib/vision.ts.
 release-check:
 	@echo "==> Release checks"
 	@! grep -q EXPO_PUBLIC_E2E eas.json || ( echo "eas.json ustawia EXPO_PUBLIC_E2E – tryb e2e nie może trafić do buildów." && exit 1 )
 	@tag=$$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | head -n1); \
 	if [ -n "$$tag" ]; then \
-		old=$$(git show "$$tag:src/lib/vision.ts" | grep -E '^export const SCHEMA' | head -n1); \
-		new=$$(grep -E '^export const SCHEMA' src/lib/vision.ts | head -n1); \
+		old=$$( { git show "$$tag:src/lib/apiSchema.ts" 2>/dev/null || git show "$$tag:src/lib/vision.ts"; } | grep -E '^export const (API_)?SCHEMA' | head -n1 | grep -oE '[0-9]+' | head -n1); \
+		new=$$(grep -E '^export const API_SCHEMA' src/lib/apiSchema.ts | head -n1 | grep -oE '[0-9]+' | head -n1); \
 		if [ "$$old" != "$$new" ]; then \
-			echo "!! SCHEMA zmieniony od $$tag:"; echo "   było:  $$old"; echo "   jest:  $$new"; \
-			echo "!! Najpierw publikacja w sklepach, dopiero potem backend z VISION_SCHEMA = nowy SCHEMA (docs/RELEASE.md)."; \
+			echo "!! API_SCHEMA zmieniony od $$tag: było $$old, jest $$new"; \
+			echo "!! Najpierw publikacja w sklepach, dopiero potem backend z API_SCHEMA = $$new (docs/RELEASE.md)."; \
 		fi; \
 	fi
 	npm run typecheck

@@ -4,7 +4,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { uploadConfig } from '../config';
 import { log } from '../lib/log';
 import { attachSharedContext, buildDraftOrder, cacheKeyFor, compose, loadAnalysisCache, saveAnalysisCache, splitByPlate, type AnalysisRecord } from '../lib/compose';
-import { SCHEMA } from '../lib/vision';
+import { API_SCHEMA } from '../lib/apiSchema';
 import { describePhoto, describeRecord } from '../lib/trace';
 import { analyzeCandidate, type VisionItem } from '../api/vision';
 import { useSession } from '../store/useSession';
@@ -62,7 +62,7 @@ export function AnalyzeScreen({ navigation }: any) {
         const key = cacheKeyFor(cand.reportId, cand.photoIds);
         const related = [key, ...Object.keys(cache).filter((k) => k.startsWith(key + ':'))]
           .map((k) => cache[k])
-          .filter((r) => r && r.schema === SCHEMA);
+          .filter((r) => r && r.schema === API_SCHEMA);
         if (related.length && related.every((r) => r.cacheKey === key)) {
           log.info('wizja', `${cand.reportId}: cache (${related.map((r) => r.reportId).join(',')}), pomijam`);
           const first = related[0];

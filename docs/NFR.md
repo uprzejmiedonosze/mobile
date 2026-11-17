@@ -5,8 +5,8 @@ Status: ✅ zrobione · 🟡 częściowo · ⬜ backlog. Każde wymaganie ma spo
 ## Kompatybilność i wersjonowanie
 | Wymaganie | Status | Weryfikacja |
 |---|---|---|
-| Klient wysyła `X-UD-Schema: <SCHEMA>` (wersja kontraktu API = `SCHEMA` w `src/lib/vision.ts` = `VISION_SCHEMA` backendu) oraz informacyjnie `X-UD-Client: pro/<wersja> (<build>; <platforma>)` w każdym żądaniu REST (`src/lib/appVersion.ts`, `authFetch`) | ✅ | curl z nagłówkami na staging |
-| Kompatybilność tylko „w dół”: serwer odrzuca (**426**) klienta o schemacie **niższym** niż `VISION_SCHEMA` backendu; nowsza appka ze starszym backendem działa (`../uprzejmiedonosze/src/api/rest/index.php`) | ✅ | `X-UD-Schema: 7` przy backendzie 8 → 426; schemat 8 → 200; bez nagłówka → 200 |
+| Klient wysyła `X-UD-Schema: <API_SCHEMA>` (wersja kontraktu API = `API_SCHEMA` w `src/lib/apiSchema.ts` = `API_SCHEMA` backendu w `src/inc/config.php`; do 11 `SCHEMA`/`VISION_SCHEMA`) oraz informacyjnie `X-UD-Client: pro/<wersja> (<build>; <platforma>)` w każdym żądaniu REST (`src/lib/appVersion.ts`, `authFetch`) | ✅ | curl z nagłówkami na staging |
+| Kompatybilność tylko „w dół”: serwer odrzuca (**426**) klienta o schemacie **niższym** niż `API_SCHEMA` backendu; nowsza appka ze starszym backendem działa (`../uprzejmiedonosze/src/api/rest/index.php`) | ✅ | `X-UD-Schema: 7` przy backendzie 8 → 426; schemat 8 → 200; bez nagłówka → 200 |
 | Aplikacja pokazuje blokujący ekran „Zaktualizuj” (`UpdateRequiredScreen`), także niezalogowanym | ✅ | `EXPO_PUBLIC_FAKE_SCHEMA=7` + `expo start -c` (backend ma schemat 8) |
 | Decyduje backend: appka nie porównuje wersji lokalnie, tylko reaguje na 426 (pierwsze żądanie po starcie to `verify-token`); **fail-open** przy braku sieci (`useAppUpdate`) | ✅ | tryb samolotowy → apka startuje |
 | Miękka zachęta, gdy `latestVersion` (wersja appki) > bieżąca | ✅ | toast przy starcie |
@@ -14,7 +14,7 @@ Status: ✅ zrobione · 🟡 częściowo · ⬜ backlog. Każde wymaganie ma spo
 **Środowiska buildów (`eas.json`):** `eas build -p android --profile staging|shadow|production` (shadow = prod Firebase + host
 `shadow.uprzejmiedonosze.net`). Profile ustawiają `EXPO_PUBLIC_*`; `.env` to tylko domyślne wartości lokalnego dev.
 
-**Polityka:** zmiana łamiąca kontrakt API = podbicie `SCHEMA` w appce → nowy build w sklepach → dopiero wdrożenie backendu z podbitym `VISION_SCHEMA` (od tej chwili starsze appki są blokowane).
+**Polityka:** zmiana łamiąca kontrakt API = podbicie `API_SCHEMA` w appce → nowy build w sklepach → dopiero wdrożenie backendu z podbitym `API_SCHEMA` (od tej chwili starsze appki są blokowane).
 Wersja appki (SemVer) pochodzi z pliku `VERSION` i tagów `vX.Y.Z` (`make release-*`, patrz `docs/RELEASE.md`); build number nadaje EAS (`autoIncrement`). Aktualizacje tylko przez sklep (bez OTA).
 
 ## Niezawodność sieci

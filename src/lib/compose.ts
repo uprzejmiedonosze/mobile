@@ -1,7 +1,8 @@
 // Fazy 7-11: split po tablicy, kompozycja 2-3 zdjęć, współdzielony kontekst,
 // deterministyczna kategoria, draft_order + cache. Port analizuj_wizja.py (bez LLM).
 import * as FileSystem from 'expo-file-system/legacy';
-import { SCHEMA, ruleCategory, type VisionPhoto } from './vision';
+import { ruleCategory, type VisionPhoto } from './vision';
+import { API_SCHEMA } from './apiSchema';
 import { log } from './log';
 
 export type DraftItem = { photoId: string; role: string; sharedFrom?: string };
@@ -284,7 +285,7 @@ export function compose(
     reviewReasons: reasons,
     splitFrom: undefined,
     draftOrder: [],
-    schema: SCHEMA,
+    schema: API_SCHEMA,
     cacheKey: '',
   };
 }
@@ -329,9 +330,9 @@ export function buildDraftOrder(rec: AnalysisRecord): void {
   rec.draftOrder = items;
 }
 
-// Klucz cache: reportId + zdjęcia (kolejność czasu). Zmiana SCHEMA unieważnia.
+// Klucz cache: reportId + zdjęcia (kolejność czasu). Zmiana API_SCHEMA unieważnia.
 export function cacheKeyFor(reportId: string, photoIds: string[]): string {
-  return `${reportId}:${photoIds.join(',')}:s${SCHEMA}`;
+  return `${reportId}:${photoIds.join(',')}:s${API_SCHEMA}`;
 }
 
 async function cachePath(): Promise<string> {

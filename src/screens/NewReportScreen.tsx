@@ -5,7 +5,8 @@ import { type UdApp, imageUrl } from '../api/apps';
 import { fetchConfig } from '../api/dashboard';
 import { fetchCategories, reverseGeocode } from '../api/geo';
 import { loadRecentCategories, pickTopCategories } from '../lib/recentCategories';
-import { availableCategories, fmtMB, framePhoto, MAX_PHOTOS_WITH_VIDEO, maxPhotos, requiresVideo, videoEnabled } from '../lib/video';
+import { availableCategories, fmtMB, framePhoto, MAX_PHOTOS_WITH_VIDEO, maxPhotos, requiresVideo } from '../lib/video';
+import { useVideoEnabled } from '../lib/useVideoEnabled';
 import { fetchRecydywa } from '../api/recydywa';
 import {
   createDraft, deleteReportVideo, fetchReport, fetchVehicleDescription, saveReport, searchAddress, uploadReportVideo, type ReportForm,
@@ -182,10 +183,11 @@ export function NewReportScreen({ navigation, route }: any) {
     fetchProfile().then((p) => { setBylam(p.bylam); setPatron(p.patronem); setMapStart(p.lastLocation); }).catch(() => {});
   }, []));
   useFocusEffect(useCallback(() => { refreshQuota(); }, [refreshQuota])); // licznik limitu zdjęć przy każdym wejściu na ekran
-  // bez filmu (iOS) nie ma kategorii, które go wymagają (lib/video.ts)
+  // bez filmu (iOS, backend < 11) nie ma kategorii, które go wymagają (lib/video.ts)
+  const videoEnabled = useVideoEnabled();
   useEffect(() => {
-    fetchCategories().then((c) => setCats(availableCategories(c)));
-  }, []);
+    fetchCategories().then((c) => setCats(availableCategories(c, videoEnabled)));
+  }, [videoEnabled]);
   useEffect(() => {
     loadRecentCategories().then(setRecentCats);
     fetchConfig<Groups>('category-groups').then(setGroups);
@@ -374,7 +376,8 @@ export function NewReportScreen({ navigation, route }: any) {
   // Wpis z poczekalni czytamy na żywo: okładka filmu dochodzi chwilę po nagraniu (videoPoster).
   const [videoId, setVideoId] = useState<string | null>(waitingVideoId ?? null);
   useEffect(() => { if (waitingVideoId) setVideoId(waitingVideoId); }, [waitingVideoId]);
-  const video = useWaitingRoom((st) => (videoId ? st.photos.find((p) => p.id === videoId) : undefined)) ?? null;
+  // backend bez obsługi filmów (lib/video.ts) – lokalnego filmu nie wysyłamy (endpointu nie ma), zgłoszenie idzie ze zdjęciami
+  const video = useWaitingRoom((st) => (videoEnabled && videoId ? st.photos.find((p) => p.id === videoId) : undefined)) ?? null;
   const serverVideo = app?.video?.url ? app.video : null;
   const hasVideo = !!video || !!serverVideo;
   const sentVideo = useRef(''); // uri filmu, który już leży w szkicu

@@ -8,6 +8,8 @@ import { refreshIdToken } from './firebaseAuth';
 import { useAuth } from '../store/useAuth';
 import { useAppUpdate } from '../store/useAppUpdate';
 import { clientHeaders } from '../lib/appVersion';
+import { parseServerSchema } from '../lib/apiSchema';
+import { useServer } from '../store/useServer';
 import { retryTransient } from '../lib/retry';
 
 export async function verifySession(idToken: string): Promise<{ email?: string; name?: string } | null> {
@@ -104,6 +106,9 @@ export async function authFetch(path: string, init?: RequestInit, opts?: { timeo
     useAuth.getState().applySession(sess);
     res = await call(sess.idToken);
   }
+  // schemat backendu (X-UD-Server-Schema) – nowsza appka chowa to, czego starszy backend nie ma (lib/apiSchema.ts)
+  const serverSchema = parseServerSchema(res.headers?.get?.('X-UD-Server-Schema'));
+  if (serverSchema != null) useServer.getState().setSchema(serverSchema);
   if (res.status === 426) await handleUpgradeRequired(res);
   return res;
 }

@@ -83,6 +83,23 @@ describe('klatka z filmu', () => {
   });
 });
 
-test('film tylko na Androidzie (własny aparat i poczekalnia)', () => {
-  expect(require('../src/lib/video').videoEnabled).toBe(true);
+test('film: Android i backend ze schematem ≥ 11 (starszy nie ma nagłówka X-UD-Server-Schema)', () => {
+  const { videoPlatform, videoSupported, VIDEO_SERVER_SCHEMA } = require('../src/lib/video');
+  expect(videoPlatform).toBe(true);
+  expect(VIDEO_SERVER_SCHEMA).toBe(11);
+  expect(videoSupported(11)).toBe(true);
+  expect(videoSupported(12)).toBe(true);
+  expect(videoSupported(10)).toBe(false);
+  expect(videoSupported(null)).toBe(false);
+  expect(videoSupported(11, false)).toBe(false); // iOS
+});
+
+test('parseServerSchema: tylko liczba z nagłówka', () => {
+  const { parseServerSchema, API_SCHEMA } = require('../src/lib/apiSchema');
+  expect(parseServerSchema('11')).toBe(11);
+  expect(parseServerSchema(' 12 ')).toBe(12);
+  expect(parseServerSchema(null)).toBeNull();
+  expect(parseServerSchema('')).toBeNull();
+  expect(parseServerSchema('11a')).toBeNull();
+  expect(API_SCHEMA).toBeGreaterThanOrEqual(11);
 });
