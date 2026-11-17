@@ -18,7 +18,7 @@ import { demoMode, googleConfig, udEnv } from '../config';
 import { cachedSession, clearCache, saveSession, useCacheFor } from '../lib/startupCache';
 import { demoCustomToken, enterDemo, isDemoEmail, leaveDemo } from '../lib/demoLogin';
 import { loginWithPasskey } from '../api/passkey';
-import { isPasskeyCancelled, isPasskeyUnavailable } from '../lib/passkey';
+import { isPasskeyCancelled, isPasskeyTimeout, isPasskeyUnavailable } from '../lib/passkey';
 
 // UWAGA: @react-native-google-signin/google-signin czyta natywny moduł (TurboModuleRegistry)
 // już na poziomie SWOJEGO pliku, w chwili gdy JS go require'uje – nie dopiero przy wywołaniu
@@ -191,6 +191,11 @@ export const useAuth = create<Auth>((set, get) => ({
         // brak passkeya na tym urządzeniu – tylko komunikat dla użytkownika, bez alertu w Sentry
         set({ status: 'error', error: 'Nie znaleziono passkeya na tym urządzeniu. Zaloguj się linkiem z maila lub kontem Google.' });
         log.warn('auth', `Passkey niedostępny: ${m}`);
+        return;
+      }
+      if (isPasskeyTimeout(e)) {
+        set({ status: 'error', error: 'Upłynął czas na potwierdzenie passkeya. Spróbuj ponownie.' });
+        log.warn('auth', `Passkey timeout: ${m}`);
         return;
       }
       set({ status: 'error', error: m });

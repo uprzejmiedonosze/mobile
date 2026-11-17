@@ -39,4 +39,8 @@ export const isPasskeyCancelled = (e: any): boolean => /UserCancelled|Cancelled|
 
 // Na urządzeniu nie ma passkeya dla tej domeny albo Credential Manager nie ma czego zaproponować (NoCredentials / NotSupported,
 // m.in. „Passkeys not supported for this app”) – sytuacja użytkownika, nie usterka: nie idzie do Sentry (UD-MOBILE-A).
-export const isPasskeyUnavailable = (e: any): boolean => /^(NoCredentials|NotSupported)$/.test(String(e?.error ?? ''));
+// Systemowe okno Credential Managera wisiało bez reakcji użytkownika aż do timeoutu („Request doesn't finish on time!”) –
+// to bezczynność użytkownika, nie usterka: nie idzie do Sentry.
+export const isPasskeyTimeout = (e: any): boolean => /doesn'?t finish on time|timed? ?out/i.test(String(e?.message ?? ''));
+
+export const isPasskeyUnavailable =(e: any): boolean => /^(NoCredentials|NotSupported)$/.test(String(e?.error ?? ''));
