@@ -18,7 +18,7 @@ import { demoMode, googleConfig, udEnv } from '../config';
 import { cachedSession, clearCache, saveSession, useCacheFor } from '../lib/startupCache';
 import { demoCustomToken, enterDemo, isDemoEmail, leaveDemo } from '../lib/demoLogin';
 import { loginWithPasskey } from '../api/passkey';
-import { isPasskeyCancelled, isPasskeyUnavailable } from '../lib/passkey';
+import { isPasskeyCancelled, isPasskeyTimeout, isPasskeyUnavailable } from '../lib/passkey';
 
 // UWAGA: @react-native-google-signin/google-signin czyta natywny moduł (TurboModuleRegistry)
 // już na poziomie SWOJEGO pliku, w chwili gdy JS go require'uje – nie dopiero przy wywołaniu
@@ -169,7 +169,7 @@ export const useAuth = create<Auth>((set, get) => ({
       }
       const m = e?.message ?? String(e);
       set({ status: 'error', error: m });
-      log.error('auth', `Google: ${m}`);
+      log.fail('auth', new Error(`Google: ${m}`));
     }
   },
   signInWithPasskey: async () => {
@@ -193,8 +193,13 @@ export const useAuth = create<Auth>((set, get) => ({
         log.warn('auth', `Passkey niedostępny: ${m}`);
         return;
       }
+      if (isPasskeyTimeout(e)) {
+        set({ status: 'error', error: 'Upłynął czas na potwierdzenie passkeya. Spróbuj ponownie.' });
+        log.warn('auth', `Passkey timeout: ${m}`);
+        return;
+      }
       set({ status: 'error', error: m });
-      log.error('auth', `Passkey: ${m}`);
+      log.fail('auth', new Error(`Passkey: ${m}`));
     }
   },
   applySession: (s) => set({ idToken: s.idToken, refreshToken: s.refreshToken, expiresAt: s.expiresAt, email: s.email || get().email }),
