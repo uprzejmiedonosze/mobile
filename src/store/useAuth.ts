@@ -169,7 +169,7 @@ export const useAuth = create<Auth>((set, get) => ({
       }
       const m = e?.message ?? String(e);
       set({ status: 'error', error: m });
-      log.error('auth', `Google: ${m}`);
+      log.fail('auth', new Error(`Google: ${m}`));
     }
   },
   signInWithPasskey: async () => {
@@ -199,7 +199,7 @@ export const useAuth = create<Auth>((set, get) => ({
         return;
       }
       set({ status: 'error', error: m });
-      log.error('auth', `Passkey: ${m}`);
+      log.fail('auth', new Error(`Passkey: ${m}`));
     }
   },
   applySession: (s) => set({ idToken: s.idToken, refreshToken: s.refreshToken, expiresAt: s.expiresAt, email: s.email || get().email }),
