@@ -1,0 +1,63 @@
+# Wydanie iOS na runnerze macOS GitHuba: `eas build --local` (nie zużywa limitu buildów planu Free EAS) → EAS Submit do TestFlight.
+# Do recenzji aplikację wysyłasz ręcznie w App Store Connect po teście z TestFlight (docs/RELEASE.md, „iOS”).
+#   - push tagu vX.Y.Z (make release-*) → profil production (prod), build + TestFlight
+#   - ręcznie (Actions → Run workflow)   → to samo z wybranej gałęzi (bez wymogu tagu), do testów TestFlight
+# Certyfikat dystrybucyjny i profil provisioningu oraz klucz API App Store Connect biorą się z EAS (jednorazowo lokalnie:
+# `eas credentials -p ios` i `eas submit -p ios`) – tu wystarczy EXPO_TOKEN.
+# Sekrety repo: EXPO_TOKEN, SENTRY_AUTH_TOKEN (zmienne EAS typu secret nie są dostępne poza serwerami EAS; wgrywa dSYM).
+name: Wydanie iOS
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: ios-production
+  cancel-in-progress: false
+
+env:
+  EAS_VERSION: 24.14.0
+
+jobs:
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Push tagu = wydanie, tag stawia make release-*. Ręczne uruchomienie (np. test TestFlight z main) tagu nie wymaga.
+      - name: Production tylko z tagu vVERSION
+        if: github.event_name == 'push'
+        run: |
+          version=$(tr -d '[:space:]' < VERSION)
+          test "$(git describe --exact-match --tags HEAD 2>/dev/null)" = "v$version" \
+            || { echo "::error::HEAD nie jest na tagu v$version"; exit 1; }
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: expo/expo-github-action@v9
+        with:
+          eas-version: ${{ env.EAS_VERSION }}
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      - name: Build (eas build --local)
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: eas build --local --non-interactive --platform ios --profile production --output build/app.ipa
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ios-production-${{ github.run_number }}
+          path: build/app.ipa
+          retention-days: 14
+
+      - name: TestFlight (EAS Submit)
+        run: eas submit --non-interactive --platform ios --profile production --path build/app.ipa --wait
