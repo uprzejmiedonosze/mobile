@@ -43,7 +43,7 @@
       [
         "expo-sensors",
         {
-          "motionPermission": false
+          "motionPermission": "Wykrywanie obrotu telefonu, żeby ułożyć przyciski przy zdjęciach robionych w poziomie."
         }
       ],
       "@react-native-community/datetimepicker",
@@ -78,7 +78,7 @@
           "locationWhenInUsePermission": "Zapisanie miejsca zdjęcia zrobionego w aplikacji i pokazanie Twojej lokalizacji na mapie przy wskazywaniu miejsca wykroczenia.",
           "locationAlwaysAndWhenInUsePermission": false,
           "locationAlwaysPermission": false,
-          "motionUsagePermission": false
+          "motionUsagePermission": "Wykrywanie obrotu telefonu, żeby ułożyć przyciski przy zdjęciach robionych w poziomie."
         }
       ],
       [
