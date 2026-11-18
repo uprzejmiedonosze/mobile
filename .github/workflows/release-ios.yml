@@ -59,5 +59,7 @@ jobs:
           path: build/app.ipa
           retention-days: 14
 
+      # Bez --wait: kolejka EAS Submit na planie Free bywa długa, a runner macOS nie ma czekać na nią godzinami.
+      # Status: link „Submission details” w logu albo `eas submit:list`.
       - name: TestFlight (EAS Submit)
-        run: eas submit --non-interactive --platform ios --profile production --path build/app.ipa --wait
+        run: eas submit --non-interactive --platform ios --profile production --path build/app.ipa --no-wait
