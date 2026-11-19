@@ -2,6 +2,7 @@
 
 - iPhone: przed pierwszym wyborem zdjęć do zgłoszenia lub skanem pisma aplikacja pyta o zgodę na przekazanie ich dostawcom usług AI i rozpoznawania tablic (m.in. OpenAI, Plate Recognizer). Zgodę możesz cofnąć w zakładce Konto.
 - Nowe zgłoszenie: lokalizacja jest brana także ze zdjęcia kontekstowego, gdy zdjęcie auta nie ma GPS (jak na stronie). Ostrzeżenie o masie pojazdu jest teraz pod polem komentarza.
+- Skaner pism z policji/SM: osoby, które właśnie zaczęły wspierać Uprzejmie Donoszę na Patronite (lub zmieniły próg), mają do niego dostęp od razu, a nie dopiero po kilkunastu godzinach.
 
 ## v1.3.2 — 2026-11-08
 

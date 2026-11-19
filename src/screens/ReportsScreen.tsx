@@ -6,6 +6,7 @@ import { fetchCategories } from '../api/geo';
 import { fetchRecydywa, fetchRecydywaGallery } from '../api/recydywa';
 import { validIdToken } from '../api/udApi';
 import { LETTER_LINK_LABEL, letterEntry } from '../lib/letters';
+import { fetchPhotoQuota } from '../api/photos';
 import { log } from '../lib/log';
 import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plateHistory, plural, reportBody, shortAddress, statusColor, witnessText } from '../lib/reports';
 import { ImageViewer } from '../components/ImageViewer';
@@ -388,6 +389,12 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
 export function ReportsScreen({ navigation, route }: any) {
   const isPatron = useAuth((s) => s.isPatron); // odznaka PRO z backendu
   const go = (r: string) => navigation.navigate(r);
+  const openLetters = async () => {
+    // Odznaka z cache'owanych statystyk bywa nieaktualna (do 24 h) – bez niej pytamy o aktualny próg wsparcia.
+    const quota = isPatron ? null : await fetchPhotoQuota().catch(() => null);
+    const e = letterEntry(isPatron, quota);
+    navigation.navigate(e.route, e.params);
+  };
   const [apps, setApps] = useState<UdApp[]>([]);
   const [openId, setOpenId] = useState<string | null>(null); // rozwinięte jest zawsze najwyżej jedno zgłoszenie
   const [statuses, setStatuses] = useState<Record<string, StatusDef>>({});
@@ -552,7 +559,7 @@ export function ReportsScreen({ navigation, route }: any) {
       <UdHeader />
       {noReports ? null : (
       <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
-        <Pressable onPress={() => { const e = letterEntry(isPatron); navigation.navigate(e.route, e.params); }} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 8 }}>
+        <Pressable onPress={openLetters} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 8 }}>
           <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, textDecorationLine: 'underline' }}>{LETTER_LINK_LABEL}</Text>
         </Pressable>
         <TextInput {...inputColors}

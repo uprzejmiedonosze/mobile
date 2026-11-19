@@ -104,6 +104,10 @@ describe('wejście do skanera pism', () => {
   it('osoba z odznaką PRO dostaje skaner, reszta stronę informacyjną z powodem', () => {
     expect(letterEntry(true)).toEqual({ route: 'Letter' });
     expect(letterEntry(false)).toEqual({ route: 'QuotaInfo', params: { reason: 'letters' } });
+    const q = (tier: string) => ({ tier } as any);
+    expect(letterEntry(false, q('patron-25'))).toEqual({ route: 'Letter' }); // odznaka nieaktualna, próg aktywny
+    expect(letterEntry(false, q('free'))).toEqual({ route: 'QuotaInfo', params: { reason: 'letters' } });
+    expect(letterEntry(false, q('patron-below-min'))).toEqual({ route: 'QuotaInfo', params: { reason: 'letters' } });
   });
 });
 

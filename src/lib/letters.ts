@@ -1,14 +1,19 @@
 // Czyste helpery prezentacji wyniku analizy pisma (testowalne bez RN). Logika (dopasowanie, status) jest na backendzie –
 // tu tylko etykiety, wybór domyślnych pól do zatwierdzenia i złożenie body dla POST /app/{id}/letter/apply.
 import type { LetterApplyBody, LetterCandidate, LetterCase, LetterCaseResult, LetterKind, LetterMatchLevel, LetterOutcome, LetterProposal } from '../api/letters';
+import type { PhotoQuota } from '../api/udApi';
+import { isPatronTier } from './quotaNotice';
 import { fmtShortDate } from './reports';
 
 export const LETTER_LINK_LABEL = 'Zeskanuj odpowiedź policji/SM';
 
 // Skaner pism jest dla osób wspierających (odznaka PRO – `isPatron` z backendu, jak logo „PRO” w nagłówku); pozostałe trafiają na
 // stronę „Dlaczego aplikacja ma limity?” z krótkim wyjaśnieniem (param `reason: 'letters'`).
-export function letterEntry(isPatron: boolean): { route: 'Letter' | 'QuotaInfo'; params?: { reason: 'letters' } } {
-  return isPatron ? { route: 'Letter' } : { route: 'QuotaInfo', params: { reason: 'letters' } };
+// `quota` (GET /photos/quota) liczy się na żywo, a odznaka `isPatron` pochodzi z statystyk cache'owanych na backendzie do 24 h –
+// świeży patron z aktywnym progiem ma dostęp od razu, nawet gdy odznaka jeszcze go nie widzi.
+export function letterEntry(isPatron: boolean, quota?: PhotoQuota | null): { route: 'Letter' | 'QuotaInfo'; params?: { reason: 'letters' } } {
+  const supporter = isPatron || (!!quota && isPatronTier(quota));
+  return supporter ? { route: 'Letter' } : { route: 'QuotaInfo', params: { reason: 'letters' } };
 }
 
 export const OUTCOME_LABELS: Record<LetterOutcome, string> = {
