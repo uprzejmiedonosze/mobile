@@ -5,8 +5,8 @@ import { exifDate } from '../lib/dateTime';
 import { log } from '../lib/log';
 import type { Fix, WaitingPhoto } from '../lib/waitingRoom';
 
-// Od 1.3.0 poczekalnia jest w wydaniach produkcyjnych; tylko Android (aparat i katalog prywatny appki).
-export const waitingRoomEnabled = Platform.OS === 'android';
+// Od 1.3.0 poczekalnia jest w wydaniach produkcyjnych na Androidzie; na iOS włączona razem z aparatem w appce (uprawnienia w app.json).
+export const waitingRoomEnabled = Platform.OS === 'android' || Platform.OS === 'ios';
 
 // Zdjęcia z aparatu w appce żyją w jej prywatnym katalogu: <id>.jpg + <id>.json (metadane). Osobny plik na zdjęcie, żeby awaria w trakcie
 // zapisu kosztowała najwyżej jedno zdjęcie. W JSON-ie nie ma uri: ścieżka katalogu appki może się zmienić po aktualizacji.

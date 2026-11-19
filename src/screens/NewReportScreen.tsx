@@ -21,6 +21,7 @@ import { CROP_TILE_ID, PhotosSection, type Tile } from '../components/PhotosSect
 import { PhotoQuotaNotice } from '../components/PhotoQuotaNotice';
 import { UdButton, UdHeader, UdTabs } from '../components/UD';
 import { usePhotoQuota } from '../lib/usePhotoQuota';
+import { ensureAiConsent } from '../lib/aiConsent';
 import { PATRONEM_DEFAULT } from '../lib/sex';
 import { usePhotoBatch } from '../lib/usePhotoBatch';
 import { toPhotoItem } from '../lib/waitingRoom';
@@ -350,7 +351,11 @@ export function NewReportScreen({ navigation, route }: any) {
   useEffect(() => {
     if (!waitingIds || loading || waitingLoaded.current) return;
     waitingLoaded.current = true;
-    void batch.load(useWaitingRoom.getState().photos.filter((p) => waitingIds.includes(p.id)).map(toPhotoItem));
+    void (async () => {
+      // Zdjęcia z poczekalni idą do AI (OpenAI, Plate Recognizer) jak z galerii – na iOS najpierw zgoda; bez niej wracamy, nic nie jest wysyłane.
+      if (!(await ensureAiConsent())) { navigation.goBack(); return; }
+      await batch.load(useWaitingRoom.getState().photos.filter((p) => waitingIds.includes(p.id)).map(toPhotoItem));
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
   // Zdjęcia wiążemy ze szkicem, gdy tylko powstanie (po wysyłce i ALPR): inaczej przerwany przydział zostawiałby szkic, do którego nic nie prowadzi.
