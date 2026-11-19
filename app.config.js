@@ -30,7 +30,12 @@ module.exports = ({ config }) => ({
     ...config.ios,
     bundleIdentifier: IS_DEV ? 'net.uprzejmiedonosze.pro.dev' : config.ios.bundleIdentifier,
     // Passkeye (RP ID = host backendu) działają tylko na prod i shadow; staging i dev client nie mają AASA.
-    ...(IS_DEV ? {} : { associatedDomains: ['webcredentials:uprzejmiedonosze.net', 'webcredentials:shadow.uprzejmiedonosze.net'] }),
+    // applinks: link logowania z maila otwiera appkę (Universal Link, src/lib/emailLinkLogin.ts); AASA tych hostów daje Firebase Hosting.
+    ...(IS_DEV ? {} : { associatedDomains: [
+      'webcredentials:uprzejmiedonosze.net',
+      'webcredentials:shadow.uprzejmiedonosze.net',
+      ...EMAIL_LINK_HOSTS.map((host) => `applinks:${host}`),
+    ] }),
   },
   android: {
     ...config.android,

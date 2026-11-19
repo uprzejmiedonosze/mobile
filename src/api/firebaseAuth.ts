@@ -73,11 +73,20 @@ function fbFriendly(msg: string): string {
 // przekierowuje do www jak dotąd. Projekt bez appki Android albo z mobileLinksConfig ≠ HOSTING_DOMAIN odrzuca taki
 // link (DYNAMIC_LINK_NOT_ACTIVATED) – wtedy wysyłamy zwykły. Konfiguracja: docs/FIREBASE-EMAIL-LINK.md.
 const RELEASE_PACKAGE = 'net.uprzejmiedonosze.pro'; // dev client (…pro.dev) nie ma intent filtra ani rejestracji w Firebase
-const APP_LINK_UNAVAILABLE = /DYNAMIC_LINK|LINK_DOMAIN|HOSTING|ANDROID/i;
+const RELEASE_BUNDLE = 'net.uprzejmiedonosze.pro'; // iOS: bundle id (dev client ma …pro.dev i nie ma associatedDomains)
+const APP_LINK_UNAVAILABLE = /DYNAMIC_LINK|LINK_DOMAIN|HOSTING|ANDROID|IOS/i;
 
 function appLinkSettings(): Record<string, unknown> | null {
-  if (Platform.OS !== 'android' || Application.applicationId !== RELEASE_PACKAGE || firebaseEmulatorHost) return null;
-  return { androidPackageName: RELEASE_PACKAGE, androidInstallApp: false, linkDomain: firebaseConfig.authDomain };
+  if (firebaseEmulatorHost) return null;
+  // Android: App Link (intent filter w app.config.js); iOS: Universal Link (associatedDomains applinks:<authDomain>, AASA daje Hosting
+  // po zarejestrowaniu appki iOS w projekcie Firebase z Team ID). Link idzie przez linkDomain = authDomain, nie przez firebaseapp.com.
+  if (Platform.OS === 'android' && Application.applicationId === RELEASE_PACKAGE) {
+    return { androidPackageName: RELEASE_PACKAGE, androidInstallApp: false, linkDomain: firebaseConfig.authDomain };
+  }
+  if (Platform.OS === 'ios' && Application.applicationId === RELEASE_BUNDLE) {
+    return { iOSBundleId: RELEASE_BUNDLE, linkDomain: firebaseConfig.authDomain };
+  }
+  return null;
 }
 
 // Zwraca true, gdy poszedł link do appki – tylko wtedy można kazać go kliknąć (zwykły link zużyje kod w www).
