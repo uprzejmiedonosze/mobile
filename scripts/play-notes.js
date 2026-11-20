@@ -29,6 +29,7 @@ Na wejściu dostajesz listę zmian z CHANGELOG-a (po polsku, dla użytkownika). 
 - najwyżej ${SUMMARY_TARGET} znaków łącznie (liczą się spacje i nowe linie), to twardy limit;
 - 3–6 punktów, każdy w osobnej linii zaczynającej się od „• ”, krótko i konkretnie;
 - najważniejsze zmiany pierwsze; drobne poprawki możesz połączyć w jeden punkt, ale nie pomijaj istotnych;
+- to wersja na Androida: pomiń wszystko, co dotyczy tylko iPhone'a/iOS (jeśli punkt łączy Androida i iPhone'a, zostaw część o Androidzie);
 - nie wymyślaj niczego, czego nie ma na wejściu; bez markdownu, bez wstępu i zakończenia – tylko punkty.`;
 
 // Treść sekcji `## <heading>` (do następnego `## `), bez pustych linii na brzegach.
@@ -39,6 +40,17 @@ function changelogSection(md, heading) {
   const rest = lines.slice(start + 1);
   const end = rest.findIndex((l) => l.startsWith('## '));
   return (end < 0 ? rest : rest.slice(0, end)).join('\n').trim();
+}
+
+// CHANGELOG jest wspólny dla obu sklepów, a „Co nowego” w Google Play ma dotyczyć tylko Androida: punkty o iPhonie pomijamy.
+// Konwencja: wpis tylko dla iOS zaczyna się od „iPhone” albo „iOS” (np. „- iPhone: …”, „- iOS: …”); wpisy wspólne, w których
+// iPhone jest wspomniany w środku, zostają (streszczenie LLM ma wtedy pominąć fragment o iPhonie, patrz SUMMARY_PROMPT).
+const IOS_ONLY = /^-\s*(iPhone|iPad|iOS)\b/i;
+const NO_ANDROID_CHANGES = '- Poprawki błędów i drobne ulepszenia.';
+function androidSection(section) {
+  const kept = section.split('\n').filter((l) => !IOS_ONLY.test(l)).join('\n').trim();
+  if (kept.split('\n').some((l) => l.startsWith('- '))) return kept;
+  return section.split('\n').some((l) => l.startsWith('- ')) ? NO_ANDROID_CHANGES : kept; // same zmiany iOS → ogólna notka
 }
 
 // Punkty listy po kolei, dopóki mieszczą się w limicie; gdy coś odpadło – dopisek MORE (też w limicie).
@@ -163,7 +175,8 @@ async function main() {
   const version = fs.readFileSync(path.join(ROOT, 'VERSION'), 'utf8').trim();
   const md = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
   const heading = args.rc ? 'RELEASE-CANDIDATE' : `v${version}`;
-  const section = changelogSection(md, heading);
+  const rawSection = changelogSection(md, heading);
+  const section = androidSection(rawSection); // Play = Android: bez wpisów tylko o iPhonie
 
   if (args.summarize) {
     // Staging zaraz po wydaniu (pusty RELEASE-CANDIDATE) – nic do streszczenia, Play zostawia poprzednie „Co nowego”.
@@ -207,7 +220,7 @@ async function main() {
     (notes ? `Co nowego (${notes.length} zn.):\n${notes}` : 'bez „Co nowego” (pusty RELEASE-CANDIDATE).'));
 }
 
-module.exports = { changelogSection, fitNotes, checkSummary, summarize, releaseName, updateTrack, parseArgs, PLAY_NOTES_LIMIT };
+module.exports = { androidSection, changelogSection, fitNotes, checkSummary, summarize, releaseName, updateTrack, parseArgs, PLAY_NOTES_LIMIT };
 
 if (require.main === module) {
   main().catch((e) => {

@@ -1,5 +1,5 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { changelogSection, fitNotes, checkSummary, summarize, releaseName, updateTrack, parseArgs, PLAY_NOTES_LIMIT } = require('../scripts/play-notes');
+const { androidSection, changelogSection, fitNotes, checkSummary, summarize, releaseName, updateTrack, parseArgs, PLAY_NOTES_LIMIT } = require('../scripts/play-notes');
 
 const MD = `## RELEASE-CANDIDATE
 
@@ -10,6 +10,18 @@ const MD = `## RELEASE-CANDIDATE
 
 - Pierwsze wydanie.
 `;
+
+describe('play-notes: tylko Android', () => {
+  it('pomija wpisy zaczynające się od iPhone/iOS, wspólne zostawia', () => {
+    const md = '- iPhone: zgoda na AI.\n- Skaner pism działa od razu.\n- iOS: klawiatura.\n- Poczekalnia (Android i iPhone).\n- iPhone i iPad: coś.';
+    expect(androidSection(md)).toBe('- Skaner pism działa od razu.\n- Poczekalnia (Android i iPhone).');
+  });
+
+  it('sama iOS-owa lista daje ogólną notkę, pusta zostaje pusta', () => {
+    expect(androidSection('- iPhone: A.\n- iOS: B.')).toBe('- Poprawki błędów i drobne ulepszenia.');
+    expect(androidSection('')).toBe('');
+  });
+});
 
 describe('play-notes', () => {
   it('wycina sekcję CHANGELOG-a – RC i wydanie z datą w nagłówku', () => {
