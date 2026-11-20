@@ -6,6 +6,7 @@
 - iPhone: Poczekalnia zdjęć i aparat w aplikacji są teraz także na iOS – fotografujesz kolejne auta w terenie, a zgłoszenie robisz później jednym dotknięciem.
 - Logowanie i Konto: przy otwartej klawiaturze (iPhone) można przewinąć formularz do końca, klawiatura nie zasłania już przycisków pod polem.
 - Poczekalnia: zdjęcia są przypisane do konta – po zalogowaniu na inne konto nie widać cudzych zdjęć. Android: w Koncie jest opcja zapisywania kopii zdjęć z aparatu w galerii (album „Uprzejmie Donoszę”), domyślnie wyłączona; kopia zapasowa zdjęć poczekalni w chmurze Google jest wyłączona.
+- Logowanie: usunięta informacja o wersji beta z ekranu logowania.
 
 ## v1.3.2 — 2026-11-08
 

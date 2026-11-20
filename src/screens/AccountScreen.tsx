@@ -39,7 +39,6 @@ export function AccountScreen({ navigation }: any) {
   );
 }
 
-const FEEDBACK_EMAIL = 'szymon+app@uprzejmiedonosze.net';
 
 // Jak login.html.twig na webie: „Zaloguj urządzeniem” (passkey), Google, e-mail – ta sama kolejność i kolory przycisków
 // (firebaseui), pod spodem akceptacja regulaminu i polityki prywatności. E-mail rozwija formularz linku logowania.
@@ -54,17 +53,6 @@ function LoginPanel() {
 
   return (
     <>
-      <UdCard>
-        <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 17 }}>Wersja beta</Text>
-        <Text style={{ color: ud.text, marginTop: 4 }}>
-          Aplikacja jest jeszcze w wersji beta, ale zgłoszenia są prawdziwe – trafiają do straży miejskiej i na Policję tak samo jak ze strony uprzejmiedonosze.net.
-        </Text>
-        <Text style={{ color: ud.muted, marginTop: 6 }}>
-          Uwagi i błędy pisz na{' '}
-          <Text style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => Linking.openURL(`mailto:${FEEDBACK_EMAIL}`).catch(() => {})}>{FEEDBACK_EMAIL}</Text>
-        </Text>
-      </UdCard>
-
       <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 34, marginTop: 16, textAlign: 'center' }}>Zaloguj się</Text>
       <View style={{ alignItems: 'center', marginTop: 8 }}>
         {passkeysEnabled() ? (
