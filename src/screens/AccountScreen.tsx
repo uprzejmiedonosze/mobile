@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { deleteAccount, fetchPasskeys, fetchProfile, removePasskey, updateUserProfile, type Passkey } from '../api/user';
 import { registerPasskey } from '../api/passkey';
@@ -7,7 +7,9 @@ import { isPasskeyCancelled, passkeysEnabled } from '../lib/passkey';
 import { googleSignInReady, useAuth } from '../store/useAuth';
 import { demoMode, udConfig, udEnv } from '../config';
 import { appBuild, appVersion } from '../lib/appVersion';
+import { waitingRoomEnabled } from '../store/useWaitingRoom';
 import { hasAiConsent, revokeAiConsent } from '../lib/aiConsent';
+import { galleryCopyAvailable, getGalleryCopy, setGalleryCopy } from '../lib/galleryCopy';
 import { ud, inputColors, ripple, rippleOnDark } from '../theme';
 import { SvgXml } from 'react-native-svg';
 import { UdButton, UdCard, UdHeader, UdSplash, UdTabs } from '../components/UD';
@@ -25,14 +27,15 @@ export function AccountScreen({ navigation }: any) {
   const signingIn = a.status === 'verifying' || a.status === 'google-signing' || a.status === 'passkey-signing';
   if (signingIn) return (<><StatusBar style="dark" /><UdSplash label="loguję…" /></>);
 
+  // KeyboardAvoidingView jak na pozostałych ekranach z polami: bez niego klawiatura iOS zasłaniała dół formularza (nie dało się przewinąć).
   return (
-    <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       <UdHeader />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
         {logged ? <ProfileCards onLogout={a.logout} navigation={navigation} /> : <LoginPanel />}
       </ScrollView>
       {logged ? <UdTabs current="Account" navigate={go} /> : null}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -155,6 +158,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
   const [deleteEmail, setDeleteEmail] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [aiConsent, setAiConsent] = useState(false);
+  const [galleryCopy, setGalleryCopyState] = useState(false);
 
   useEffect(() => {
     fetchProfile()
@@ -163,6 +167,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
   }, []);
 
   useEffect(() => { hasAiConsent().then(setAiConsent); }, []);
+  useEffect(() => { getGalleryCopy().then(setGalleryCopyState); }, []);
   useEffect(() => { fetchPasskeys().then(setPasskeys).catch(() => setPasskeys([])); }, []);
 
   const addPasskey = async () => {
@@ -252,6 +257,17 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
           </>
         )}
       </View>
+
+      {galleryCopyAvailable && waitingRoomEnabled ? (
+        <UdCard>
+          <Text style={{ color: ud.heading, fontWeight: '700' }}>Kopia zdjęć z aparatu w galerii</Text>
+          <Text style={{ color: ud.muted, marginTop: 4 }}>Zdjęcia zrobione w aplikacji (Poczekalnia) domyślnie zostają tylko w niej i znikają po wysłaniu zgłoszenia. Włącz, by zapisywać ich kopię w galerii, w albumie „Uprzejmie Donoszę”. Wtedy mogą je kopiować inne aplikacje, np. Zdjęcia Google. Kopii aplikacja nie usuwa.</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+            <Text style={{ color: ud.text }}>Zapisuj kopie w galerii</Text>
+            <Switch value={galleryCopy} onValueChange={(v) => { setGalleryCopyState(v); setGalleryCopy(v).catch(() => setGalleryCopyState(!v)); }} />
+          </View>
+        </UdCard>
+      ) : null}
 
       {aiConsent ? (
         <UdCard>

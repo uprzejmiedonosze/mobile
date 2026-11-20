@@ -19,6 +19,8 @@ Robocze (stan na v1.0.0). Źródła: kod appki (`src/`), backend (`../uprzejmied
 | Wersja appki/platforma (`X-UD-Client`) | każde żądanie | backend UD | zgodność kontraktu |
 | E-mail ze zgłoszeniem | backend | Mailgun → adresat (SM/policja) | wysyłka zgłoszenia |
 
+**Poczekalnia (aparat w appce):** zdjęcia z GPS leżą w prywatnym katalogu appki do wysłania/usunięcia (bez limitu czasu), przypisane do konta. Android: kopia zapasowa wyłączona (`allowBackup: false`); użytkownik może włączyć w Koncie kopię zdjęć w galerii (album „Uprzejmie Donoszę”, wtedy może je kopiować Zdjęcia Google – decyzja użytkownika, domyślnie wyłączone). **iOS: katalog trafia do iCloud Backup użytkownika** (świadoma decyzja 2026-11-20) – uwzględnij to w App Privacy/polityce.
+
 **Brak:** reklam, SDK analitycznych w appce (Matomo działa tylko na stronie www), IDFA/AAID, śledzenia między aplikacjami, lokalizacji w tle, kontaktów, mikrofonu.
 
 ## 2. Apple App Store Connect – App Privacy

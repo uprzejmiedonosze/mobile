@@ -20,7 +20,29 @@ export type WaitingPhoto = {
   carSeq: number; // numer auta w aparacie (rośnie przy „Następne auto”)
   draftId?: string; // szkic, do którego trafiło zdjęcie
   usedAt?: number;
+  owner?: string; // konto (e-mail, małymi literami), na którym zrobiono zdjęcie; brak = zdjęcie sprzed oznaczania kont
 };
+
+export const ownerKey = (email: string): string => email.trim().toLowerCase();
+
+// Poczekalnia pokazuje tylko zdjęcia zalogowanego konta (telefon może obsługiwać kilka kont); bez zalogowania – nic.
+// Zdjęcia sprzed oznaczania kont (brak `owner`) należą do pierwszego konta, które je zobaczy (por. claimLegacy).
+export function visiblePhotos(all: WaitingPhoto[], owner: string): WaitingPhoto[] {
+  if (!owner) return [];
+  return all.filter((p) => !p.owner || p.owner === owner);
+}
+
+export function claimLegacy(all: WaitingPhoto[], owner: string): { photos: WaitingPhoto[]; claimed: WaitingPhoto[] } {
+  if (!owner) return { photos: all, claimed: [] };
+  const claimed: WaitingPhoto[] = [];
+  const photos = all.map((p) => {
+    if (p.owner) return p;
+    const next = { ...p, owner };
+    claimed.push(next);
+    return next;
+  });
+  return { photos, claimed };
+}
 
 export type Pack = { id: string; photos: WaitingPhoto[]; startMs: number; endMs: number };
 export type Fix = { lat: number; lng: number; accuracy: number | null; atMs: number };

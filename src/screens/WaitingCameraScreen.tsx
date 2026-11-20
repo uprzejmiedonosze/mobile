@@ -11,6 +11,7 @@ import { plural } from '../lib/reports';
 import { freshFix, uiRotation, type Fix, type UiRotation } from '../lib/waitingRoom';
 import { toast } from '../store/useToast';
 import { useWaitingRoom } from '../store/useWaitingRoom';
+import { saveCopyToGallery } from '../lib/galleryCopy';
 import { ud } from '../theme';
 
 const PHOTO_QUALITY = 0.92; // wycinki tablicy powstają z tego pliku (lib/crop.ts), więc bez mocnej kompresji
@@ -102,6 +103,7 @@ export function WaitingCameraScreen({ navigation }: any) {
       const takenAtMs = Date.now();
       const pic = await camera.current.takePictureAsync({ quality: PHOTO_QUALITY });
       const photo = add({ uri: pic.uri, takenAtMs, fix: freshFix(fix.current, takenAtMs), carSeq });
+      void saveCopyToGallery(photo.uri); // tylko gdy włączone w Koncie (Android)
       setLastUri(photo.uri);
       setCarShots((n) => n + 1);
     } catch (e: any) {

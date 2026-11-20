@@ -4,6 +4,8 @@
 - Nowe zgłoszenie: lokalizacja jest brana także ze zdjęcia kontekstowego, gdy zdjęcie auta nie ma GPS (jak na stronie). Ostrzeżenie o masie pojazdu jest teraz pod polem komentarza.
 - Skaner pism z policji/SM: osoby, które właśnie zaczęły wspierać Uprzejmie Donoszę na Patronite (lub zmieniły próg), mają do niego dostęp od razu, a nie dopiero po kilkunastu godzinach.
 - iPhone: Poczekalnia zdjęć i aparat w aplikacji są teraz także na iOS – fotografujesz kolejne auta w terenie, a zgłoszenie robisz później jednym dotknięciem.
+- Logowanie i Konto: przy otwartej klawiaturze (iPhone) można przewinąć formularz do końca, klawiatura nie zasłania już przycisków pod polem.
+- Poczekalnia: zdjęcia są przypisane do konta – po zalogowaniu na inne konto nie widać cudzych zdjęć. Android: w Koncie jest opcja zapisywania kopii zdjęć z aparatu w galerii (album „Uprzejmie Donoszę”), domyślnie wyłączona; kopia zapasowa zdjęć poczekalni w chmurze Google jest wyłączona.
 
 ## v1.3.2 — 2026-11-08
 

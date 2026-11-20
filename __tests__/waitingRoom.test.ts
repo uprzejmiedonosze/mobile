@@ -1,4 +1,4 @@
-import { bestFix, freshFix, FIX_MAX_AGE_MS, packPhotos, splitOversized, toPhotoItem, uiRotation, type WaitingPhoto } from '../src/lib/waitingRoom';
+import { bestFix, claimLegacy, ownerKey, visiblePhotos, freshFix, FIX_MAX_AGE_MS, packPhotos, splitOversized, toPhotoItem, uiRotation, type WaitingPhoto } from '../src/lib/waitingRoom';
 
 const T0 = Date.UTC(2026, 5, 19, 10, 0, 0); // 12:00 CEST
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -95,5 +95,27 @@ describe('poczekalnia: metadane', () => {
     const item = toPhotoItem({ ...mk('a', 0), lat: 52.123456, lng: 21.654321 });
     expect(item.exif).toMatchObject({ datetimeOriginal: '2026:06:19 12:00:00', lat: 52.1235, lng: 21.6543, hasGps: true });
     expect(toPhotoItem({ ...mk('b', 0), lat: null, lng: null }).exif.hasGps).toBe(false);
+  });
+});
+
+describe('poczekalnia: zdjęcia per konto', () => {
+  const a = { ...mk('a', 0), owner: 'jan@x.pl' }, b = { ...mk('b', 8), owner: 'ewa@x.pl' }, old = mk('old', 16);
+
+  it('klucz konta nie zależy od wielkości liter i spacji', () => {
+    expect(ownerKey('  Jan@X.pl ')).toBe('jan@x.pl');
+  });
+
+  it('pokazuje tylko zdjęcia zalogowanego konta, a bez logowania nic', () => {
+    expect(visiblePhotos([a, b], 'jan@x.pl').map((p) => p.id)).toEqual(['a']);
+    expect(visiblePhotos([a, b], 'ewa@x.pl').map((p) => p.id)).toEqual(['b']);
+    expect(visiblePhotos([a, b], '')).toEqual([]);
+  });
+
+  it('zdjęcia sprzed oznaczania kont dostaje pierwsze zalogowane konto, potem są jego', () => {
+    expect(claimLegacy([a, old], '').claimed).toEqual([]);
+    const r = claimLegacy([a, b, old], 'ewa@x.pl');
+    expect(r.claimed.map((p) => p.id)).toEqual(['old']);
+    expect(r.photos.find((p) => p.id === 'old')?.owner).toBe('ewa@x.pl');
+    expect(visiblePhotos(r.photos, 'jan@x.pl').map((p) => p.id)).toEqual(['a']);
   });
 });

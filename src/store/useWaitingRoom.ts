@@ -3,7 +3,8 @@ import { Directory, File, Paths } from 'expo-file-system';
 import { create } from 'zustand';
 import { exifDate } from '../lib/dateTime';
 import { log } from '../lib/log';
-import type { Fix, WaitingPhoto } from '../lib/waitingRoom';
+import { claimLegacy, ownerKey, visiblePhotos, type Fix, type WaitingPhoto } from '../lib/waitingRoom';
+import { useAuth } from './useAuth';
 
 // Od 1.3.0 poczekalnia jest w wydaniach produkcyjnych na Androidzie; na iOS włączona razem z aparatem w appce (uprawnienia w app.json).
 export const waitingRoomEnabled = Platform.OS === 'android' || Platform.OS === 'ios';
@@ -17,8 +18,11 @@ const save = ({ uri: _uri, ...p }: WaitingPhoto) => meta(p.id).write(JSON.string
 
 type Shot = { uri: string; takenAtMs: number; fix: Fix | null; carSeq: number };
 
+const currentOwner = () => ownerKey(useAuth.getState().email);
+
 type WaitingRoom = {
-  photos: WaitingPhoto[];
+  all: WaitingPhoto[]; // wszystkie zdjęcia z katalogu (także innych kont); ekrany używają `photos`
+  photos: WaitingPhoto[]; // zdjęcia zalogowanego konta
   hydrated: boolean;
   hydrate: () => void;
   add: (shot: Shot) => WaitingPhoto;
@@ -28,7 +32,18 @@ type WaitingRoom = {
   removeDrafts: (draftIds: string[]) => void; // zgłoszenie potwierdzone – lokalne kopie nie są już potrzebne
 };
 
-export const useWaitingRoom = create<WaitingRoom>((set, get) => ({
+export const useWaitingRoom = create<WaitingRoom>((set, get) => {
+  // Jedyne miejsce zapisu stanu: `photos` to zawsze widok `all` dla bieżącego konta. Zdjęcia sprzed oznaczania kont dostaje pierwsze konto.
+  const commit = (all: WaitingPhoto[]) => {
+    const owner = currentOwner();
+    const { photos: claimedAll, claimed } = claimLegacy(all, owner);
+    claimed.forEach((p) => { try { save(p); } catch (e: any) { log.warn('poczekalnia', `oznaczanie ${p.id}: ${String(e?.message ?? e).slice(0, 120)}`); } });
+    set({ all: claimedAll, photos: visiblePhotos(claimedAll, owner) });
+  };
+  // Zmiana konta (logowanie, wylogowanie) przelicza widok; bez tego następna osoba zobaczyłaby cudze zdjęcia.
+  useAuth.subscribe((s, prev) => { if (ownerKey(s.email) !== ownerKey(prev.email) && get().hydrated) commit(get().all); });
+  return {
+  all: [],
   photos: [],
   hydrated: false,
   hydrate: () => {
@@ -49,7 +64,8 @@ export const useWaitingRoom = create<WaitingRoom>((set, get) => ({
     } catch (e: any) {
       log.warn('poczekalnia', `odczyt katalogu: ${String(e?.message ?? e).slice(0, 160)}`);
     }
-    set({ photos: photos.sort((a, b) => a.takenAtMs - b.takenAtMs), hydrated: true });
+    set({ hydrated: true });
+    commit(photos.sort((a, b) => a.takenAtMs - b.takenAtMs));
   },
   add: ({ uri, takenAtMs, fix, carSeq }) => {
     const id = `${takenAtMs}-${Math.random().toString(36).slice(2, 8)}`;
@@ -59,10 +75,10 @@ export const useWaitingRoom = create<WaitingRoom>((set, get) => ({
     new File(uri).moveSync(target);
     const photo: WaitingPhoto = {
       id, uri: target.uri, takenAtMs, datetimeOriginal: exifDate(takenAtMs),
-      lat: fix?.lat ?? null, lng: fix?.lng ?? null, accuracy: fix?.accuracy ?? null, carSeq,
+      lat: fix?.lat ?? null, lng: fix?.lng ?? null, accuracy: fix?.accuracy ?? null, carSeq, owner: currentOwner() || undefined,
     };
     save(photo);
-    set({ photos: [...get().photos, photo] });
+    commit([...get().all, photo]);
     return photo;
   },
   remove: (ids) => {
@@ -71,27 +87,28 @@ export const useWaitingRoom = create<WaitingRoom>((set, get) => ({
         try { if (f.exists) f.delete(); } catch (e: any) { log.warn('poczekalnia', `usuwanie ${id}: ${String(e?.message ?? e).slice(0, 120)}`); }
       }
     }
-    set({ photos: get().photos.filter((p) => !ids.includes(p.id)) });
+    commit(get().all.filter((p) => !ids.includes(p.id)));
   },
   markUsed: (ids, draftId) => {
     const usedAt = Date.now();
-    set({ photos: get().photos.map((p) => {
+    commit(get().all.map((p) => {
       if (!ids.includes(p.id)) return p;
       const next = { ...p, draftId, usedAt };
       save(next);
       return next;
-    }) });
+    }));
   },
   restore: (ids) => {
-    set({ photos: get().photos.map((p) => {
+    commit(get().all.map((p) => {
       if (!ids.includes(p.id)) return p;
       const { draftId: _d, usedAt: _u, ...next } = p;
       save(next);
       return next;
-    }) });
+    }));
   },
   removeDrafts: (draftIds) => {
     const ids = get().photos.filter((p) => p.draftId && draftIds.includes(p.draftId)).map((p) => p.id);
     if (ids.length) get().remove(ids);
   },
-}));
+  };
+});
