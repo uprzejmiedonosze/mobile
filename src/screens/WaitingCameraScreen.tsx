@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, PanResponder, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Image, PanResponder, Platform, Pressable, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { useIsFocused } from '@react-navigation/native';
@@ -72,7 +72,11 @@ export function WaitingCameraScreen({ navigation }: any) {
     try {
       const { Accelerometer } = require('expo-sensors') as typeof import('expo-sensors');
       Accelerometer.setUpdateInterval(TILT_INTERVAL_MS);
-      const sub = Accelerometer.addListener(({ x, y }) => setRotation((prev) => uiRotation(x, y, prev)));
+      const sub = Accelerometer.addListener(({ x, y }) => {
+        // iOS zwraca osie z odwrotnym znakiem niż Android (grawitacja w górę ekranu: y < 0), a uiRotation zakłada konwencję Androida.
+        const k = Platform.OS === 'ios' ? -1 : 1;
+        setRotation((prev) => uiRotation(k * x, k * y, prev));
+      });
       return () => sub.remove();
     } catch (e: any) {
       log.warn('aparat', `Bez obrotu interfejsu: ${String(e?.message ?? e).slice(0, 160)}`);

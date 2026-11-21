@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+- iPhone: aparat w Poczekalni przy zdjęciach robionych poziomo miał napisy do góry nogami – teraz układ obraca się w dobrą stronę.
+
 ## v1.4.0 — 2026-11-20
 
 - iPhone: przed pierwszym wyborem zdjęć do zgłoszenia lub skanem pisma aplikacja pyta o zgodę na przekazanie ich dostawcom usług AI i rozpoznawania tablic (m.in. OpenAI, Plate Recognizer). Zgodę możesz cofnąć w zakładce Konto.
