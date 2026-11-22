@@ -10,7 +10,7 @@ import { useVideoEnabled } from '../lib/useVideoEnabled';
 import { plural } from '../lib/reports';
 import { bestFix, isVideo, packPhotos, type Pack, type WaitingPhoto } from '../lib/waitingRoom';
 import { useWaitingRoom } from '../store/useWaitingRoom';
-import { ud } from '../theme';
+import { ripple, ud } from '../theme';
 
 const SWIPE_RATIO = 0.3; // tyle szerokości ekranu w lewo = usunięcie
 const SWIPE_MIN_FLING_PX = 40;
@@ -254,8 +254,10 @@ export function WaitingRoomScreen({ navigation }: any) {
               {list.map((p, i) => <Thumb key={p.id} photo={p} on={false} onLongPress={() => zoom(list, i)} />)}
             </View>
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
-              <View style={{ flex: 2 }}><UdButton title="Otwórz szkic" onPress={() => navigation.push('NewReport', { editId: draftId })} /></View>
-              <View style={{ flex: 1 }}><UdButton title="Przywróć" variant="outline" pill onPress={() => restore(list.map((p) => p.id))} /></View>
+              <View style={{ flex: 1 }}><UdButton title="Otwórz szkic" onPress={() => navigation.push('NewReport', { editId: draftId })} /></View>
+              <Pressable onPress={() => restore(list.map((p) => p.id))} accessibilityRole="button" android_ripple={ripple} style={{ alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 12, borderRadius: ud.radiusPill, overflow: 'hidden' }}>
+                <Text numberOfLines={1} style={{ color: ud.primary, fontFamily: ud.fontDisplay, fontSize: 15 }}>Przywróć</Text>
+              </Pressable>
             </View>
           </View>
         ))}
