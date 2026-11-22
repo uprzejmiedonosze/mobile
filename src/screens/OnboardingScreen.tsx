@@ -1,20 +1,21 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useAuth } from '../store/useAuth';
 import { confirmTerms, ensureUserRow, fetchTerms, updateUserProfile, type TermsDoc } from '../api/user';
-import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { log } from '../lib/log';
 import { openUdPage } from '../lib/openPage';
 import { termSegments } from '../lib/reports';
 import { ud } from '../theme';
-import { UdButton, UdCard, UdHeader } from '../components/UD';
-import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
+import { UdButton, UdCard } from '../components/UD';
+import { LargeTitleScreen } from '../components/LargeTitleScreen';
+import { EMPTY_PROFILE, ProfileFields, profileMissing, type ProfileDraft } from '../components/ProfileFields';
 
 // Rejestracja + regulamin po REST (bez web UI), patrz CLAUDE.md sekcja Auth.
-// App.tsx pokazuje ten ekran, gdy zalogowany, ale isRegistered/isTermsConfirmed = false
+// app/_layout.tsx (Stack.Protected) pokazuje ten ekran, gdy zalogowany, ale isRegistered/isTermsConfirmed = false
 // (typowe dla świeżego konta Google – email-link zawsze przechodził przez web wcześniej).
 export function OnboardingScreen() {
-  const navigation = useNavigation<any>();
+  const router = useRouter();
   const a = useAuth();
   const [profile, setProfile] = useState<ProfileDraft>({ ...EMPTY_PROFILE, name: a.name });
   const [saving, setSaving] = useState(false);
@@ -64,53 +65,63 @@ export function OnboardingScreen() {
     }
   };
 
-  return (
-    <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader title="Rejestracja" onBack={a.logout} />
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
+  // Wayfinding: konkretny tytuł kroku w nagłówku + „Krok N z 2”, żeby było wiadomo, gdzie jestem i ile zostało.
+  const title = step === 'register' ? 'Dane konta' : 'Regulamin';
+  const firstName = (a.name || '').trim().split(/\s+/)[0];
+  const missing = step === 'register' ? profileMissing(profile) : null;
+  const content = (
+    <View style={{ padding: 16, paddingTop: 4 }}>
+      <Text style={{ color: ud.muted, fontFamily: ud.fontBodyBold, fontSize: 13, letterSpacing: 0.3 }}>{`KROK ${step === 'register' ? 1 : 2} Z 2 · REJESTRACJA`}</Text>
+      <Text style={{ color: ud.text, fontSize: 16, lineHeight: 22, marginTop: 6, marginBottom: 8 }}>
+        {firstName ? `Witaj, ${firstName}! ` : 'Witaj! '}
+        {step === 'register'
+          ? 'Te dane trafią do zgłoszeń – bez nich straż miejska ich nie przyjmie.'
+          : 'Ostatni krok: przeczytaj i zaakceptuj regulamin.'}
+      </Text>
+
+      {step === 'register' ? (
         <UdCard>
-          <Text style={{ color: ud.heading, fontWeight: '800', fontSize: 17 }}>Witaj, {a.name || a.email}</Text>
-          <Text style={{ color: ud.muted, marginTop: 4 }}>
-            Zanim zaczniesz zgłaszać, dokończ rejestrację – te same kroki co na stronie: dane konta, potem regulamin. „← wróć” wylogowuje, gdyby to było złe konto.
-          </Text>
+          <ProfileFields value={profile} onChange={(patch) => { setError(null); setProfile((o) => ({ ...o, ...patch })); }} email={a.email} disabled={saving} router={router} />
         </UdCard>
+      ) : (
+        <UdCard>
+          {!terms ? (
+            <ActivityIndicator style={{ marginVertical: 24 }} color={ud.primary} accessibilityLabel="Wczytuję regulamin" />
+          ) : (
+            terms.terms.map((item, i) => (
+              <Text key={i} style={{ color: ud.text, lineHeight: 21, marginTop: i ? 10 : 0 }}>
+                • {termSegments(item.li).map((seg, k) => seg.url ? (
+                  <Text key={k} style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => openUdPage(router, seg.url!, seg.text)}>{seg.text}</Text>
+                ) : seg.text)}
+              </Text>
+            ))
+          )}
+        </UdCard>
+      )}
 
+      {/* Główna akcja tuż pod formularzem; status i błędy przy niej (nie luzem na dole ekranu). */}
+      <View style={{ marginTop: 8 }}>
         {step === 'register' ? (
-          <UdCard>
-            <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 26 }}>Dane konta</Text>
-            <ProfileFields value={profile} onChange={(patch) => { setError(null); setProfile((o) => ({ ...o, ...patch })); }} email={a.email} disabled={saving} navigation={navigation} />
-            <UdButton
-              title={saving ? 'Zapisuję…' : 'Potwierdź'}
-              variant="accent"
-              onPress={submitProfile}
-              disabled={saving || !profileValid(profile)}
-            />
-          </UdCard>
+          <UdButton title={saving ? 'Zapisuję…' : 'Zapisz i przejdź dalej'} variant="accent" onPress={submitProfile} disabled={saving || !!missing} />
         ) : (
-          <UdCard>
-            <Text style={{ color: ud.heading, fontWeight: '700' }}>Regulamin</Text>
-            {!terms ? (
-              <Text style={{ color: ud.muted, marginTop: 6 }}>Wczytuję…</Text>
-            ) : (
-              terms.terms.map((item, i) => (
-                <Text key={i} style={{ color: ud.muted, marginTop: 6 }}>
-                  • {termSegments(item.li).map((seg, k) => seg.url ? (
-                    <Text key={k} style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => openUdPage(navigation, seg.url!, seg.text)}>{seg.text}</Text>
-                  ) : seg.text)}
-                </Text>
-              ))
-            )}
-            <UdButton
-              title={confirming ? 'Zapisuję…' : 'Akceptuję regulamin'}
-              variant="accent"
-              onPress={acceptTerms}
-              disabled={confirming || !terms}
-            />
-          </UdCard>
+          <UdButton title={confirming ? 'Zapisuję…' : 'Akceptuję regulamin'} variant="accent" onPress={acceptTerms} disabled={confirming || !terms} />
         )}
+        {error ? (
+          <Text accessibilityLiveRegion="polite" style={{ color: ud.plateVerified, marginTop: 4, textAlign: 'center' }}>{error}</Text>
+        ) : missing ? (
+          <Text style={{ color: ud.muted, fontSize: 13, marginTop: 4, textAlign: 'center' }}>{missing}</Text>
+        ) : null}
+      </View>
 
-        {error ? <Text style={{ color: 'red', marginTop: 6, paddingHorizontal: 16 }}>{error}</Text> : null}
-      </ScrollView>
+      {/* Akcja drugorzędna: dyskretny link zamiast drugiego pełnego przycisku, żeby nie konkurował z „Zapisz”. */}
+      <Pressable onPress={a.logout} accessibilityRole="button" hitSlop={8} style={({ pressed }) => ({ alignSelf: 'center', paddingVertical: 12, paddingHorizontal: 16, marginTop: 12, opacity: pressed ? 0.5 : 1 })}>
+        <Text style={{ color: ud.muted, fontSize: 14 }}>
+          {'To nie twoje konto? '}<Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>Wyloguj się</Text>
+        </Text>
+      </Pressable>
     </View>
   );
+
+  // Natywny duży tytuł (SwiftUI na iOS) – wspólny z pulpitem, patrz LargeTitleScreen.
+  return <LargeTitleScreen title={title}>{content}</LargeTitleScreen>;
 }

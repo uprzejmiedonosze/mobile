@@ -100,7 +100,8 @@ export function UdButton({ title, onPress, variant = 'primary', disabled, pill }
       onPress={onPress}
       disabled={disabled}
       android_ripple={variant === 'primary' ? rippleOnDark : ripple}
-      style={{ overflow: 'hidden', backgroundColor: disabled ? ud.primaryOutline : s.bg, borderRadius: pill || variant === 'primary' || variant === 'accent' ? ud.radiusPill : ud.radiusButton, paddingHorizontal: 20, paddingVertical: 13, alignItems: 'center', borderWidth: s.border ? 2 : 0, borderColor: s.border, opacity: disabled ? 0.6 : 1, marginVertical: 6 }}
+      // reakcja już przy dotknięciu (iOS nie ma ripple): lekkie wciśnięcie, jak systemowe przyciski
+      style={({ pressed }) => ({ transform: [{ scale: pressed && !disabled ? 0.97 : 1 }], overflow: 'hidden', backgroundColor: disabled ? ud.primaryOutline : s.bg, borderRadius: pill || variant === 'primary' || variant === 'accent' ? ud.radiusPill : ud.radiusButton, paddingHorizontal: 20, paddingVertical: 13, alignItems: 'center', borderWidth: s.border ? 2 : 0, borderColor: s.border, opacity: disabled ? 0.6 : pressed ? 0.85 : 1, marginVertical: 6 })}
     >
       <Text style={{ color: disabled ? ud.muted : s.fg, fontFamily: ud.fontDisplay, fontSize: 15 }}>{title}</Text>
     </Pressable>

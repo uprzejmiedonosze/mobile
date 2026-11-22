@@ -23,3 +23,12 @@ export function profileErrors(p: ProfileDraft): { name?: string; address?: strin
 }
 
 export const profileValid = (p: ProfileDraft) => !!p.name.trim() && !!p.address.trim() && Object.keys(profileErrors(p)).length === 0;
+
+// Walidacja w miejscu (zamiast wyszarzonego przycisku bez wyjaśnienia): co jeszcze trzeba uzupełnić, żeby zapisać dane.
+// null = formularz gotowy; błędy formatu pokazuje się przy polach (profileErrors), tu tylko brakujące pola wymagane.
+export function profileMissing(p: ProfileDraft): string | null {
+  const missing = [!p.name.trim() && 'imię i nazwisko', !p.address.trim() && 'adres'].filter(Boolean) as string[];
+  if (missing.length) return `Uzupełnij ${missing.join(' i ')}, żeby przejść dalej.`;
+  if (Object.keys(profileErrors(p)).length) return 'Popraw zaznaczone pola, żeby przejść dalej.';
+  return null;
+}

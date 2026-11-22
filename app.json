@@ -12,7 +12,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "bundleIdentifier": "net.uprzejmiedonosze.pro"
+      "bundleIdentifier": "net.uprzejmiedonosze.pro",
+      "appleTeamId": "9FJ3Q6K2N5"
     },
     "android": {
       "package": "net.uprzejmiedonosze.pro",
@@ -40,6 +41,8 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "expo-router",
+      "@bacons/apple-targets",
       "expo-sharing",
       [
         "expo-sensors",

@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Stack, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { href, param, type RouteName } from '../lib/routes';
 import { ActivityIndicator, Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { changeStatus, fetchApps, fetchStatusCounts, fetchStatuses, imageUrl, PAGE_SIZE, setReportFields, type StatusDef, type UdApp } from '../api/apps';
@@ -10,13 +12,16 @@ import { fetchPhotoQuota } from '../api/photos';
 import { log } from '../lib/log';
 import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plateHistory, plural, reportBody, shortAddress, statusColor, witnessText } from '../lib/reports';
 import { ImageViewer } from '../components/ImageViewer';
+import { KeyboardDoneBar } from '../components/KeyboardDoneBar';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { openUdPage } from '../lib/openPage';
-import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdCard } from '../components/UD';
+import { ActionRow, SectionHeader } from '../components/FormBits';
 import type { Category, RecydywaEntry, RecydywaGallery, RecydywaInfo } from '../types';
 import { useAuth } from '../store/useAuth';
+import { useReportSheet } from '../store/useReportSheet';
 import { toast } from '../store/useToast';
-import { ud, inputColors, ripple, rippleBorderless } from '../theme';
+import { ud, inputColors, ripple } from '../theme';
 import { SvgXml } from 'react-native-svg';
 import { CHEVRON_ICON, DATETIME_ICON, DESCRIPTION_ICON, ENCRYPTED_ICON, INFO_ICON, PIN_ICON } from '../assets/detailIcons';
 
@@ -25,7 +30,7 @@ function StatusDot({ status, label, police }: { status: string; label: string; p
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 1 }}>
       <View style={{ width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: t.stroke, backgroundColor: t.fill, marginRight: 6 }} />
-      <Text numberOfLines={1} style={{ fontFamily: ud.fontBodyBold, color: ud.text, fontSize: 13, flexShrink: 1 }}>{label.toUpperCase()}{police ? ' 👮' : ''}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: ud.fontBodyBold, color: ud.text, fontSize: 13, flexShrink: 1 }}>{label}{police ? <Text style={{ fontFamily: ud.fontBody, color: ud.muted }}> · Policja</Text> : null}</Text>
     </View>
   );
 }
@@ -45,7 +50,7 @@ function Photos({ thumbs, onPress }: { thumbs: string[]; onPress: (index: number
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 10 }}>
       {thumbs.map((u, i) => (
         <Pressable key={u} onPress={() => onPress(i)}>
-          <Image source={{ uri: u }} style={{ width: 220, height: 160, borderRadius: ud.radiusSm, backgroundColor: ud.surfaceCream }} resizeMode="cover" />
+          <Image source={{ uri: u }} style={{ width: 220, height: 160, borderRadius: 12, backgroundColor: ud.surfaceCream }} resizeMode="cover" />
         </Pressable>
       ))}
     </ScrollView>
@@ -67,7 +72,7 @@ function IconLine({ icon, children }: { icon: string; children: React.ReactNode 
 }
 
 function Row({ label, icon, children }: { label: React.ReactNode; icon?: string; children: React.ReactNode }) {
-  const title = <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, fontSize: 14, letterSpacing: 0.4 }}>{label}</Text>;
+  const title = <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, fontSize: 15 }}>{label}</Text>;
   return (
     <View style={{ gap: 4 }}>
       {icon ? <IconLine icon={icon}>{title}</IconLine> : title}
@@ -80,6 +85,8 @@ function Row({ label, icon, children }: { label: React.ReactNode; icon?: string;
 function EditableField({ label, value, multiline, placeholder, onSave, onFocus, icon }: { label: React.ReactNode; value: string; multiline?: boolean; placeholder?: string; onSave: (v: string) => Promise<void>; onFocus?: () => void; icon?: string }) {
   const [text, setText] = useState(value);
   const [state, setState] = useState<'idle' | 'saving' | 'error'>('idle');
+  const [focused, setFocused] = useState(false);
+  const accessoryId = `done-${useId()}`; // „Gotowe” nad klawiaturą dla wielowierszowych uwag (iOS)
   // Refy, bo zapis odpala też sprzątanie przy odmontowaniu (zwinięcie karty), gdzie stan z domknięcia jest nieaktualny.
   const textRef = useRef(value);
   const savedRef = useRef(value); // ostatnia zapisana wartość (web: data-initial-value)
@@ -110,18 +117,20 @@ function EditableField({ label, value, multiline, placeholder, onSave, onFocus, 
       <TextInput {...inputColors}
         value={text}
         onChangeText={(t) => { setText(t); textRef.current = t; if (state === 'error') setState('idle'); }}
-        onBlur={commit}
-        onFocus={onFocus}
+        onBlur={() => { setFocused(false); void commit(); }}
+        onFocus={() => { setFocused(true); onFocus?.(); }}
         editable={state !== 'saving'}
         multiline={multiline}
+        inputAccessoryViewID={multiline ? accessoryId : undefined}
         placeholder={placeholder}
         placeholderTextColor={ud.muted}
         autoCorrect={false}
-        style={{ marginTop: 2, backgroundColor: ud.surface, borderWidth: 1, borderColor: state === 'error' ? ud.plateVerified : '#999', borderRadius: ud.radiusSm, paddingVertical: 10, paddingLeft: 10, paddingRight: icon ? 34 : 10, fontSize: 15, color: ud.text, minHeight: multiline ? 80 : undefined, textAlignVertical: multiline ? 'top' : 'center', opacity: state === 'saving' ? 0.6 : 1 }}
+        style={{ marginTop: 4, backgroundColor: ud.surface, borderWidth: focused || state === 'error' ? 2 : 1, borderColor: state === 'error' ? ud.plateVerified : focused ? ud.primary : ud.lockedBorder, borderRadius: 12, paddingVertical: 12, paddingLeft: 14, paddingRight: icon ? 38 : 14, fontSize: 16, color: ud.text, minHeight: multiline ? 96 : 48, textAlignVertical: multiline ? 'top' : 'center', opacity: state === 'saving' ? 0.6 : 1 }}
       />
       {/* jak na webie: ikona zaszyfrowanego pliku w rogu pola z uwagami */}
-      {icon ? <View pointerEvents="none" style={{ position: 'absolute', right: 10, bottom: 10 }}><SvgXml xml={icon.replace('COLOR', ud.muted)} width={20} height={20} /></View> : null}
-      {state === 'error' ? <Text style={{ color: ud.plateVerified, fontSize: 12, marginTop: 2 }}>Nie udało się zapisać – spróbuj ponownie.</Text> : null}
+      {icon ? <View pointerEvents="none" style={{ position: 'absolute', right: 12, bottom: 14 }}><SvgXml xml={icon.replace('COLOR', ud.muted)} width={20} height={20} /></View> : null}
+      {multiline ? <KeyboardDoneBar id={accessoryId} /> : null}
+      {state === 'error' ? <Text style={{ color: ud.plateVerified, fontSize: 13, marginTop: 6 }}>Nie udało się zapisać – spróbuj ponownie.</Text> : state === 'saving' ? <Text style={{ color: ud.muted, fontSize: 13, marginTop: 6 }}>Zapisuję…</Text> : null}
     </Row>
   );
 }
@@ -149,7 +158,7 @@ function StatusPicker({ visible, current, currentLabel, options, onPick, onClose
             );
           })}
           <Pressable onPress={onClose} accessibilityRole="button" style={{ borderTopWidth: 1, borderTopColor: ud.hairline, paddingTop: 14, paddingHorizontal: 20, alignItems: 'center' }}>
-            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>ANULUJ</Text>
+            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, fontSize: 16 }}>Anuluj</Text>
           </Pressable>
         </Pressable>
       </Pressable>
@@ -192,7 +201,7 @@ function RecydywaHistory({ info, categories, onClose, onAccount }: { info: Recyd
               const cat = r.categoryInfo ? categories.get(r.categoryInfo.id) : undefined;
               return (
                 <View key={r.reportId ?? i} style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusSm, overflow: 'hidden' }}>
-                  {r.isOwn ? <Text style={{ backgroundColor: ud.primary, color: ud.surface, fontFamily: ud.fontBodyBold, fontSize: 12, textAlign: 'center', paddingVertical: 3 }}>TWOJE ZGŁOSZENIE{r.number ? ` ${r.number}` : ''}</Text> : null}
+                  {r.isOwn ? <Text style={{ backgroundColor: ud.primary, color: ud.surface, fontFamily: ud.fontBodyBold, fontSize: 12, textAlign: 'center', paddingVertical: 3 }}>Twoje zgłoszenie{r.number ? ` ${r.number}` : ''}</Text> : null}
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: 10 }}>
                     <StatusDot status={r.status} label={r.statusLabel} police={r.recipient.isPolice} />
                     <Text style={{ color: ud.muted, fontSize: 13 }}>{fmtShortDate(r.date ?? undefined)}</Text>
@@ -205,7 +214,7 @@ function RecydywaHistory({ info, categories, onClose, onAccount }: { info: Recyd
                   ) : null}
                   <View style={{ padding: 10, gap: 6 }}>
                     {r.categoryInfo ? <Text style={{ color: ud.text, fontSize: 14 }}>{cat?.short || r.categoryInfo.title}</Text> : null}
-                    {r.recipient.shortName ? <Text style={{ color: ud.muted, fontSize: 13 }}>{r.recipient.isPolice ? '👮 ' : ''}{r.recipient.shortName}{r.caseNumber ? `, sprawa ${r.caseNumber}` : ''}</Text> : null}
+                    {r.recipient.shortName ? <Text style={{ color: ud.muted, fontSize: 13 }}>{r.recipient.shortName}{r.recipient.isPolice ? ' (Policja)' : ''}{r.caseNumber ? `, sprawa ${r.caseNumber}` : ''}</Text> : null}
                   </View>
                 </View>
               );
@@ -215,13 +224,17 @@ function RecydywaHistory({ info, categories, onClose, onAccount }: { info: Recyd
             ) : null}
           </ScrollView>
           <Pressable onPress={onClose} accessibilityRole="button" style={{ borderTopWidth: 1, borderTopColor: ud.hairline, paddingTop: 14, paddingHorizontal: 20, alignItems: 'center' }}>
-            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>ZAMKNIJ</Text>
+            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, fontSize: 16 }}>Zamknij</Text>
           </Pressable>
         </View>
       </View>
     </Modal>
   );
 }
+
+// Kapsułka akcji w rozwiniętej karcie (zamiast obrysowanych WERSALIKÓW): tonalne tło, zielony tekst, wciśnięcie przy dotyku.
+const pill = (pressed: boolean) => ({ flexDirection: 'row' as const, alignItems: 'center' as const, gap: 6, minHeight: 36, borderRadius: ud.radiusPill, backgroundColor: ud.primaryContainer, paddingHorizontal: 14, opacity: pressed ? 0.6 : 1 });
+const pillText = { fontFamily: ud.fontBodyBold, fontSize: 14, color: ud.primary } as const;
 
 type CardProps = {
   app: UdApp;
@@ -235,9 +248,10 @@ type CardProps = {
   onAccount: () => void;
   open: boolean;
   onToggle: (id: string) => void;
+  sheet?: boolean; // karta w arkuszu (/app/report): zawsze rozwinięta, bez strzałki, cienia i wciśnięcia
 };
 
-function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onFieldFocus, onPage, onAccount, open, onToggle }: CardProps) {
+export function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onFieldFocus, onPage, onAccount, open, onToggle, sheet }: CardProps) {
   const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState(false);
   const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
@@ -268,7 +282,6 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
   const fulls = slots.map((k) => imageUrl(app[k], app, true, k)).filter(Boolean) as string[];
   // Zwinięte zgłoszenie: dotknięcie czegokolwiek (także zdjęcia) rozwija; rozwinięte: zdjęcie się powiększa.
   const toggle = () => onToggle(app.id);
-  const accent = statusColor(app.status).stroke;
 
   // jak Application::wasSent() w backendzie: wysłane i już poza szkicem/potwierdzeniem – dopiero wtedy ma sens numer sprawy
   const wasSent = !!app.sent && !['draft', 'ready', 'confirmed'].includes(app.status);
@@ -282,10 +295,9 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
   };
 
   return (
-    // Biała karta bez ramki; odróżnia ją pasek w kolorze statusu z lewej – osobny widok przycięty zaokrągleniem karty
-    // (borderLeft przy borderRadius zwęża się w rogach).
-    <Pressable onPress={toggle} android_ripple={ripple} style={{ backgroundColor: ud.surface, paddingLeft: 16, paddingRight: 12, paddingVertical: 10, marginBottom: 12, borderRadius: ud.radiusSm, overflow: 'hidden' }}>
-      <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: accent === '#FFFFFF' ? '#C5C5C5' : accent }} />
+    // Biała karta jak na Starcie; status pokazuje kropka w kolorze statusu przy jego nazwie (bez paska z boku karty).
+    <Pressable onPress={toggle} disabled={sheet} android_ripple={sheet ? undefined : ripple} accessibilityRole={sheet ? undefined : 'button'} accessibilityHint={sheet ? undefined : 'Otwiera szczegóły zgłoszenia'}
+      style={({ pressed }) => ({ backgroundColor: ud.surface, paddingHorizontal: 16, paddingVertical: 12, marginBottom: sheet ? 0 : 12, borderRadius: ud.radiusCard, overflow: 'hidden', transform: [{ scale: pressed && !sheet ? 0.98 : 1 }], shadowColor: '#000', shadowOpacity: sheet ? 0 : 0.05, shadowRadius: 16, shadowOffset: { width: 0, height: 3 }, elevation: sheet ? 0 : 2 })}>
       <View style={{ paddingVertical: 4 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <StatusDot status={app.status} label={statusName} police={police} />
@@ -295,13 +307,13 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
           </View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-          <Text numberOfLines={1} style={{ flex: 1, fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 17 }}>
+          <Text numberOfLines={1} style={{ flex: 1, fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 18, letterSpacing: -0.2 }}>
             {shortAddress(app.address?.address) || 'Brak adresu'}
           </Text>
-          {/* chevron z webu (.expander): w dół zwinięta, obrócony o 180° po rozwinięciu */}
-          <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }], padding: 2 }}><SvgXml xml={CHEVRON_ICON.replace('COLOR', ud.muted)} width={16} height={16} /></View>
+          {/* na liście strzałka „›” (otwiera arkusz ze szczegółami); w arkuszu bez strzałki */}
+          {sheet ? null : <View style={{ transform: [{ rotate: '-90deg' }], padding: 2 }}><SvgXml xml={CHEVRON_ICON.replace('COLOR', ud.muted)} width={16} height={16} /></View>}
         </View>
-        {cat ? <Text numberOfLines={open ? 0 : 1} style={{ color: ud.muted, fontSize: 13, marginTop: 2 }}>{cat.title}</Text> : null}
+        {cat ? <Text numberOfLines={open ? 0 : 1} style={{ color: ud.muted, fontSize: 14, marginTop: 2 }}>{cat.title}</Text> : null}
       </View>
 
       <Photos thumbs={thumbs} onPress={(i) => (open ? setViewer(i) : toggle())} />
@@ -313,11 +325,9 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <StatusDot status={app.status} label={statusName} police={police} />
             {allowed.length ? (
-              <Pressable onPress={() => setMenu((m) => !m)} disabled={busy} style={{ borderWidth: 1, borderColor: ud.text, borderRadius: ud.radiusPill, paddingHorizontal: 12, paddingVertical: 4 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: ud.text }}>{busy ? '…' : 'ZMIEŃ'}</Text>
-                  <SvgXml xml={CHEVRON_ICON.replace('COLOR', ud.text)} width={12} height={12} />
-                </View>
+              <Pressable onPress={() => setMenu((m) => !m)} disabled={busy} accessibilityRole="button" style={({ pressed }) => pill(pressed)}>
+                <Text style={pillText}>{busy ? 'Zmieniam…' : 'Zmień status'}</Text>
+                <SvgXml xml={CHEVRON_ICON.replace('COLOR', ud.primary)} width={12} height={12} />
               </Pressable>
             ) : null}
           </View>
@@ -331,8 +341,8 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
           />
 
           {statuses[app.status]?.editable ? (
-            <Pressable onPress={() => onEdit(app.id)} style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: ud.text, borderRadius: ud.radiusPill, paddingHorizontal: 12, paddingVertical: 4 }}>
-              <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: ud.text }}>EDYTUJ</Text>
+            <Pressable onPress={() => onEdit(app.id)} accessibilityRole="button" style={({ pressed }) => ({ ...pill(pressed), alignSelf: 'flex-start' })}>
+              <Text style={pillText}>Edytuj zgłoszenie</Text>
             </Pressable>
           ) : null}
           {app.number ? <Text style={{ color: ud.text, fontSize: 15 }}>Zgłoszenie <Text style={{ fontFamily: ud.fontBodyBold }}>{app.number}</Text></Text> : null}
@@ -345,39 +355,39 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
               {/* Własny Pressable: bez niego dotknięcie trafia do karty i zwija szczegóły. */}
               <Pressable onPress={() => setHistory(true)} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, paddingVertical: 4 }}>
                 <View style={{ backgroundColor: ud.accent, borderRadius: ud.radiusPill, paddingHorizontal: 10, paddingVertical: 3 }}>
-                  <Text style={{ fontFamily: ud.fontBodyBold, color: ud.onAccent, fontSize: 12 }}>
-                    ❗ {plural(recCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}
+                  <Text style={{ fontFamily: ud.fontBodyBold, color: ud.onAccent, fontSize: 13 }}>
+                    Recydywa: {plural(recCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}
                   </Text>
                 </View>
-                <Text style={{ color: ud.muted, fontSize: 12 }}>
+                <Text style={{ color: ud.muted, fontSize: 13 }}>
                   {plural(recydywa!.usersCnt, ['osób zgłosiło', 'osoba zgłosiła', 'osoby zgłosiły'])}
                 </Text>
-                <Text style={{ color: ud.primary, fontSize: 12, textDecorationLine: 'underline' }}>Zobacz zgłoszenia</Text>
+                <Text style={{ color: ud.primary, fontSize: 13, fontFamily: ud.fontBodyBold }}>Zobacz zgłoszenia ›</Text>
               </Pressable>
               {history ? <RecydywaHistory info={recydywa!} categories={categories} onClose={() => setHistory(false)} onAccount={() => { setHistory(false); onAccount(); }} /> : null}
             </>
           ) : null}
 
-          <Row label="TREŚĆ ZGŁOSZENIA" icon={DESCRIPTION_ICON}>
+          <Row label="Treść zgłoszenia" icon={DESCRIPTION_ICON}>
             <Text style={{ color: ud.text, fontSize: 15, lineHeight: 22 }}>{reportBody(cat?.formal, app.userComment) || '—'}</Text>
             {/* Własny Pressable: bez niego dotknięcie trafia do karty i zwija szczegóły. */}
             {comment ? (
               <Pressable onPress={copyComment} accessibilityRole="button" style={{ alignSelf: 'flex-start', paddingVertical: 6 }}>
-                <Text style={{ color: ud.primary, fontSize: 13, textDecorationLine: 'underline' }}>Kopiuj komentarz</Text>
+                <Text style={{ color: ud.primary, fontSize: 14, fontFamily: ud.fontBodyBold }}>Kopiuj komentarz</Text>
               </Pressable>
             ) : null}
           </Row>
-          <Row label="INFORMACJE DODATKOWE" icon={INFO_ICON}>
+          <Row label="Informacje dodatkowe" icon={INFO_ICON}>
             <Text style={{ color: ud.text, fontSize: 15, lineHeight: 22 }}>{witnessText(app.statements?.witness)}</Text>
             {app.sent?.date ? (
-              <Text style={{ color: ud.text, fontSize: 15, lineHeight: 22, marginTop: 4 }}>Wysłano do {police ? '👮 ' : ''}{app.recipient?.shortName ? `${app.recipient.shortName} ` : ''}{fmtSent(app.sent.date)}.</Text>
+              <Text style={{ color: ud.text, fontSize: 15, lineHeight: 22, marginTop: 4 }}>Wysłano do {app.recipient?.shortName ? `${app.recipient.shortName} ` : police ? 'Policji ' : ''}{fmtSent(app.sent.date)}.</Text>
             ) : null}
           </Row>
           {wasSent ? (
-            <EditableField label="NUMER SPRAWY SM/POLICJI" value={app.externalId ?? ''} placeholder="RSOW 0000/24 / WP 000/24" onSave={(v) => onFields(app.id, { externalId: v })} onFocus={() => onFieldFocus(app.id)} />
+            <EditableField label="Numer sprawy SM/Policji" value={app.externalId ?? ''} placeholder="RSOW 0000/24 / WP 000/24" onSave={(v) => onFields(app.id, { externalId: v })} onFocus={() => onFieldFocus(app.id)} />
           ) : null}
           <EditableField
-            label={<>UWAGI (<Text onPress={() => onPage('/bezpieczenstwo.html', 'Bezpieczeństwo')} style={{ color: ud.primary, textDecorationLine: 'underline' }}>widoczne tylko dla Ciebie</Text>)</>}
+            label={<>Uwagi (<Text onPress={() => onPage('/bezpieczenstwo.html', 'Bezpieczeństwo')} style={{ color: ud.primary, textDecorationLine: 'underline' }}>widoczne tylko dla Ciebie</Text>)</>}
             icon={ENCRYPTED_ICON}
             value={app.privateComment ?? ''} multiline onSave={(v) => onFields(app.id, { privateComment: v })} onFocus={() => onFieldFocus(app.id)} />
         </View>
@@ -386,24 +396,26 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
   );
 }
 
-export function ReportsScreen({ navigation, route }: any) {
+export function ReportsScreen() {
   const isPatron = useAuth((s) => s.isPatron); // odznaka PRO z backendu
-  const go = (r: string) => navigation.navigate(r);
+  const router = useRouter();
+  const navigation = useNavigation(); // focus/blur zakładki
+  const filterParam = param(useLocalSearchParams<{ filter?: string }>().filter);
+  const go = (r: RouteName) => router.navigate(href(r));
   const openLetters = async () => {
     // Odznaka z cache'owanych statystyk bywa nieaktualna (do 24 h) – bez niej pytamy o aktualny próg wsparcia.
     const quota = isPatron ? null : await fetchPhotoQuota().catch(() => null);
     const e = letterEntry(isPatron, quota);
-    navigation.navigate(e.route, e.params);
+    router.push(href(e.route, e.params));
   };
   const [apps, setApps] = useState<UdApp[]>([]);
-  const [openId, setOpenId] = useState<string | null>(null); // rozwinięte jest zawsze najwyżej jedno zgłoszenie
   const [statuses, setStatuses] = useState<Record<string, StatusDef>>({});
   const [cats, setCats] = useState<Category[]>([]);
-  const [filter, setFilter] = useState<string>(route?.params?.filter ?? 'all'); // 'all' = brak aktywnego chipa
+  const [filter, setFilter] = useState<string>(filterParam ?? 'all'); // 'all' = brak aktywnego chipa
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   // Wejście z pulpitu (karta Mandaty/Pouczenia) ustawia filtr, nawet gdy ekran już istnieje na stosie.
-  useEffect(() => { if (route?.params?.filter) setFilter(route.params.filter); }, [route?.params?.filter]);
+  useEffect(() => { if (filterParam) setFilter(filterParam); }, [filterParam]);
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -501,6 +513,19 @@ export function ReportsScreen({ navigation, route }: any) {
     if (filter !== 'all' && Object.keys(counts).length && !chips.some((c) => c.key === filter)) setFilter('all');
   }, [filter, counts, chips]);
 
+  // Szczegóły zgłoszenia w natywnym arkuszu (formSheet, /app/report) zamiast rozwijania karty na liście.
+  const openSheet = (app: UdApp) => {
+    useReportSheet.getState().open(app, statuses, categories);
+    router.push(href('Report'));
+  };
+  // Zmiana zrobiona w arkuszu (status, numer sprawy, uwagi) od razu na liście; po zmianie statusu – świeże liczniki filtrów.
+  const patched = useReportSheet((st) => st.patched);
+  useEffect(() => {
+    if (!patched) return;
+    setApps((prev) => prev.map((a) => (a.id === patched.id ? { ...a, ...patched.patch } : a)));
+    if (patched.patch.status) refreshCounts();
+  }, [patched, refreshCounts]);
+
   const onStatus = async (id: string, status: string) => {
     try {
       await changeStatus(id, status);
@@ -514,15 +539,12 @@ export function ReportsScreen({ navigation, route }: any) {
   // Klawiatura: lista kurczy się nad nią (KeyboardAvoidingView), a edytowane pole przewijamy w widok – karta ze zdjęciami
   // jest wysoka, a pola są na jej dole; bez tego klawiatura zasłaniała wpisywany tekst.
   const listRef = useRef<FlatList<UdApp>>(null);
-  const [kbd, setKbd] = useState(false);
   useEffect(() => {
-    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKbd(true));
     // Android: schowanie klawiatury (wstecz/gest) nie zdejmuje fokusu z pola, więc nie byłoby blur i zapisu – zdejmujemy go sami.
     const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => {
-      setKbd(false);
       TextInput.State.currentlyFocusedInput()?.blur();
     });
-    return () => { show.remove(); hide.remove(); };
+    return () => hide.remove();
   }, []);
   const onFieldFocus = (id: string) => {
     const index = apps.findIndex((a) => a.id === id);
@@ -543,52 +565,64 @@ export function ReportsScreen({ navigation, route }: any) {
     }
   };
 
+  // Natywny pasek wyszukiwania w nagłówku (jak Poczta/Notatki) – zamiast własnego pola nad listą. Bez zgłoszeń nie ma czego szukać.
+  const searchBar = noReports ? undefined : {
+    placeholder: 'Adres, numer rej., zgłoszenia, komentarz',
+    cancelButtonText: 'Anuluj',
+    hideWhenScrolling: false,
+    obscureBackground: false,
+    autoCapitalize: 'none' as const,
+    onChangeText: (e: { nativeEvent: { text: string } }) => setSearch(e.nativeEvent.text),
+    onCancelButtonPress: () => setSearch(''),
+  };
+  const screenOptions = <Stack.Screen options={{ title: 'Zgłoszenia', headerSearchBarOptions: searchBar }} />;
+
   // Lista się nie wczytała (np. 500) i nie ma czego pokazać → pełny ekran błędu z linkiem do kontaktu.
   if (err && !apps.length && !loading) {
     return (
       <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-        <UdHeader />
-        <ErrorScreen error={err} onRetry={() => load(true)} onContact={() => openUdPage(navigation, '/kontakt.html', 'Kontakt')} />
-        <UdTabs current="Reports" navigate={go} />
+        {screenOptions}
+        <ErrorScreen error={err} onRetry={() => load(true)} onContact={() => openUdPage(router, '/kontakt.html', 'Kontakt')} />
       </View>
     );
   }
 
+  const total = chips.find((c) => c.key === filter)?.count;
+  const listHeader = noReports ? null : (
+    <View style={{ paddingBottom: 4 }}>
+      {/* Skan pisma z policji/SM – wiersz-karta jak na Starcie, a nie podkreślony link */}
+      <UdCard>
+        <ActionRow title={LETTER_LINK_LABEL} subtitle="Zrób zdjęcie odpowiedzi – dopasujemy ją do zgłoszenia i ustawimy status." tone="primary" trailing="›" onPress={openLetters} last />
+      </UdCard>
+      {/* Filtry jako przewijane kapsułki (jak w Zdjęciach/Poczcie); aktywny – zielony, ponowne dotknięcie zdejmuje filtr */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 12, paddingHorizontal: 2 }} style={{ marginHorizontal: -2 }}>
+        {chips.map((c) => {
+          const on = c.key === filter;
+          const col = statusColor(c.key);
+          return (
+            <Pressable key={c.key} onPress={() => setFilter(on ? 'all' : c.key)} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={`${c.label}: ${c.count}`}
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 36, paddingLeft: 12, paddingRight: 6, borderRadius: ud.radiusPill, backgroundColor: on ? ud.primary : ud.surface, borderWidth: 1, borderColor: on ? ud.primary : ud.hairline, opacity: pressed ? 0.7 : 1 })}>
+              {!on ? <View style={{ width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: col.stroke, backgroundColor: col.fill }} /> : null}
+              <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 14, color: on ? '#fff' : ud.text }}>{c.label}</Text>
+              <View style={{ backgroundColor: on ? 'rgba(255,255,255,0.25)' : ud.surfaceLow, borderRadius: ud.radiusPill, paddingHorizontal: 8, minWidth: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: on ? '#fff' : ud.muted }}>{c.count}</Text>
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      <SectionHeader aside={total != null && filter !== 'all' ? plural(total, ['zgłoszeń', 'zgłoszenie', 'zgłoszenia']) : undefined}>
+        {query ? 'Wyniki wyszukiwania' : filter === 'all' ? 'Aktywne zgłoszenia' : chips.find((c) => c.key === filter)?.label ?? 'Zgłoszenia'}
+      </SectionHeader>
+      <View style={{ height: 8 }} />
+    </View>
+  );
+
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader />
-      {noReports ? null : (
-      <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
-        <Pressable onPress={openLetters} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 8 }}>
-          <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, textDecorationLine: 'underline' }}>{LETTER_LINK_LABEL}</Text>
-        </Pressable>
-        <TextInput {...inputColors}
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Adres, numer rej. lub zgłoszenia, komentarz"
-          placeholderTextColor={ud.muted}
-          autoCorrect={false}
-          style={{ backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusButton, paddingHorizontal: 14, paddingVertical: 10, color: ud.text }}
-        />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 18, rowGap: 10, paddingVertical: 12 }}>
-          {chips.map((c) => {
-            const on = c.key === filter;
-            const col = statusColor(c.key);
-            return (
-              // Jak na webie: ponowne dotknięcie aktywnego filtra zdejmuje go (wszystkie zgłoszenia).
-              <Pressable key={c.key} onPress={() => setFilter(on ? 'all' : c.key)} android_ripple={rippleBorderless} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 13, color: on ? ud.primary : '#666', textDecorationLine: on ? 'underline' : 'none' }}>{c.label.toUpperCase()}</Text>
-                <View style={{ backgroundColor: col.fill, borderColor: col.stroke, borderWidth: 2, borderRadius: 20, paddingHorizontal: 7, minWidth: 22, alignItems: 'center' }}>
-                  <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: col.text }}>{c.count}</Text>
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-      )}
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }} collapsable={false}>
+      {screenOptions}
       {loading && !apps.length ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} />
+        <ActivityIndicator style={{ marginTop: 160 }} color={ud.primary} accessibilityLabel="Wczytuję zgłoszenia" />
       ) : (
         <FlatList
           ref={listRef}
@@ -596,22 +630,25 @@ export function ReportsScreen({ navigation, route }: any) {
           data={apps}
           keyExtractor={(a) => a.id}
           keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onStatus={onStatus} onFields={onFields} onFieldFocus={onFieldFocus} onPage={(path, title) => openUdPage(navigation, path, title)} onAccount={() => go('Account')} onEdit={(id) => navigation.navigate('NewReport', { editId: id })} open={openId === item.id} onToggle={(id) => setOpenId((cur) => (cur === id ? null : id))} />}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+          contentInsetAdjustmentBehavior="automatic"
+          ListHeaderComponent={listHeader}
+          renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onStatus={onStatus} onFields={onFields} onFieldFocus={onFieldFocus} onPage={(path, title) => openUdPage(router, path, title)} onAccount={() => go('Account')} onEdit={(id) => router.push(href('EditReport', { editId: id }))} open={false} onToggle={() => openSheet(item)} />}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={ud.primary} />}
           onEndReachedThreshold={0.5}
           onEndReached={() => { if (more && !loading && !refreshing) load(false); }}
+          ListFooterComponent={more && apps.length ? <ActivityIndicator style={{ marginVertical: 16 }} color={ud.primary} /> : null}
           ListEmptyComponent={
-            <View style={{ alignItems: 'center', marginTop: 40, gap: 12 }}>
-              <Text style={{ color: ud.muted }}>{query || filter !== 'all' ? 'Brak zgłoszeń dla tych kryteriów.' : 'Nie masz jeszcze ani jednego zgłoszenia.'}</Text>
-              {!query && filter === 'all' ? <UdButton title="Dodaj zgłoszenia" onPress={() => go('NewReport')} /> : null}
+            <View style={{ alignItems: 'center', marginTop: 40, gap: 8, paddingHorizontal: 24 }}>
+              <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 20, textAlign: 'center' }}>{query || filter !== 'all' ? 'Nic nie znaleziono' : 'Nie masz jeszcze zgłoszeń'}</Text>
+              <Text style={{ color: ud.muted, fontSize: 15, lineHeight: 21, textAlign: 'center' }}>{query || filter !== 'all' ? 'Zmień wyszukiwanie albo zdejmij filtr.' : 'Zrób zdjęcia źle zaparkowanego auta – resztę podpowiemy.'}</Text>
+              {!query && filter === 'all' ? <View style={{ alignSelf: 'stretch', marginTop: 8 }}><UdButton title="Nowe zgłoszenie" onPress={() => go('NewReport')} /></View> : null}
             </View>
           }
           removeClippedSubviews
           initialNumToRender={6}
         />
       )}
-      {kbd ? null : <UdTabs current="Reports" navigate={go} />}
     </KeyboardAvoidingView>
   );
 }

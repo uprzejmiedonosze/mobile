@@ -10,6 +10,8 @@ type NewReport = {
   draftId: string | null;
   hydrated: boolean;
   done: FinishResult[] | null; // wyniki ostatniego „Potwierdź” (jedno zgłoszenie albo dwa przy „Oba”) dla ekranu podsumowania
+  formKey: number; // klucz formularza w zakładce „Nowe” – zmiana montuje go od zera (zakładka nie znika ze stosu)
+  restart: () => void;
   hydrate: () => Promise<void>;
   setDraftId: (id: string | null) => void;
   setDone: (r: FinishResult[] | null) => void;
@@ -19,6 +21,8 @@ export const useNewReport = create<NewReport>((set, get) => ({
   draftId: null,
   hydrated: false,
   done: null,
+  formKey: 0,
+  restart: () => set((s) => ({ formKey: s.formKey + 1 })),
   hydrate: async () => {
     if (get().hydrated) return;
     let id: string | null = null;

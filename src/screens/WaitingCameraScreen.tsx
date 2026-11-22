@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, PanResponder, Platform, Pressable, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useRouter } from 'expo-router';
+import { href } from '../lib/routes';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UdButton, UdHeader } from '../components/UD';
 import { SESS_GAP_S } from '../lib/grouping';
@@ -24,7 +25,8 @@ const TILT_INTERVAL_MS = 250;
 // nie zapisuje. Pozycję śledzimy przez cały czas otwarcia ekranu: pierwszy odczyt po starcie bywa daleko od prawdy (lib/grouping.ts).
 // Praca w poziomie jak w aparatach systemowych: appka zostaje zablokowana w pionie (podgląd się nie przeładowuje, działa też z blokadą obrotu
 // w telefonie), a obracamy samą nakładkę. Plik i tak wychodzi poziomy: CameraX ustawia obrót zdjęcia z czujnika niezależnie od blokady.
-export function WaitingCameraScreen({ navigation }: any) {
+export function WaitingCameraScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const focused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
@@ -119,13 +121,13 @@ export function WaitingCameraScreen({ navigation }: any) {
   };
 
   const nextCar = () => { setCarSeq((n) => n + 1); setCarShots(0); };
-  const close = () => navigation.replace('WaitingRoom');
+  const close = () => { router.back(); router.navigate(href('WaitingRoom')); };
 
   if (!permission) return <View style={{ flex: 1, backgroundColor: '#000' }} />;
   if (!permission.granted) {
     return (
       <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-        <UdHeader title="Aparat" onBack={() => navigation.goBack()} />
+        <UdHeader title="Aparat" onBack={() => router.back()} />
         <View style={{ padding: 16 }}>
           <Text style={{ color: ud.text, lineHeight: 21, marginBottom: 12 }}>Do robienia zdjęć w aplikacji potrzebna jest zgoda na aparat.</Text>
           <UdButton title="Zezwól na aparat" onPress={requestPermission} />

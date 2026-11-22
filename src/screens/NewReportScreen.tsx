@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, usePathname, useRouter } from 'expo-router';
+import { href, param, splitIds, joinIds } from '../lib/routes';
 import { type UdApp, imageUrl } from '../api/apps';
 import { fetchConfig } from '../api/dashboard';
 import { fetchCategories, reverseGeocode } from '../api/geo';
@@ -19,7 +20,11 @@ import { MapPicker, type PickedPlace } from '../components/MapPicker';
 import { MapPreview } from '../components/MapPreview';
 import { CROP_TILE_ID, PhotosSection, type Tile } from '../components/PhotosSection';
 import { PhotoQuotaNotice } from '../components/PhotoQuotaNotice';
-import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdCard } from '../components/UD';
+import { LargeTitleScreen } from '../components/LargeTitleScreen';
+import { Collapsible } from '../components/Collapsible';
+import { FIELD_HINT, FIELD_LABEL, FormField } from '../components/FormField';
+import { Callout, ChoiceRow, SectionHeader, SwitchRow } from '../components/FormBits';
 import { usePhotoQuota } from '../lib/usePhotoQuota';
 import { ensureAiConsent } from '../lib/aiConsent';
 import { PATRONEM_DEFAULT } from '../lib/sex';
@@ -33,7 +38,7 @@ import { openUdPage } from '../lib/openPage';
 import { useAuth } from '../store/useAuth';
 import { useNewReport } from '../store/useNewReport';
 import { toast } from '../store/useToast';
-import { ud, inputColors, ripple, switchColors } from '../theme';
+import { ud, ripple } from '../theme';
 import type { Category, GeoAddress, PhotoItem, RecydywaEntry, RecydywaInfo } from '../types';
 
 type Extension = { title: string; price?: string; disabled?: boolean };
@@ -83,41 +88,18 @@ function formFromApp(a: UdApp, prev: Form = EMPTY): Form {
   };
 }
 
-const H = ({ children }: { children: string }) => (
-  <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 22, marginTop: 24, marginBottom: 6 }}>{children}</Text>
-);
-const L = ({ children }: { children: React.ReactNode }) => <Text style={{ color: ud.muted, fontSize: 13, marginTop: 12 }}>{children}</Text>;
-const input = { backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusSm, padding: 10, marginTop: 4, color: ud.text } as const;
-const locked = { backgroundColor: ud.lockedBg, borderColor: ud.lockedBorder, color: ud.muted } as const; // pole jeszcze niedostępne do edycji (patrz formLocks) – widoczne na tle ekranu, ale wyszarzone
+// Karta kategorii (jak #category na webie, bez kółka radia): wybrana ma zieloną ramkę i znaczek ✓; ⓘ otwiera szczegóły.
+const selectCard = (on: boolean) => ({ backgroundColor: ud.surface, borderWidth: 2, borderColor: on ? ud.primary : ud.hairline, borderRadius: ud.radiusCard, marginTop: 8 }) as const;
 
-// Wybór jak na webie (radio.scss): bez kółek i kwadracików – karta z ramką, zaznaczona ma ramkę w kolorze głównym.
-// Wspólne dla kategorii, odbiorcy (SM/Policja) i rozszerzeń.
-const selectCard = (on: boolean) => ({ backgroundColor: ud.surface, borderWidth: 3, borderColor: on ? ud.primary : '#ede9df', borderRadius: ud.radiusCard, marginTop: 8 }) as const;
-
-function Check({ on, onPress, children, disabled }: { on: boolean; onPress: () => void; children: React.ReactNode; disabled?: boolean }) {
-  return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="checkbox" accessibilityState={{ checked: on, disabled }} android_ripple={ripple} style={{ ...selectCard(on), overflow: 'hidden', paddingVertical: 10, paddingHorizontal: 14, opacity: disabled ? 0.4 : 1 }}>
-      <Text style={{ color: on ? ud.primary : ud.text }}>{children}</Text>
-    </Pressable>
-  );
-}
-
-function Radio({ on, onPress, children, disabled, hint }: { on: boolean; onPress: () => void; children: React.ReactNode; disabled?: boolean; hint?: string }) {
-  return (
-    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="radio" accessibilityState={{ checked: on, disabled }} android_ripple={ripple} style={{ ...selectCard(on), overflow: 'hidden', paddingVertical: 10, paddingHorizontal: 14, opacity: disabled ? 0.5 : 1 }}>
-      <Text style={{ color: on ? ud.primary : ud.text, fontFamily: ud.fontBodyBold }}>{children}</Text>
-      {/* hint przychodzi z sm.json jako HTML (np. generyczne „Podziel się” z mailto) */}
-      {hint ? <HtmlText html={hint} style={{ color: ud.muted, fontSize: 12, marginTop: 2 }} /> : null}
-    </Pressable>
-  );
-}
-
-export function NewReportScreen({ navigation, route }: any) {
-  const go = (r: string) => navigation.navigate(r);
-  const editId: string | undefined = route?.params?.editId;
+export function NewReportScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ editId?: string; waitingIds?: string }>();
+  // Nad zakładkami (/app/edit: edycja, paczka z poczekalni) potrzebna jest strzałka wstecz; jako zakładka (/app/new) – nie.
+  const onBack = usePathname() === '/app/new' ? undefined : () => router.back();
+  const editId: string | undefined = param(params.editId);
   // Paczka z poczekalni: osobny szkic, którego id pamiętają zdjęcia – zapamiętany `draftId` zwykłego formularza zostaje nietknięty
   // (szkiców nie ma na liście zgłoszeń, więc nadpisanie go oznaczałoby utratę dostępu do niego).
-  const waitingIds: string[] | undefined = route?.params?.waitingIds;
+  const waitingIds: string[] | undefined = splitIds(params.waitingIds);
   const { draftId, hydrated, hydrate, setDraftId } = useNewReport();
 
   const [app, setApp] = useState<UdApp | null>(null);
@@ -353,7 +335,7 @@ export function NewReportScreen({ navigation, route }: any) {
     waitingLoaded.current = true;
     void (async () => {
       // Zdjęcia z poczekalni idą do AI (OpenAI, Plate Recognizer) jak z galerii – na iOS najpierw zgoda; bez niej wracamy, nic nie jest wysyłane.
-      if (!(await ensureAiConsent())) { navigation.goBack(); return; }
+      if (!(await ensureAiConsent())) { router.back(); return; }
       await batch.load(useWaitingRoom.getState().photos.filter((p) => waitingIds.includes(p.id)).map(toPhotoItem));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -374,7 +356,7 @@ export function NewReportScreen({ navigation, route }: any) {
   // wysyłania zdjęć – spóźnione żądanie zapisałoby id starego szkicu.
   const startOver = () => Alert.alert('Zacznij od nowa?', 'Usunę zdjęcia i dane wpisane w tym zgłoszeniu.', [
     { text: 'Anuluj', style: 'cancel' },
-    { text: 'Zacznij od nowa', style: 'destructive', onPress: () => { setDraftId(null); navigation.replace('NewReport'); } },
+    { text: 'Zacznij od nowa', style: 'destructive', onPress: () => { setDraftId(null); useNewReport.getState().restart(); } },
   ]);
   const lock = formLocks({ hasCarPhoto: !!app?.carImage?.thumb, uploading, hasLocation: form.lat != null && form.lng != null, geoBusy: geoBusy > 0 });
   // Odpowiedź „Oba” (albo wybór jednego pojazdu / nowe zdjęcia) ustawia drugą tablicę; ręczna poprawka zostaje do następnego wyboru.
@@ -463,35 +445,44 @@ export function NewReportScreen({ navigation, route }: any) {
         await saveReport(draft2.id, { ...body, plateId: plate2 });
         appIds.push(draft2.id);
       }
-      navigation.navigate('ReportConfirm', { appIds }); // ekran „Sprawdź przed wysłaniem” (jak potwierdz.html na www)
+      router.push(href('ReportConfirm', { appIds: joinIds(appIds) })); // ekran „Sprawdź przed wysłaniem” (jak potwierdz.html na www)
     } catch (e) { fail(e); } finally { setSubmitting(false); }
   };
 
-  // Klawiatura (jak ReportsScreen): formularz kurczy się nad nią, a pasek zakładek znika – bez tego dolna część formularza
-  // (świadek, „Dalej”) była niedostępna, dopóki nie schowało się klawiatury gestem wstecz.
-  const [kbd, setKbd] = useState(false);
-  useEffect(() => {
-    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKbd(true));
-    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKbd(false));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
 
-  const fieldErr = (f: string) => (err?.field === f ? <Text style={{ color: ud.plateVerified, marginTop: 4 }}>{err.text}</Text> : null);
-  if (loading) return <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}><UdHeader /><ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} /></View>;
+  const fieldErr = (f: string) => (err?.field === f ? err.text : undefined);
+  // Tytuł mówi, co robisz: nowe zgłoszenie, edycja konkretnego numeru albo paczka z poczekalni.
+  const title = editId ? `Edycja${app?.number ? ` ${app.number}` : ''}` : waitingIds ? 'Z poczekalni' : 'Nowe zgłoszenie';
+  const leading = onBack ? { label: 'Wróć', systemImage: 'chevron.left' as const, onPress: onBack } : undefined;
+  // „Zacznij od nowa” to akcja drugorzędna – w pasku, a nie między zdjęciami; zablokowana w trakcie wysyłania zdjęć.
+  const trailing = !editId && !waitingIds && tiles.length > 0 ? { label: 'Od nowa', systemImage: 'arrow.counterclockwise' as const, onPress: startOver, disabled: uploading } : undefined;
+
+  if (loading) {
+    return (
+      <LargeTitleScreen title={title} leading={leading}>
+        <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} accessibilityLabel="Wczytuję zgłoszenie" />
+      </LargeTitleScreen>
+    );
+  }
+
+  // Co jeszcze blokuje „Dalej” – pokazane pod przyciskiem (walidacja w miejscu zamiast komunikatu dopiero po naciśnięciu).
+  const nextHint = !photosOk ? 'Dodaj zdjęcie auta z widocznym numerem i zdjęcie kontekstu.'
+    : uploading ? 'Czekam, aż zdjęcia się wyślą…'
+    : geoBusy > 0 ? 'Ustalam adres…'
+    : form.address.trim().length <= 10 ? 'Podaj adres albo wskaż miejsce na mapie.'
+    : form.category === 0 && !form.comment.trim() ? 'Przy „Pozostałych przypadkach” opisz sytuację w komentarzu.'
+    : 'Na następnym ekranie sprawdzisz zgłoszenie przed wysłaniem.';
+  const plateStyle = { fontFamily: ud.fontBodyBold, fontSize: 20, letterSpacing: 2 } as const;
+  const dup1 = ownSameDayReport(recydywa, form.datetime, app?.id);
+  const dup2 = ownSameDayReport(recydywa2, form.datetime, app?.id);
+  const dupText = (r: RecydywaEntry) => `To może być duplikat – masz już zgłoszenie tego pojazdu z tego dnia (${[r.number, fmtLongDate(r.date ?? undefined)].filter(Boolean).join(', ')}).`;
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-        {editId ? <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>{`Edycja${app?.number ? ` ${app.number}` : ''}`}</Text> : null}
-
-        {!editId && !waitingIds && tiles.length > 0 ? (
-          <Pressable onPress={startOver} disabled={uploading} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 10, opacity: uploading ? 0.5 : 1 }}>
-            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, textDecorationLine: 'underline' }}>Zacznij od nowa</Text>
-          </Pressable>
-        ) : null}
-
-        <PhotoQuotaNotice quota={quota} patronem={patron} onMore={() => navigation.navigate('QuotaInfo')} />
+    <LargeTitleScreen title={title} leading={leading} trailing={trailing}>
+      <View style={{ paddingHorizontal: 16, paddingBottom: 32 }}>
+        {/* ZDJĘCIA – od nich zależy reszta (tablica, data, miejsce), więc pierwsze */}
+        <SectionHeader>Zdjęcia</SectionHeader>
+        <PhotoQuotaNotice quota={quota} patronem={patron} onMore={() => router.push(href('QuotaInfo'))} />
         <PhotosSection
           tiles={tiles}
           slots={tileSlots}
@@ -515,158 +506,204 @@ export function NewReportScreen({ navigation, route }: any) {
           onRemove={batch.remove}
           showRepick={!!editId}
         />
-        {batch.failed.length ? (
-          <Pressable onPress={batch.retry}><Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, marginTop: 8 }}>Nie wszystkie zdjęcia zostały wysłane – spróbuj ponownie</Text></Pressable>
-        ) : null}
-        {fieldErr('images')}
+        {batch.failed.length ? <Callout tone="error" onPress={batch.retry}>Nie wszystkie zdjęcia zostały wysłane. Dotknij, żeby spróbować ponownie.</Callout> : null}
+        {fieldErr('images') ? <Callout tone="error">{fieldErr('images')}</Callout> : null}
 
-        <L>Numer rejestracyjny</L>
-        <TextInput {...inputColors} style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }, lock.photoFields && locked]} editable={!lock.photoFields} value={form.plateId} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => { edited.current.plate = true; setPlateTouched(true); set('plateId', t); }} />
-        {fieldErr('plateId')}
-        <DuplicateWarning r={ownSameDayReport(recydywa, form.datetime, app?.id)} />
-        {recydywa && recydywa.appsCnt > 0 ? (
-          <Text style={{ color: ud.text, marginTop: 6 }}>❗ Ten pojazd był już zgłaszany: {plural(recydywa.appsCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}.</Text>
-        ) : null}
+        {/* POJAZD */}
+        <SectionHeader>Pojazd</SectionHeader>
+        <UdCard>
+          <FormField
+            first
+            label="Numer rejestracyjny"
+            hint={lock.photoFields ? 'Odczytamy go ze zdjęcia auta – potem możesz poprawić.' : undefined}
+            error={fieldErr('plateId')}
+            inputStyle={plateStyle}
+            editable={!lock.photoFields}
+            value={form.plateId}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            placeholder="np. WA 12345"
+            onChangeText={(t) => { edited.current.plate = true; setPlateTouched(true); set('plateId', t); }}
+          />
+          {dup1 ? <Callout tone="warning">{dupText(dup1)}</Callout> : null}
+          {recydywa && recydywa.appsCnt > 0 ? <Callout>Ten pojazd był już zgłaszany: {plural(recydywa.appsCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}.</Callout> : null}
 
-        {form.plateId2 ? (
-          <>
-            <L>Drugi pojazd (to samo wykroczenie)</L>
-            <TextInput {...inputColors} style={[input, { fontFamily: ud.fontBodyBold, letterSpacing: 1 }, lock.photoFields && locked]} editable={!lock.photoFields} value={form.plateId2} autoCapitalize="characters" autoCorrect={false} onChangeText={(t) => set('plateId2', t)} />
-            {fieldErr('plateId2')}
-            <DuplicateWarning r={ownSameDayReport(recydywa2, form.datetime, app?.id)} />
-            {recydywa2 && recydywa2.appsCnt > 0 ? (
-              <Text style={{ color: ud.text, marginTop: 6 }}>❗ Drugi pojazd był już zgłaszany: {plural(recydywa2.appsCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}.</Text>
-            ) : null}
-          </>
-        ) : null}
+          {form.plateId2 ? (
+            <>
+              <FormField
+                label="Drugi pojazd"
+                hint="To samo wykroczenie – powstanie osobne zgłoszenie."
+                error={fieldErr('plateId2')}
+                inputStyle={plateStyle}
+                editable={!lock.photoFields}
+                value={form.plateId2}
+                autoCapitalize="characters"
+                autoCorrect={false}
+                onChangeText={(t) => set('plateId2', t)}
+              />
+              {dup2 ? <Callout tone="warning">{dupText(dup2)}</Callout> : null}
+              {recydywa2 && recydywa2.appsCnt > 0 ? <Callout>Drugi pojazd był już zgłaszany: {plural(recydywa2.appsCnt, ['wykroczeń', 'wykroczenie', 'wykroczenia'])}.</Callout> : null}
+            </>
+          ) : null}
+        </UdCard>
 
-        <L>Data i czas zgłoszenia</L>
-        <DateTimeField disabled={lock.photoFields} value={form.datetime} onChange={(iso) => { setForm((f) => ({ ...f, datetime: iso, dtFromPicture: false })); setErr((e) => clearFieldError(e, 'datetime')); }} />
-        {fieldErr('datetime')}
+        {/* KIEDY I GDZIE */}
+        <SectionHeader>Kiedy i gdzie</SectionHeader>
+        <UdCard>
+          <DateTimeField disabled={lock.photoFields} fromPhoto={form.dtFromPicture} value={form.datetime} onChange={(iso) => { setForm((f) => ({ ...f, datetime: iso, dtFromPicture: false })); setErr((e) => clearFieldError(e, 'datetime')); }} />
+          {fieldErr('datetime') ? <Text style={[FIELD_HINT, { color: ud.plateVerified }]}>{fieldErr('datetime')}</Text> : null}
 
-        <MapPreview lat={form.lat} lng={form.lng} onPress={() => setMapOpen(true)} />
-        {form.lat == null ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 4 }}>Brak lokalizacji ze zdjęcia – wskaż miejsce na mapie.</Text> : null}
+          <Text style={[FIELD_LABEL, { marginTop: 18 }]}>Miejsce</Text>
+          <MapPreview lat={form.lat} lng={form.lng} onPress={() => setMapOpen(true)} />
+          {form.lat == null ? <Text style={FIELD_HINT}>Zdjęcie nie ma lokalizacji – wskaż miejsce na mapie albo wpisz adres.</Text> : null}
 
-        <L>Adres (z GPS zdjęcia, możesz poprawić)</L>
-        <TextInput {...inputColors} style={[input, lock.address && locked]} editable={!lock.address} value={form.address} maxLength={70} onChangeText={(t) => { edited.current.address = true; setAddrNote(null); set('address', t); }} onEndEditing={lookupAddress} />
-        {addrNote ? <Text style={{ color: ud.warning, marginTop: 4 }}>{addrNote}</Text> : null}
-        {fieldErr('address')}
+          <FormField
+            label="Adres"
+            hint={addrNote ? undefined : form.lat != null ? 'Z lokalizacji zdjęcia – możesz poprawić.' : undefined}
+            error={fieldErr('address') ?? addrNote}
+            editable={!lock.address}
+            value={form.address}
+            maxLength={70}
+            placeholder="np. Prosta 10, Warszawa"
+            autoComplete="street-address"
+            textContentType="fullStreetAddress"
+            onChangeText={(t) => { edited.current.address = true; setAddrNote(null); set('address', t); }}
+            onEndEditing={lookupAddress}
+          />
 
-        <L>Zgłoszenie trafi do</L>
-        <Radio on={unit === 'SA'} onPress={() => set('unit', 'SA')} hint={unitHint(form.geo?.sa)}>Policja (sugerowane)</Radio>
-        <Radio on={unit === 'SM'} disabled={smDisabled} onPress={() => set('unit', 'SM')} hint={unitHint(form.geo?.sm)}>{form.geo?.sm?.kind ?? 'Straż miejska'}</Radio>
-        {forcePolice ? <Text style={{ color: ud.muted, fontSize: 12 }}>Ta kategoria jest zawsze zgłaszana na Policję.</Text> : null}
+          <Text style={[FIELD_LABEL, { marginTop: 18, marginBottom: 2 }]}>Zgłoszenie trafi do</Text>
+          <ChoiceRow on={unit === 'SA'} onPress={() => set('unit', 'SA')} hint={unitHint(form.geo?.sa)} title="Policja (sugerowane)" />
+          <ChoiceRow on={unit === 'SM'} disabled={smDisabled} onPress={() => set('unit', 'SM')} hint={unitHint(form.geo?.sm)} title={form.geo?.sm?.kind ?? 'Straż miejska'} last />
+          {forcePolice ? <Text style={FIELD_HINT}>Ta kategoria jest zawsze zgłaszana na Policję.</Text> : null}
+        </UdCard>
 
-        <H>Wybierz rodzaj wykroczenia</H>
+        {/* RODZAJ WYKROCZENIA */}
+        <SectionHeader>Rodzaj wykroczenia</SectionHeader>
         {topCats.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} onMore={setCatInfo} />)}
-        {!showAllCats ? (
-          // Pełna szerokość, tonalne tło bez ramki i odstęp od kart – wcześniej sam tekst ginął między kafelkami
-          // (i mylił się z zaznaczonym „Pozostałe przypadki”, które też ma zieloną ramkę).
-          <Pressable
-            onPress={() => setShowAllCats(true)}
-            accessibilityRole="button"
-            android_ripple={ripple}
-            style={{ overflow: 'hidden', marginTop: 16, marginBottom: 8, paddingVertical: 12, borderRadius: ud.radiusPill, backgroundColor: ud.primaryContainer, alignItems: 'center' }}
-          >
-            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, fontSize: 15 }}>
-              Pokaż wszystkie kategorie{hiddenCatsCnt ? ` (+${hiddenCatsCnt})` : ''} ▾
-            </Text>
-          </Pressable>
-        ) : (
-          <>
-            {catGroups.map((g) => (
-              <View key={g.name}>
-                <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, marginTop: 16 }}>{g.name}</Text>
-                {g.items.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} onMore={setCatInfo} />)}
-              </View>
-            ))}
-            {/* jak .category-hint w nowe-zgloszenie.html.twig (tam pod grupą 5, która tu jest stałym kafelkiem niżej) */}
-            <Text style={{ color: ud.muted, fontSize: 13, marginTop: 16 }}>
-              Masz wątpliwości, którą kategorię wybrać? Przeczytaj{' '}
-              <Text onPress={() => openUdPage(navigation, '/przepisy.html', 'Przepisy')} style={{ color: ud.primary, textDecorationLine: 'underline' }}>nasz poradnik</Text>.
-            </Text>
-          </>
-        )}
+        <Collapsible open={showAllCats}>
+          {catGroups.map((g) => (
+            <View key={g.name}>
+              <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, fontSize: 15, marginTop: 18, paddingHorizontal: 4 }}>{g.name}</Text>
+              {g.items.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} onMore={setCatInfo} />)}
+            </View>
+          ))}
+          {/* jak .category-hint w nowe-zgloszenie.html.twig */}
+          <Text style={[FIELD_HINT, { marginTop: 14, paddingHorizontal: 4 }]}>
+            Masz wątpliwości, którą kategorię wybrać? Przeczytaj{' '}
+            <Text onPress={() => openUdPage(router, '/przepisy.html', 'Przepisy')} style={{ color: ud.primary, textDecorationLine: 'underline' }}>nasz poradnik</Text>.
+          </Text>
+        </Collapsible>
+        {/* Przełącznik pod listą: rozwija ją sprężyną i zwija tą samą drogą („Pokaż mniej”). */}
+        <Pressable
+          onPress={() => setShowAllCats((v) => !v)}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showAllCats }}
+          android_ripple={ripple}
+          style={({ pressed }) => ({ overflow: 'hidden', marginTop: 12, marginBottom: 4, minHeight: 48, justifyContent: 'center', borderRadius: ud.radiusPill, backgroundColor: ud.primaryContainer, alignItems: 'center', transform: [{ scale: pressed ? 0.98 : 1 }] })}
+        >
+          <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, fontSize: 15 }}>
+            {showAllCats ? 'Pokaż mniej kategorii' : `Pokaż wszystkie kategorie${hiddenCatsCnt ? ` (+${hiddenCatsCnt})` : ''}`}
+          </Text>
+        </Pressable>
         <CategoryRow c={otherCat ?? { id: 0, title: 'Pozostałe przypadki', short: 'Opisz sytuację w komentarzu.' }} on={form.category === 0} onPress={() => chooseCategory(0)} onMore={otherCat ? setCatInfo : undefined} />
 
-        <L>Komentarz{form.category === 0 ? ' (wymagany)' : ''}</L>
-        <TextInput {...inputColors} style={[input, { minHeight: 80, textAlignVertical: 'top' }]} multiline value={form.comment} onChangeText={(t) => set('comment', t)} onEndEditing={() => { const w = !form.witness && commentWarning(form.comment); if (w) toast.info(`${w} Sprawdź opcję „świadek momentu parkowania”.`); }} placeholder="Dodatkowy opis wykroczenia" />
-        {fieldErr('comment')}
-        {/* jak na webie: ostrzeżenie o masie pojazdu jest częścią pola komentarza; przy dwóch pojazdach z numerem tablicy */}
-        {weightWarning ? <Text style={{ color: ud.warning, marginTop: 6 }}>{form.plateId2 ? `${form.plateId}: ` : ''}{weightWarning}</Text> : null}
-        {form.plateId2 && weightWarning2 ? <Text style={{ color: ud.warning, marginTop: 6 }}>{form.plateId2}: {weightWarning2}</Text> : null}
+        {/* SZCZEGÓŁY */}
+        <SectionHeader>Szczegóły</SectionHeader>
+        <UdCard>
+          <FormField
+            first
+            label="Komentarz"
+            optional={form.category !== 0}
+            hint={form.category === 0 ? 'Wymagany przy „Pozostałych przypadkach” – opisz, co się stało.' : 'Dodatkowy opis, jeśli zdjęcia nie mówią wszystkiego.'}
+            error={fieldErr('comment')}
+            multiline
+            value={form.comment}
+            placeholder="np. Auto blokuje przejście dla pieszych"
+            onChangeText={(t) => set('comment', t)}
+            onEndEditing={() => { const w = !form.witness && commentWarning(form.comment); if (w) toast.info(`${w} Sprawdź opcję „świadek momentu parkowania”.`); }}
+          />
+          {/* jak na webie: ostrzeżenie o masie pojazdu jest częścią pola komentarza; przy dwóch pojazdach z numerem tablicy */}
+          {weightWarning ? <Callout tone="warning">{form.plateId2 ? `${form.plateId}: ` : ''}{weightWarning}</Callout> : null}
+          {form.plateId2 && weightWarning2 ? <Callout tone="warning">{form.plateId2}: {weightWarning2}</Callout> : null}
 
-        {Object.keys(exts).length ? (
-          <>
-            <H>Czy pojazd dodatkowo:</H>
-            {Object.entries(exts).filter(([, e]) => !e.disabled).map(([id, e]) => {
-              const n = Number(id);
-              return <Check key={id} disabled={isExtensionDisabled(n, form.category)} on={form.extensions.includes(n)} onPress={() => set('extensions', form.extensions.includes(n) ? form.extensions.filter((x) => x !== n) : [...form.extensions, n])}>{`${e.title}${e.price ? ` (mandat: ${e.price})` : ''}`}</Check>;
-            })}
-          </>
-        ) : null}
+          {Object.keys(exts).length ? (
+            <>
+              <Text style={[FIELD_LABEL, { marginTop: 18, marginBottom: 2 }]}>Czy pojazd dodatkowo:</Text>
+              {Object.entries(exts).filter(([, e]) => !e.disabled).map(([id, e], i, all) => {
+                const n = Number(id);
+                return (
+                  <ChoiceRow
+                    key={id}
+                    multi
+                    last={i === all.length - 1}
+                    disabled={isExtensionDisabled(n, form.category)}
+                    on={form.extensions.includes(n)}
+                    onPress={() => set('extensions', form.extensions.includes(n) ? form.extensions.filter((x) => x !== n) : [...form.extensions, n])}
+                    title={e.title}
+                    hint={e.price ? `Mandat: ${e.price}` : undefined}
+                  />
+                );
+              })}
+            </>
+          ) : null}
 
-        <H>Oświadczenia</H>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          {/* jak na www: `bylam` z backendu (sexStrings) – „Byłem/Byłam/Byłam/em świadkiem …” */}
-          <Text style={{ flex: 1, color: ud.text }}>{bylam.charAt(0).toUpperCase() + bylam.slice(1)} świadkiem momentu parkowania</Text>
-          <Switch value={form.witness} onValueChange={(v) => set('witness', v)} {...switchColors} />
-        </View>
+          <View style={{ marginTop: 10 }}>
+            {/* jak na www: `bylam` z backendu (sexStrings) – „Byłem/Byłam/Byłam/em świadkiem …” */}
+            <SwitchRow title={`${bylam.charAt(0).toUpperCase() + bylam.slice(1)} świadkiem momentu parkowania`} value={form.witness} onChange={(v) => set('witness', v)} last />
+          </View>
+        </UdCard>
 
         <View style={{ marginTop: 20 }}>
           <UdButton title={submitting ? 'Zapisuję…' : 'Dalej'} onPress={submit} disabled={submitting || uploading || geoBusy > 0} />
+          <Text style={{ color: ud.muted, fontSize: 13, lineHeight: 18, marginTop: 4, textAlign: 'center' }}>{nextHint}</Text>
         </View>
-        <Text style={{ color: ud.muted, fontSize: 12, marginTop: 6 }}>Na następnym ekranie sprawdzisz zgłoszenie przed wysłaniem.</Text>
-      </ScrollView>
-      <CategoryInfo c={catInfo} onClose={() => setCatInfo(null)} onPageLink={(path) => openUdPage(navigation, path)} />
+      </View>
+      <CategoryInfo c={catInfo} onClose={() => setCatInfo(null)} onPageLink={(path) => openUdPage(router, path)} />
       <MapPicker visible={mapOpen} initial={form.lat != null && form.lng != null ? { lat: form.lat, lng: form.lng } : null} fallback={mapStart} onConfirm={onMapConfirm} onClose={() => setMapOpen(false)} />
-      {kbd ? null : <UdTabs current="NewReport" navigate={go} />}
-    </KeyboardAvoidingView>
+    </LargeTitleScreen>
   );
 }
 
-// Jak #category na webie (radio.scss): bez kółka radia – karta z ramką, wybrana ma ramkę w kolorze głównym, a zwolnione
-// miejsce idzie na większe zdjęcie kategorii (punkty karne w czerwonej kropce na zdjęciu, jak .points-badge).
+// Jak #category na webie: karta ze zdjęciem kategorii (punkty karne w czerwonej kropce), wybrana ma zieloną ramkę i ✓.
+// Szczegóły pod przyciskiem ⓘ (44 pt), zamiast zakładki „WIĘCEJ…” w rogu.
 function CategoryRow({ c, on, onPress, onMore }: { c: Category; on: boolean; onPress: () => void; onMore?: (c: Category) => void }) {
+  const more = onMore && (c.desc || c.law);
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ checked: on }}
+      accessibilityLabel={c.title}
       android_ripple={ripple}
-      style={{ ...selectCard(on), overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, padding: 6 }}
+      style={({ pressed }) => ({ ...selectCard(on), overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8, transform: [{ scale: pressed ? 0.98 : 1 }] })}
     >
       <View>
-        <Image source={{ uri: `${udConfig.base}/img/${c.id}.jpg` }} style={{ width: 80, height: 80, borderRadius: ud.radiusButton, backgroundColor: ud.surfaceCream }} />
+        <Image source={{ uri: `${udConfig.base}/img/${c.id}.jpg` }} style={{ width: 72, height: 72, borderRadius: ud.radiusButton, backgroundColor: ud.surfaceCream }} />
         {c.points && c.points > 1 ? (
-          <View style={{ position: 'absolute', top: 3, left: 3, minWidth: 22, height: 22, borderRadius: 11, backgroundColor: 'red', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+          <View style={{ position: 'absolute', top: 3, left: 3, minWidth: 22, height: 22, borderRadius: 11, backgroundColor: ud.plateVerified, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
             <Text style={{ color: '#fff', fontFamily: ud.fontBodyBold, fontSize: 13 }}>{c.points}</Text>
           </View>
         ) : null}
       </View>
-      {/* dół kolumny zostawia miejsce na zakładkę „WIĘCEJ…”, żeby nie zasłaniała mandatu */}
-      <View style={{ flex: 1, paddingRight: 4, paddingBottom: onMore && (c.desc || c.law) ? 18 : 0 }}>
-        <Text style={{ fontFamily: ud.fontBodyBold, color: on ? ud.primary : ud.text }}>{c.title}</Text>
-        {c.short ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 2 }} numberOfLines={3}>{c.short}</Text> : null}
-        {c.mandate ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 2 }}>Mandat {c.mandate > 100 ? '~' : ''}{c.mandate} zł</Text> : null}
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 15, color: on ? ud.primary : ud.text }}>{c.title}</Text>
+        {c.short ? <Text style={{ color: ud.muted, fontSize: 13, lineHeight: 18, marginTop: 2 }} numberOfLines={3}>{c.short}</Text> : null}
+        {c.mandate ? <Text style={{ color: ud.muted, fontSize: 13, marginTop: 2 }}>Mandat {c.mandate > 100 ? '~' : ''}{c.mandate} zł</Text> : null}
       </View>
-      {onMore && (c.desc || c.law) ? (
-        // jak a.category-popup na webie: zakładka w prawym dolnym rogu karty
-        <Pressable onPress={() => onMore(c)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Więcej o kategorii ${c.title}`} style={{ position: 'absolute', right: 0, bottom: 0, backgroundColor: '#ede9df', paddingHorizontal: 10, paddingVertical: 5, borderTopLeftRadius: ud.radiusCard - 3, borderBottomRightRadius: ud.radiusCard - 3 }}>
-          <Text style={{ fontSize: 11, color: '#333', fontFamily: ud.fontBodyBold }}>WIĘCEJ…</Text>
-        </Pressable>
-      ) : null}
+      <View style={{ alignItems: 'center', gap: 4 }}>
+        {on ? (
+          <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: ud.primary, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#fff', fontFamily: ud.fontBodyBold, fontSize: 14, lineHeight: 16 }}>✓</Text>
+          </View>
+        ) : null}
+        {more ? (
+          <Pressable onPress={() => onMore!(c)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Więcej o kategorii ${c.title}`}
+            style={({ pressed }) => ({ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: ud.surfaceLow, opacity: pressed ? 0.6 : 1 })}>
+            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, fontSize: 15 }}>i</Text>
+          </Pressable>
+        ) : null}
+      </View>
     </Pressable>
-  );
-}
-
-// Własne zgłoszenie tego pojazdu z tego samego dnia – wyraźniej niż zwykła informacja o recydywie.
-function DuplicateWarning({ r }: { r: RecydywaEntry | null }) {
-  if (!r) return null;
-  return (
-    <Text style={{ color: ud.warning, fontFamily: ud.fontBodyBold, marginTop: 6 }}>
-      ⚠️ To może być duplikat – masz już zgłoszenie tego pojazdu z tego dnia ({[r.number, fmtLongDate(r.date ?? undefined)].filter(Boolean).join(', ')}).
-    </Text>
   );
 }
 

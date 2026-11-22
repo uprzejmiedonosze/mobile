@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, BackHandler, Linking, Text, View } from 'react-native';
 import { UdButton, UdHeader } from '../components/UD';
 import { udConfig } from '../config';
@@ -11,8 +12,9 @@ try { WebView = require('react-native-webview').WebView; } catch { /* brak react
 
 // Statyczna strona z backendu (jedno źródło treści z www) w trybie ?embed: sam artykuł, bez headera/stopki.
 // Linki do innych stron .html zostają w WebView, reszta (zewnętrzne, mailto, target=_blank) idzie do przeglądarki.
-export function WebPageScreen({ navigation, route }: any) {
-  const { path, title: titleParam } = route.params as { path: string; title?: string };
+export function WebPageScreen() {
+  const router = useRouter();
+  const { path = '/', title: titleParam } = useLocalSearchParams<{ path: string; title?: string }>();
   const ref = useRef<any>(null);
   const [canGoBack, setCanGoBack] = useState(false);
   const [title, setTitle] = useState<string | undefined>(titleParam);
@@ -23,8 +25,8 @@ export function WebPageScreen({ navigation, route }: any) {
 
   const back = useCallback(() => {
     if (canGoBack) ref.current?.goBack();
-    else navigation.goBack();
-  }, [canGoBack, navigation]);
+    else router.back();
+  }, [canGoBack, router]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { back(); return true; });
@@ -32,8 +34,8 @@ export function WebPageScreen({ navigation, route }: any) {
   }, [back]);
 
   useEffect(() => {
-    if (!WebView) { Linking.openURL(uri.replace(/[?&]embed=1$/, '')).catch(() => {}); navigation.goBack(); }
-  }, [navigation, uri]);
+    if (!WebView) { Linking.openURL(uri.replace(/[?&]embed=1$/, '')).catch(() => {}); router.back(); }
+  }, [router, uri]);
 
   const onRequest = (req: { url: string; isTopFrame?: boolean }) => {
     if (req.url === uri || req.url.startsWith('about:') || req.isTopFrame === false) return true;

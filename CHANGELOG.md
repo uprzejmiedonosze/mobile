@@ -1,6 +1,8 @@
 ## RELEASE-CANDIDATE
 
 - iPhone: aparat w Poczekalni przy zdjęciach robionych poziomo miał napisy do góry nogami – teraz układ obraca się w dobrą stronę.
+- Nowy wygląd aplikacji: systemowy pasek zakładek, duże tytuły i ekrany w kartach – czytelniej i wygodniej jedną ręką. Na iPhonie (iOS 26) „Nowe zgłoszenie” jest osobnym przyciskiem obok zakładek.
+- Zgłoszenia: szczegóły zgłoszenia otwierają się w wysuwanym panelu, a wyszukiwarka jest w nagłówku listy. Formularze podpowiadają, czego brakuje, i mają przycisk chowający klawiaturę.
 
 ## v1.4.0 — 2026-11-20
 
