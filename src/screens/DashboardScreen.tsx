@@ -149,8 +149,7 @@ export function DashboardScreen({ navigation }: any) {
           <>
             <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 26 }}>Cześć{d.name ? ` ${d.name}` : ''},</Text>
             <Text style={{ color: ud.text, marginTop: 6, lineHeight: 21 }}>{stripHtml(d.introMsg)}</Text>
-            {/* Android: najkrótsza droga to aparat → poczekalnia (zgłoszenie przygotowuje się potem); „Nowe” i „Poczekalnia” są w dolnym menu.
-                iOS nie ma poczekalni – zostaje „Nowe zgłoszenie”. */}
+            {/* Najkrótsza droga to aparat → poczekalnia (zgłoszenie przygotowuje się potem); „Nowe” i „Poczekalnia” są w dolnym menu. */}
             <View style={{ marginTop: 14 }}>
               {waitingRoomEnabled ? (
                 <>

@@ -60,8 +60,8 @@ RevenueCat; SDK konfigurujemy leniwie, z `appUserId` z backendu (`GET /api/rest/
 produktów muszą być zgodne z backendem (`config.php: IAP_PRODUCTS`) i App Store Connect. `WebPageScreen` blokuje na iOS odnośniki
 płatnicze. Moduł nie jest linkowany na Androidzie (`react-native.config.js`).
 
-**Film w zgłoszeniu (Android; hałas i drift tylko z filmem).** Nie ma osobnego zgłoszenia „na gorąco” – wszystko idzie przez `NewReportScreen`, bez limitu 24 h
-(zwykłe 7 miesięcy). Pulpit (Android) ma jedno główne CTA „Zrób zdjęcie lub film” → `WaitingCameraScreen` z przełącznikiem ZDJĘCIE/WIDEO (mikrofon pytany
+**Film w zgłoszeniu (Android i iOS; hałas i drift tylko z filmem).** Nie ma osobnego zgłoszenia „na gorąco” – wszystko idzie przez `NewReportScreen`, bez limitu 24 h
+(zwykłe 7 miesięcy). Pulpit ma jedno główne CTA „Zrób zdjęcie lub film” → `WaitingCameraScreen` z przełącznikiem ZDJĘCIE/WIDEO (mikrofon pytany
 dopiero przy przełączeniu; 720p, ≤25 s, ≤14 MB, z dźwiękiem). Nagranie czeka w poczekalni (`kind: 'video'`, `<id>.mp4` + okładka `<id>.poster.jpg`, poza paczkami)
 i z jej karty otwiera formularz z `waitingVideoId`; w formularzu „Nagraj film” otwiera ten sam aparat z `{ mode: 'video', returnTo: 'NewReport' }`.
 Zgłoszenie ma najwyżej jeden film i zdjęcia: do 3, a z filmem do 2 (`lib/video.ts`: `maxPhotos`; serwer odrzuca film + `thirdImage`). Zdjęcia są zawsze wymagane:
@@ -69,12 +69,14 @@ przy samym filmie użytkownik wskazuje klatkę z tablicą (`VideoFrameScreen`, `
 i idzie zwykłą ścieżką `usePhotoBatch.load` jako jedno zdjęcie (kontekst + wycinek auta, ALPR) z datą i GPS nagrania (`framePhoto`). Film leci na serwer
 przy „Dalej”, przed zapisem formularza (`POST /app/{id}/video`, B2, w mailu link `/cdn2/…`); po potwierdzeniu znika z poczekalni (`removeDrafts`).
 Kategorie 31 (hałas/wydech) i 32 (drift) mają `requiresVideo` i są w grupie 6 razem ze stanem technicznym (27–30); bez filmu serwer zwraca 422 `video`,
-z filmem wysyła zawsze na wojewódzką skrzynkę „Stop agresji drogowej” (`StopAgresji::guessVoivodeship`). Web i MCP ich nie pokazują, iOS też nie
-(`availableCategories`; na iOS nie ma filmu). Flag testowych (`beta`, `features.adHocReports`) już nie ma; wydane 1.3.x nie umieją dołączyć filmu, więc
+z filmem wysyła zawsze na wojewódzką skrzynkę „Stop agresji drogowej” (`StopAgresji::guessVoivodeship`). Web i MCP ich nie pokazują (film tylko w appce); appka ukrywa je tylko
+przy backendzie bez filmu (`availableCategories`). Flag testowych (`beta`, `features.adHocReports`) już nie ma; wydane 1.3.x nie umieją dołączyć filmu, więc
 backend z tą zmianą idzie na produkcję dopiero po wydaniu appki z `API_SCHEMA` 11 (426 dla starszych – docs/NFR.md). W drugą stronę film
 pokazujemy tylko przy backendzie, który go obsługuje: `X-UD-Server-Schema` ≥ 11 (`store/useServer`, `lib/useVideoEnabled`).
 Obrót nagrań w poziomie przy appce zablokowanej w pionie: łatka `patches/expo-camera+*.patch` (patch-package w `postinstall`) i poprawka pliku po nagraniu
-w `lib/mp4Rotation.ts` (macierz `tkhd` z akcelerometru). Podstawy prawne: `docs/TUNING-PRAWO.md`.
+w `lib/mp4Rotation.ts` (macierz `tkhd` z akcelerometru) – tylko Android. iOS: `expo-camera` zapisuje `.mov` (QuickTime; serwer przyjmuje `video/quicktime`, plik w
+poczekalni nazywa się `<id>.mp4`), `codec: 'avc1'` ustawia bitrate, obrotu pliku nie ruszamy (**do potwierdzenia na telefonie**). Klatka z filmu idzie do AI,
+więc na iOS przed nią pytamy o zgodę (`ensureAiConsent`). Podstawy prawne: `docs/TUNING-PRAWO.md`.
 
 ## Non-functional requirements
 

@@ -183,7 +183,7 @@ export function NewReportScreen({ navigation, route }: any) {
     fetchProfile().then((p) => { setBylam(p.bylam); setPatron(p.patronem); setMapStart(p.lastLocation); }).catch(() => {});
   }, []));
   useFocusEffect(useCallback(() => { refreshQuota(); }, [refreshQuota])); // licznik limitu zdjęć przy każdym wejściu na ekran
-  // bez filmu (iOS, backend < 11) nie ma kategorii, które go wymagają (lib/video.ts)
+  // bez filmu (backend < 11) nie ma kategorii, które go wymagają (lib/video.ts)
   const videoEnabled = useVideoEnabled();
   useEffect(() => {
     fetchCategories().then((c) => setCats(availableCategories(c, videoEnabled)));
@@ -428,7 +428,8 @@ export function NewReportScreen({ navigation, route }: any) {
   useEffect(() => {
     if (!frameUri || frameSeen.current === frameUri) return;
     frameSeen.current = frameUri;
-    void batch.load([framePhoto(frameUri, frameAtS ?? 0, video ?? {})]);
+    // klatka idzie do AI jak zdjęcie z galerii – na iOS najpierw zgoda (lib/aiConsent.ts)
+    void (async () => { if (await ensureAiConsent()) await batch.load([framePhoto(frameUri, frameAtS ?? 0, video ?? {})]); })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameUri]);
   const recordVideo = () => navigation.navigate('WaitingCamera', { mode: 'video', returnTo: 'NewReport' });
@@ -727,7 +728,7 @@ export function NewReportScreen({ navigation, route }: any) {
   );
 }
 
-// Film w zgłoszeniu (Android, lib/video.ts): nagranie aparatem appki, podgląd, „Nagraj ponownie”/„Usuń” i wybór klatki z tablicą,
+// Film w zgłoszeniu (lib/video.ts): nagranie aparatem appki, podgląd, „Nagraj ponownie”/„Usuń” i wybór klatki z tablicą,
 // która zastępuje zdjęcia, gdy zgłoszenie opiera się na samym filmie.
 function VideoSection({ video, server, busy, disabled, tooManyPhotos, frameNote, canPickFrame, hasFrame, onRecord, onRemove, onPickFrame }: {
   video: { uri: string; size?: number; durationMs?: number; posterUri?: string } | null;

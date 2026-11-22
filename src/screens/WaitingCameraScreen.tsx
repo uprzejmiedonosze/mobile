@@ -31,7 +31,7 @@ const TILT_INTERVAL_MS = 250;
 // Praca w poziomie jak w aparatach systemowych: appka zostaje zablokowana w pionie (podgląd się nie przeładowuje, działa też z blokadą obrotu
 // w telefonie), a obracamy samą nakładkę. Plik i tak wychodzi poziomy: CameraX ustawia obrót zdjęcia z czujnika niezależnie od blokady
 // (dla nagrań dopiero z łatką patches/expo-camera+*.patch – bez niej film w poziomie wychodził obrócony).
-// Tryb WIDEO (Android, lib/video.ts): ten sam aparat nagrywa film z dźwiękiem, który czeka w poczekalni jak zdjęcia; zgodę na mikrofon
+// Tryb WIDEO (lib/video.ts): ten sam aparat nagrywa film z dźwiękiem, który czeka w poczekalni jak zdjęcia; zgodę na mikrofon
 // pytamy dopiero przy przełączeniu na WIDEO.
 // To jedyny aparat do filmów: formularz zgłoszenia otwiera go z `{ mode: 'video', returnTo: 'NewReport' }` – wtedy bez przełącznika,
 // a po nagraniu wraca do formularza z `waitingVideoId` (film i tak leży w poczekalni).
@@ -161,7 +161,7 @@ export function WaitingCameraScreen({ navigation, route }: any) {
         try { new File(res.uri).delete(); } catch { /* cache */ }
         return;
       }
-      fixVideoRotation(res.uri, startRotation);
+      if (Platform.OS === 'android') fixVideoRotation(res.uri, startRotation); // logika CameraX; iOS zostaje bez zmian pliku
       const durationMs = Date.now() - startedMs;
       const video = add({ uri: res.uri, takenAtMs: startedMs, fix: startFix ?? freshFix(fix.current, Date.now()), carSeq, kind: 'video', durationMs, size });
       setLastUri(null);

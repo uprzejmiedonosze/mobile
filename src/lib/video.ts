@@ -6,16 +6,16 @@
 import { Platform } from 'react-native';
 import type { Category, PhotoItem } from '../types';
 
-// Nagrywamy tylko własnym aparatem (Android: poprawka obrotu z akcelerometru, lib/mp4Rotation.ts; poczekalnia też jest tylko tu).
-// Na iOS nie ma filmu – i nie ma kategorii, które go wymagają.
-export const videoPlatform = Platform.OS === 'android';
+// Nagrywamy tylko własnym aparatem (WaitingCamera), na Androidzie i iOS. Android: poprawka obrotu z akcelerometru (lib/mp4Rotation.ts);
+// iOS zapisuje .mov (QuickTime, serwer przyjmuje) i obrotu nie ruszamy – do potwierdzenia na telefonie.
+export const videoPlatform = Platform.OS === 'android' || Platform.OS === 'ios';
 // Backend przyjmuje film od schematu 11 (POST /app/{id}/video). Starszy (bez X-UD-Server-Schema) – film schowany, bo wysyłka by padła.
 export const VIDEO_SERVER_SCHEMA = 11;
 export const videoSupported = (serverSchema: number | null, platformOk: boolean = videoPlatform): boolean =>
   platformOk && serverSchema != null && serverSchema >= VIDEO_SERVER_SCHEMA;
 
 // Limit serwera: MAX_VIDEO_UPLOAD_BYTES w src/inc/API.php (15 MB). Nagrywamy z zapasem: 720p, ~3,5 Mb/s obrazu + dźwięk
-// ≈ 0,45 MB/s, więc 25 s to ok. 11–12 MB. `maxFileSize` (Android) zatrzymuje nagrywanie przed limitem także przy innym bitrate.
+// ≈ 0,45 MB/s, więc 25 s to ok. 11–12 MB. `maxFileSize` zatrzymuje nagrywanie przed limitem także przy innym bitrate.
 export const MAX_VIDEO_BYTES = 15 * 1024 * 1024;
 export const VIDEO_MAX_DURATION_S = 25;
 export const VIDEO_BITRATE = 3_500_000;
@@ -34,7 +34,7 @@ export const maxPhotos = (hasVideo: boolean): number => (hasVideo ? MAX_PHOTOS_W
 export const requiresVideo = (cats: Category[], id: number | string | undefined): boolean =>
   id != null && cats.some((c) => c.id === Number(id) && c.requiresVideo);
 
-// Kategorie, które ten klient może zgłosić: bez filmu (iOS, starszy backend) znikają te, które go wymagają.
+// Kategorie, które ten klient może zgłosić: bez filmu (starszy backend) znikają te, które go wymagają.
 export const availableCategories = (cats: Category[], withVideo: boolean): Category[] =>
   withVideo ? cats : cats.filter((c) => !c.requiresVideo);
 

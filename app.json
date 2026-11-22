@@ -52,14 +52,14 @@
         {
           "photosPermission": "Wybór zdjęć pojazdu do zgłoszenia i odczyt z nich daty oraz miejsca wykonania.",
           "cameraPermission": "Zdjęcia pojazdu do zgłoszenia oraz pisma z policji lub straży miejskiej, żeby przypisać je do zgłoszenia.",
-          "microphonePermission": "Nagrywanie dźwięku do filmu w zgłoszeniu na gorąco (np. hałas z przerobionego wydechu)."
+          "microphonePermission": "Nagrywanie dźwięku do filmu w zgłoszeniu (np. hałas z przerobionego wydechu)."
         }
       ],
       [
         "expo-camera",
         {
           "cameraPermission": "Zdjęcia pojazdu do zgłoszenia oraz pisma z policji lub straży miejskiej, żeby przypisać je do zgłoszenia.",
-          "microphonePermission": "Nagrywanie dźwięku do filmu w zgłoszeniu na gorąco (np. hałas z przerobionego wydechu).",
+          "microphonePermission": "Nagrywanie dźwięku do filmu w zgłoszeniu (np. hałas z przerobionego wydechu).",
           "recordAudioAndroid": true,
           "barcodeScannerEnabled": false
         }

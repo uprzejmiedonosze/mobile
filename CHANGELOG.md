@@ -19,9 +19,9 @@
 - Logowanie i Konto: przy otwartej klawiaturze (iPhone) można przewinąć formularz do końca, klawiatura nie zasłania już przycisków pod polem.
 - Poczekalnia: zdjęcia są przypisane do konta – po zalogowaniu na inne konto nie widać cudzych zdjęć. Android: w Koncie jest opcja zapisywania kopii zdjęć z aparatu w galerii (album „Uprzejmie Donoszę”), domyślnie wyłączona; kopia zapasowa zdjęć poczekalni w chmurze Google jest wyłączona.
 - Logowanie: usunięta informacja o wersji beta z ekranu logowania.
-- Ekran główny (Android): najważniejszy przycisk to teraz „Zrób zdjęcie lub film” – zdjęcia i filmy trafiają do poczekalni, a zgłoszenie przygotujesz później. Nowe zgłoszenie i poczekalnia są w dolnym menu.
+- Ekran główny: najważniejszy przycisk to teraz „Zrób zdjęcie lub film” – zdjęcia i filmy trafiają do poczekalni, a zgłoszenie przygotujesz później. Nowe zgłoszenie i poczekalnia są w dolnym menu.
 - Aparat w poczekalni: przy zdjęciach w poziomie licznik zdjęć auta jest obok wskaźnika GPS, a nie na środku podglądu.
-- Film w zgłoszeniu (Android): do zgłoszenia możesz dołączyć jeden film z dźwiękiem (do 25 s), nagrany aparatem w aplikacji albo z poczekalni – wtedy z maksymalnie dwoma zdjęciami. Gdy masz sam film, wskaż klatkę z czytelną tablicą: posłuży za zdjęcie pojazdu, a numer odczytamy z niej automatycznie.
+- Film w zgłoszeniu (Android i iPhone): do zgłoszenia możesz dołączyć jeden film z dźwiękiem (do 25 s), nagrany aparatem w aplikacji albo z poczekalni – wtedy z maksymalnie dwoma zdjęciami. Gdy masz sam film, wskaż klatkę z czytelną tablicą: posłuży za zdjęcie pojazdu, a numer odczytamy z niej automatycznie.
 - Nowe kategorie: nieczytelna tablica rejestracyjna, wyciek płynów, elementy wystające, przyciemnione szyby, a także hałas i spaliny oraz drift – te dwie tylko z filmem, wysyłane do wojewódzkiej skrzynki „Stop agresji drogowej”.
 
 ## v1.3.2 — 2026-11-08
