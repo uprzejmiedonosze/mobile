@@ -50,7 +50,7 @@ export const CROP_TILE_ID = '__car_crop';
 // Pole na 2–3 kafelki (jedno zdjęcie też daje dwa: oryginał + wycinek auta – układ się nie przestawia). Bez podpisów ról; zdjęcie auta
 // wyróżnia miniatura tablicy rejestracyjnej pod nim. Role wynikają z analizy ALPR (lib/roles.ts) i nie są do ręcznej zmiany; jedyny wybór
 // użytkownika to „którego pojazdu dotyczy zgłoszenie”, gdy wykryto kilka pewnych pojazdów.
-export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, cropPreview, pending, plateUri, vehicles, vehicleIdx, canBoth, both, second, carBox, carNatural, onPick, onVehicle, onRemove, showRepick = true, maxPhotos = 3, emptyHint }: {
+export function PhotosSection({ tiles, slots, phase, uploading, note, editable, crop, cropPreview, pending, plateUri, vehicles, vehicleIdx, canBoth, both, second, carBox, carNatural, onPick, onAdd, onVehicle, onRemove, showRepick = true, maxPhotos = 3, emptyHint }: {
   tiles: Tile[];
   slots: Slots;
   phase: Phase;
@@ -64,6 +64,7 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
   plateUri?: string | null; // miniatura tablicy z ALPR (wycinek z serwera) – pod zdjęciem auta
   editable: boolean; // false = zdjęcia z serwera (edycja istniejącego zgłoszenia) – role bez zmian
   onPick: () => void;
+  onAdd?: () => void; // „＋ Dodaj zdjęcie”: dołożenie z galerii do już wczytanych, dopóki jest miejsce (maxPhotos)
   vehicles?: Vehicle[]; // ≥2 = wykryto kilka pojazdów o sporej pewności: pytamy, którego dotyczy zgłoszenie
   vehicleIdx?: number;
   canBoth?: boolean; // czy pokazać „Oba” (≥3 zdjęcia: dwa pojazdy + wspólny kontekst, dokładnie dwa pojazdy – roles.canChooseBoth)
@@ -156,6 +157,11 @@ export function PhotosSection({ tiles, slots, phase, uploading, note, editable, 
             {phase === 'preparing' ? 'Wysyłam zdjęcia i odczytuję tablice rejestracyjne…' : phase === 'analyzing' ? 'Wybieram zdjęcie auta i kontekst…' : uploading.length ? 'Zapisuję zdjęcia…' : ''}
           </Text>
           {note ? <Text style={{ color: ud.warning, marginTop: 4 }}>{note}</Text> : null}
+          {onAdd && editable && !analyzing && tiles.filter((t) => t.id !== CROP_TILE_ID).length < maxPhotos ? (
+            <Pressable onPress={onAdd} accessibilityRole="button" style={{ marginTop: 10, alignSelf: 'flex-start' }}>
+              <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>{`＋ Dodaj zdjęcie z galerii (jeszcze ${maxPhotos - tiles.filter((t) => t.id !== CROP_TILE_ID).length})`}</Text>
+            </Pressable>
+          ) : null}
           {showRepick ? <Pressable onPress={onPick} disabled={analyzing}><Text style={{ color: ud.muted, textDecorationLine: 'underline', marginTop: 8 }}>wybierz zdjęcia ponownie</Text></Pressable> : null}
         </>
       )}

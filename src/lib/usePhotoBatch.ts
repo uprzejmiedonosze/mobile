@@ -276,32 +276,46 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
   }, [applyChoice, onCarExif]);
 
   // Gotowe zdjęcia (z galerii albo z poczekalni) → podgląd, wysyłka, ALPR, role, szkic.
-  const load = useCallback(async (picked: LocalPhoto[]) => {
+  // `append`: dokładamy zdjęcia do już wczytanych (zostają ich wysyłka i odczyt ALPR – bez drugiego zużycia kredytów), a role liczymy od nowa
+  // dla całości. `replace` wskazuje zdjęcia do zastąpienia nowymi (np. poprzednia klatka z filmu).
+  type LoadOpts = { append?: boolean; replace?: (p: LocalPhoto) => boolean };
+  const load = useCallback(async (picked: LocalPhoto[], opts: LoadOpts = {}) => {
     let my = -1;
+    const before = opts.append ? photosRef.current : [];
+    const beforeDets = detectionsRef.current; // load zastępuje tablicę, nie zmienia jej – migawka zostaje
     try {
       if (!picked.length) return;
+      const dropped = before.filter((p) => opts.replace?.(p));
+      const kept = before.filter((p) => !opts.replace?.(p));
+      const keptDets = new Map(beforeDets.map((d) => [d.id, d.detections]));
 
       my = ++batch.current;
-      const ids = picked.map((p) => p.id);
+      const all = [...kept, ...picked];
+      const ids = all.map((p) => p.id);
+      const keepChoice = !!opts.append && !dropped.length; // samo dokładanie nie zmienia wskazanego pojazdu ani odpowiedzi „Oba”; podmiana zdjęcia liczy wybór od nowa
+      const chosen = keepChoice ? plateRef.current : null;
+      const wantBoth = keepChoice && bothRef.current;
       setNote(null);
       setCrop(false);
-      setVehicles([]); setPlate(null); setPlate2(null); setSecond(null); secondSeq.current++; bothRef.current = false; plateRef.current = null; detectionsRef.current = []; setCropPreview(null);
-      originals.current.clear(); prepSeq.current++; plateCrop.current = null; carCropId.current = null; setPlateCropUri(null);
+      setVehicles([]); setPlate(null); setPlate2(null); setSecond(null); secondSeq.current++; bothRef.current = wantBoth; plateRef.current = chosen; detectionsRef.current = []; setCropPreview(null);
+      if (!opts.append) originals.current.clear();
+      prepSeq.current++; plateCrop.current = null; carCropId.current = null; setPlateCropUri(null);
       if (reanalyzeTimer.current) { clearTimeout(reanalyzeTimer.current); reanalyzeTimer.current = null; setReanalyzing(false); }
       // 1) podgląd natychmiast, na razie w kolejności wyboru
-      setPhotos(picked);
-      setSlots(defaultSlots(ids));
+      setPhotos(all);
+      if (!opts.append) setSlots(defaultSlots(ids));
       setPhase('preparing');
       // Jak na webie (images.js): data i GPS ze zdjęcia auta od razu w formularzu. Rola auta nie jest jeszcze znana,
-      // więc zgadujemy zdjęcie z GPS, a po analizie poprawiamy wg przydziału.
+      // więc zgadujemy zdjęcie z GPS, a po analizie poprawiamy wg przydziału. Przy dokładaniu rola auta już jest.
       const guess = picked.find((p) => p.exif.lat != null) ?? picked[0];
-      if (guess) onCarExif?.(guess);
+      if (guess && !opts.append) onCarExif?.(guess);
 
       // 2) każde zdjęcie osobno i równolegle: jedno przeskalowanie → wysyłka na serwer (etap „wip”) → ALPR od razu po wysyłce
       // (opóźnienie = najwolniejsze zdjęcie, nie suma). Szkic powstanie dopiero przy przydziale do slotu; data/GPS z EXIF lecą
       // razem z plikiem (po przeskalowaniu EXIF znika). Błąd ALPR jednego zdjęcia = zdjęcie bez detekcji, nie przerwanie całości.
       let alprFailed = false;
-      const processed = await Promise.all(picked.map(async (p) => {
+      const processed = await Promise.all(all.map(async (p) => {
+        if (p.serverId && keptDets.has(p.id)) return { photo: p, detections: keptDets.get(p.id)! }; // zdjęcie już wysłane i odczytane
         const small = await downscale(p.uri);
         const s = await stagePhoto(small.uri, { dateTime: exifToIso(p.exif.datetimeOriginal), lat: p.exif.lat, lng: p.exif.lng });
         let detections: Detection[] = [];
@@ -316,22 +330,28 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
       })); // błąd wysyłki = wyjątek niżej; zdjęcia, które już dotarły, wygasną po 24 h
       const staged = processed.map((x) => x.photo);
       if (my !== batch.current) { staged.forEach((p) => p.serverId && void deleteStagedPhoto(p.serverId)); return; }
+      dropped.forEach((p) => { originals.current.delete(p.id); if (p.serverId) void deleteStagedPhoto(p.serverId); }); // zastąpione zdjęcia sprzątamy dopiero po sukcesie
       setPhotos(staged);
 
       // 3) wybór ról z samych odczytów ALPR (auto = największy pojazd, kontekst = to samo auto na innym zdjęciu)
       setPhase('analyzing');
       detectionsRef.current = processed.map((x) => ({ id: x.photo.id, detections: x.detections }));
       for (const x of processed) log.info('alpr', `${x.photo.id} ${x.detections.map((d) => `${d.text}${d.winner ? '*' : ''}@${d.vehicle_area}`).join(',') || '—'}`);
-      const choice = applyChoice(undefined, staged);
+      const choice = applyChoice(chosen ?? undefined, staged, wantBoth);
       const note = alprFailed ? 'Nie udało się odczytać tablicy z części zdjęć – sprawdź numer rejestracyjny.' : choice.note;
       onSuggestion({ slots: choice.slots, plate: choice.plate, categoryId: 0, markers: [], reasons: note ? [note] : [], confident: choice.vehicleFound });
       setNote(note);
-      const car = picked.find((p) => p.id === choice.slots.car);
-      if (car) onCarExif?.(withFallbackGps(car, picked.find((p) => p.id === choice.slots.context))); // rola auta ustalona – jeśli to inne zdjęcie niż zgadywane, popraw datę/GPS
+      const car = staged.find((p) => p.id === choice.slots.car);
+      if (car) onCarExif?.(withFallbackGps(car, staged.find((p) => p.id === choice.slots.context))); // rola auta ustalona – jeśli to inne zdjęcie niż zgadywane, popraw datę/GPS
       setPhase('ready'); // → efekt wyżej wysyła zdjęcia do szkicu
     } catch (e) {
-      if (my === batch.current) { setPhotos([]); setSlots(EMPTY_SLOTS); setCrop(false); setVehicles([]); setPlate(null); setPlate2(null); bothRef.current = false; plateRef.current = null; detectionsRef.current = []; }
-      setPhase('idle');
+      if (opts.append && before.length) {
+        // dokładanie się nie udało: wracamy do zdjęć sprzed wyboru (ich wysyłka i odczyty są nietknięte)
+        if (my === batch.current) { setPhotos(before); detectionsRef.current = beforeDets; applyChoice(plateRef.current ?? undefined, before, bothRef.current); setPhase('ready'); }
+      } else {
+        if (my === batch.current) { setPhotos([]); setSlots(EMPTY_SLOTS); setCrop(false); setVehicles([]); setPlate(null); setPlate2(null); bothRef.current = false; plateRef.current = null; detectionsRef.current = []; }
+        setPhase('idle');
+      }
       onError(e);
     }
   }, [onSuggestion, onError, onCarExif, applyChoice]);
@@ -347,6 +367,21 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
       return;
     }
     await load(picked);
+  }, [load, onError, maxPhotos]);
+
+  // „＋ Dodaj zdjęcie”: dobieramy z galerii tyle zdjęć, ile mieści się do limitu; reszta zostaje jak była.
+  const add = useCallback(async () => {
+    const room = maxPhotos - photosRef.current.length;
+    if (room <= 0) return;
+    let picked: LocalPhoto[];
+    try {
+      if (!(await ensureAiConsent())) return;
+      picked = (await pickPhotos(room, MIN_PHOTOS)) as LocalPhoto[];
+    } catch (e) {
+      onError(e);
+      return;
+    }
+    await load(picked, { append: true });
   }, [load, onError, maxPhotos]);
 
   // Usunięcie zdjęcia (np. innego auta) przelicza role dla pozostałych; wskazany pojazd zostaje, jeśli jeszcze jest na zdjęciach.
@@ -370,5 +405,5 @@ export function usePhotoBatch({ app, ensureDraft, applyApp, onSuggestion, onErro
 
   const vehicleIdx = plate && plate2 === null ? vehicles.findIndex((v) => plateMatches(v.plate, plate)) : -1;
 
-  return { photos, slots, phase, uploading, note, crop, cropPreview, plateCropUri, reanalyzing, vehicles, vehicleIdx, canBoth: canChooseBoth(vehicles, detectionsRef.current.length) && splitVehicles(detectionsRef.current) !== null, both: plate2 !== null, plate2, second, chooseVehicle, assignSecondDraft, failed, retry, pick, load, remove, busy: phase === 'preparing' || phase === 'analyzing' || reanalyzing || uploading.length > 0 };
+  return { photos, slots, phase, uploading, note, crop, cropPreview, plateCropUri, reanalyzing, vehicles, vehicleIdx, canBoth: canChooseBoth(vehicles, detectionsRef.current.length) && splitVehicles(detectionsRef.current) !== null, both: plate2 !== null, plate2, second, chooseVehicle, assignSecondDraft, failed, retry, pick, add, load, remove, busy: phase === 'preparing' || phase === 'analyzing' || reanalyzing || uploading.length > 0 };
 }

@@ -429,7 +429,7 @@ export function NewReportScreen({ navigation, route }: any) {
     if (!frameUri || frameSeen.current === frameUri) return;
     frameSeen.current = frameUri;
     // klatka idzie do AI jak zdjęcie z galerii – na iOS najpierw zgoda (lib/aiConsent.ts)
-    void (async () => { if (await ensureAiConsent()) await batch.load([framePhoto(frameUri, frameAtS ?? 0, video ?? {})]); })();
+    void (async () => { if (await ensureAiConsent()) await batch.load([framePhoto(frameUri, frameAtS ?? 0, video ?? {})], { append: true, replace: (p) => p.id.startsWith('frame-') }); })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameUri]);
   const recordVideo = () => navigation.navigate('WaitingCamera', { mode: 'video', returnTo: 'NewReport' });
@@ -589,6 +589,7 @@ export function NewReportScreen({ navigation, route }: any) {
           carBox={app?.carInfo?.vehicleBox ?? null}
           carNatural={app?.carImage?.width && app?.carImage?.height ? { w: app.carImage.width, h: app.carImage.height } : null}
           onPick={batch.pick}
+          onAdd={batch.add}
           vehicles={batch.vehicles}
           vehicleIdx={batch.vehicleIdx}
           canBoth={batch.canBoth}
