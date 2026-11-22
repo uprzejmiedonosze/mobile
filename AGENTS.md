@@ -69,7 +69,7 @@ przy samym filmie użytkownik wskazuje klatkę z tablicą (`VideoFrameScreen`, `
 i idzie zwykłą ścieżką `usePhotoBatch.load` jako jedno zdjęcie (kontekst + wycinek auta, ALPR) z datą i GPS nagrania (`framePhoto`). Film leci na serwer
 przy „Dalej”, przed zapisem formularza (`POST /app/{id}/video`, B2, w mailu link `/cdn2/…`); po potwierdzeniu znika z poczekalni (`removeDrafts`).
 Kategorie 31 (hałas/wydech) i 32 (drift) mają `requiresVideo` i są w grupie 6 razem ze stanem technicznym (27–30); bez filmu serwer zwraca 422 `video`,
-z filmem wysyła zawsze na wojewódzką skrzynkę „Stop agresji drogowej” (`StopAgresji::guessVoivodeship`). Web i MCP ich nie pokazują (film tylko w appce); appka ukrywa je tylko
+z filmem wysyła zawsze na wojewódzką skrzynkę „Stop agresji drogowej” (`StopAgresji::guessVoivodeship`). Adresata narzucanego przez kategorię rozstrzyga jedno miejsce: `Category::recipientPolicy()` w backendzie (`sm` / `police` = `stopAgresjiOnly` / `voivodeship` = `requiresVideo`, to drugie ma pierwszeństwo), a appka ma jego lustro w `lib/recipientPolicy.ts` (komunikat pod wyborem SM/Policja) i dostaje wynik w `recipient.policy`. Web i MCP ich nie pokazują (film tylko w appce); appka ukrywa je tylko
 przy backendzie bez filmu (`availableCategories`). Flag testowych (`beta`, `features.adHocReports`) już nie ma; wydane 1.3.x nie umieją dołączyć filmu, więc
 backend z tą zmianą idzie na produkcję dopiero po wydaniu appki z `API_SCHEMA` 11 (426 dla starszych – docs/NFR.md). W drugą stronę film
 pokazujemy tylko przy backendzie, który go obsługuje: `X-UD-Server-Schema` ≥ 11 (`store/useServer`, `lib/useVideoEnabled`).

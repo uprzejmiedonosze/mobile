@@ -5,6 +5,7 @@ import { udConfig } from '../config';
 import { log, logFetch } from '../lib/log';
 import { imageVersion, type PictureKey } from '../lib/reports';
 import { authFetch } from './udApi';
+import type { RecipientPolicy } from '../lib/recipientPolicy';
 
 export type AppImage = { thumb?: string; url?: string; width?: number; height?: number };
 
@@ -17,6 +18,7 @@ export type Recipient = {
   automated: boolean; // jest zautomatyzowany kanał wysyłki
   unknown: boolean;
   stopAgresjiForced: boolean;
+  policy?: RecipientPolicy; // co narzuca kategoria (Category::recipientPolicy()); brak = starszy backend
 };
 
 export type UdApp = {

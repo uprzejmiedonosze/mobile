@@ -75,7 +75,7 @@ export type Category = {
   points?: number;
   groups?: number[]; // 0 = „Najczęstsze wykroczenia”
   order?: number;
-  stopAgresjiOnly?: boolean; // wymusza Policję
+  stopAgresjiOnly?: boolean; // wymusza Policję (adresata rozstrzyga lib/recipientPolicy.ts)
   requiresVideo?: boolean; // hałas, drift: tylko z nagraniem, zawsze wojewódzka skrzynka SAD (lib/video.ts)
   contextImageHint?: string;
   carImageHint?: string;

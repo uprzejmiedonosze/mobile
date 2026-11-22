@@ -26,6 +26,7 @@ import { UdButton, UdTabs } from '../components/UD';
 import { goTab } from '../lib/goTab';
 import { usePhotoQuota } from '../lib/usePhotoQuota';
 import { ensureAiConsent } from '../lib/aiConsent';
+import { forcesPolice, policyNote, recipientPolicy } from '../lib/recipientPolicy';
 import { PATRONEM_DEFAULT } from '../lib/sex';
 import { usePhotoBatch } from '../lib/usePhotoBatch';
 import { isVideo, toPhotoItem } from '../lib/waitingRoom';
@@ -488,7 +489,8 @@ export function NewReportScreen({ navigation, route }: any) {
   useEffect(() => { setPlateTouched(false); }, [app?.carInfo?.plateImage]);
 
   const selectedCat = cats.find((c) => c.id === form.category);
-  const forcePolice = !!selectedCat?.stopAgresjiOnly;
+  const policy = recipientPolicy(selectedCat);
+  const forcePolice = forcesPolice(policy);
   // jak syncUnitToggleWithCategory() na webie: SM wyłączona, gdy kategoria jest tylko dla Policji albo w miejscowości nie ma SM
   const smDisabled = forcePolice || !!form.geo?.smUnknown;
   const unit = smDisabled ? 'SA' : form.unit;
@@ -659,7 +661,7 @@ export function NewReportScreen({ navigation, route }: any) {
         <L>Zgłoszenie trafi do</L>
         <Radio on={unit === 'SA'} onPress={() => set('unit', 'SA')} hint={unitHint(form.geo?.sa)}>Policja (sugerowane)</Radio>
         <Radio on={unit === 'SM'} disabled={smDisabled} onPress={() => set('unit', 'SM')} hint={unitHint(form.geo?.sm)}>{form.geo?.sm?.kind ?? 'Straż miejska'}</Radio>
-        {forcePolice ? <Text style={{ color: ud.muted, fontSize: 12 }}>Ta kategoria jest zawsze zgłaszana na Policję.</Text> : null}
+        {policyNote(policy) ? <Text style={{ color: ud.muted, fontSize: 12 }}>{policyNote(policy)}</Text> : null}
 
         <H>Wybierz rodzaj wykroczenia</H>
         {topCats.map((c) => <CategoryRow key={c.id} c={c} on={form.category === c.id} onPress={() => chooseCategory(c.id)} onMore={setCatInfo} />)}
