@@ -105,7 +105,7 @@ stronie `../uprzejmiedonosze`. Każda kategoria niżej idzie **wyłącznie do Po
 ### Ścieżka A – zachowanie (film lub świadek wystarcza)
 | # | Kategoria | Podstawa | Dowód | Wniosek |
 |---|---|---|---|---|
-| A1 | **Hałas i spaliny w czasie jazdy** („strzały” z wydechu, gazowanie, kopcenie) | art. 60 ust. 2 pkt 2 PoRD, art. 97 KW; nocą art. 51 KW | film z dźwiękiem; świadek | ukaranie kierującego + kontrola stanu technicznego i skierowanie |
+| A1 | **Hałas i spaliny** („strzały” z wydechu, gazowanie, kopcenie) | art. 60 ust. 2 pkt 2 PoRD, art. 97 KW; nocą art. 51 KW | film z dźwiękiem; świadek | ukaranie kierującego + kontrola stanu technicznego i skierowanie |
 | A2 | **Drift / jazda na jednym kole** | art. 60 ust. 5 PoRD, art. 86c KW | film | ukaranie kierującego (zatrzymanie prawa jazdy) |
 | A3 | **Tablica rejestracyjna zakryta, ozdobiona, podgięta lub przeniesiona** (częste u motocykli) | art. 60 ust. 1 pkt 2, 3, 3a i ust. 1a PoRD | zdjęcie (najmocniejszy dowód) | ukaranie |
 
