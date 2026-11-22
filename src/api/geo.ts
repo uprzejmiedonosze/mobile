@@ -40,6 +40,7 @@ export function toGeoAddress(j: any): GeoAddress {
     smUnknown: !!j && !j?.sm?.email,
     sm: j?.sm ? { kind: j.sm.email ? unitKind(j.sm) : 'Straż miejska', name: j.sm.email ? j.sm.short ?? '' : '', hint: j.sm.email ? j.sm.hint ?? '' : `W miejscowości ${city} nie powołano SM` } : undefined,
     sa: j?.sa ? { kind: 'Policja', name: j.sa.short ?? '', hint: j.sa.hint ?? '' } : undefined,
+    saVoivodeship: j?.saVoivodeship ? { kind: 'Policja', name: j.saVoivodeship.short ?? '', hint: j.saVoivodeship.hint ?? '' } : undefined,
   };
 }
 

@@ -58,7 +58,8 @@ export type GeoAddress = {
   postcode?: string;
   // Odbiorca dla tego adresu (jak #unitToggle na webie): SM (sm) i Policja (sa); smUnknown = w miejscowości nie ma SM
   sm?: UnitInfo;
-  sa?: UnitInfo;
+  sa?: UnitInfo; // najbliższy komisariat (albo wojewódzka skrzynka, gdy go nie ma)
+  saVoivodeship?: UnitInfo; // zawsze wojewódzka skrzynka SAD – adresat dla recipientPolicy === 'voivodeship' (hałas, drift)
   smUnknown?: boolean;
 };
 

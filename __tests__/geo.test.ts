@@ -33,3 +33,13 @@ describe('mergeGeo (jak geolocation.js::latLngToAddress na webie)', () => {
     expect(mergeGeo(null, null)).toBeNull();
   });
 });
+
+describe('toGeoAddress: adresat wojewódzki (hałas, drift)', () => {
+  const { toGeoAddress } = require('../src/api/geo');
+  it('saVoivodeship jest osobno od sa (komisariatu); brak pola = undefined', () => {
+    const g = toGeoAddress({ address: { city: 'Szczecin' }, sm: { email: 'a@b.pl', short: 'SM' }, sa: { short: 'KP Niebuszewo', hint: 'komisariat' }, saVoivodeship: { short: 'SAD zachodniopomorskie', hint: 'woj.' } });
+    expect(g.sa?.name).toBe('KP Niebuszewo');
+    expect(g.saVoivodeship?.name).toBe('SAD zachodniopomorskie');
+    expect(toGeoAddress({ address: { city: 'Szczecin' }, sa: { short: 'KP' } }).saVoivodeship).toBeUndefined();
+  });
+});

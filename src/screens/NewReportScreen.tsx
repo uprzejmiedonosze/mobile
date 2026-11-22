@@ -494,6 +494,8 @@ export function NewReportScreen({ navigation, route }: any) {
   // jak syncUnitToggleWithCategory() na webie: SM wyłączona, gdy kategoria jest tylko dla Policji albo w miejscowości nie ma SM
   const smDisabled = forcePolice || !!form.geo?.smUnknown;
   const unit = smDisabled ? 'SA' : form.unit;
+  // adresat pod „Policja”: komisariat (sa) albo – dla hałasu i driftu – wojewódzka skrzynka SAD; bez niej (starszy backend) nie pokazujemy komisariatu
+  const saUnit = policy === 'voivodeship' ? form.geo?.saVoivodeship : form.geo?.sa;
   const unitHint = (u?: { name: string; hint: string }) => (u ? [u.name, u.hint].filter(Boolean).join(': ') : undefined);
   // Domyślne TOP z categories.json (grupa 0), wypychane przez ostatnio używane na tym urządzeniu (recentCategories).
   const topCats = useMemo(() => pickTopCategories(cats.filter((c) => c.title && c.groups?.includes(0)).sort((a, b) => (a.order ?? 99) - (b.order ?? 99)), cats, recentCats), [cats, recentCats]);
@@ -659,7 +661,7 @@ export function NewReportScreen({ navigation, route }: any) {
         {fieldErr('address')}
 
         <L>Zgłoszenie trafi do</L>
-        <Radio on={unit === 'SA'} onPress={() => set('unit', 'SA')} hint={unitHint(form.geo?.sa)}>Policja (sugerowane)</Radio>
+        <Radio on={unit === 'SA'} onPress={() => set('unit', 'SA')} hint={unitHint(saUnit)}>Policja (sugerowane)</Radio>
         <Radio on={unit === 'SM'} disabled={smDisabled} onPress={() => set('unit', 'SM')} hint={unitHint(form.geo?.sm)}>{form.geo?.sm?.kind ?? 'Straż miejska'}</Radio>
         {policyNote(policy) ? <Text style={{ color: ud.muted, fontSize: 12 }}>{policyNote(policy)}</Text> : null}
 
