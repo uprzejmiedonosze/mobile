@@ -80,11 +80,11 @@ export function OnboardingScreen() {
       </Text>
 
       {step === 'register' ? (
-        <UdCard>
+        <UdCard flat>
           <ProfileFields value={profile} onChange={(patch) => { setError(null); setProfile((o) => ({ ...o, ...patch })); }} email={a.email} disabled={saving} router={router} />
         </UdCard>
       ) : (
-        <UdCard>
+        <UdCard flat>
           {!terms ? (
             <ActivityIndicator style={{ marginVertical: 24 }} color={ud.primary} accessibilityLabel="Wczytuję regulamin" />
           ) : (

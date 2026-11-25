@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { Pressable, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { FIELD_HINT, FIELD_LABEL, FormField } from './FormField';
 import { openUdPage } from '../lib/openPage';
-import { ud, switchColors } from '../theme';
+import { ud } from '../theme';
 import { profileErrors, type ProfileDraft } from '../lib/profile';
 
 export { EMPTY_PROFILE, profileMissing, profileValid, type ProfileDraft } from '../lib/profile';
@@ -135,23 +135,11 @@ export function ProfileFields({ value: p, onChange, email, disabled, router, ask
         </View>
       ) : null}
 
-      {/* Prywatność: jeden przełącznik z opisem skutku zamiast dwóch radiów „tak/nie”. */}
-      <View style={{ marginTop: 24, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <View style={{ flex: 1 }}>
-          <Text style={LABEL}>Zdjęcia w galerii recydywistów</Text>
-          <Text style={HINT}>
-            {p.shareRecydywa
-              ? 'Pierwsze zdjęcie każdego zgłoszenia może trafić do publicznej galerii.'
-              : 'Twoje zdjęcia w galerii będą mocno rozpikselowane.'}
-          </Text>
-        </View>
-        <Switch
-          {...switchColors}
-          value={p.shareRecydywa}
-          onValueChange={(shareRecydywa) => onChange({ shareRecydywa })}
-          disabled={disabled}
-          accessibilityLabel="Pokazuj moje zdjęcia w galerii recydywistów"
-        />
+      {/* Zgoda na galerię recydywistów – treść i dwie opcje 1:1 z register.html.twig (web), bez przeredagowania skutków. */}
+      <View style={{ marginTop: 24 }}>
+        <Text style={LABEL}>Chcę pozwalać na prezentowanie moich zdjęć w galerii recydywistów parkowania</Text>
+        <Radio on={p.shareRecydywa} onPress={() => onChange({ shareRecydywa: true })} disabled={disabled}>tak (domyślnie), chcę udostępniać pierwsze zdjęcie każdego zgłoszenia</Radio>
+        <Radio on={!p.shareRecydywa} onPress={() => onChange({ shareRecydywa: false })} disabled={disabled}>nie, moje zdjęcie ma być bardzo mocno „rozpikselowane”</Radio>
       </View>
 
       <Text style={[HINT, { marginTop: 24 }]}>

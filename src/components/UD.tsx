@@ -78,7 +78,10 @@ export function UdHeader({ title, onBack, onNext, nextLabel = 'Dalej', backIcon 
   );
 }
 
-export function UdCard({ children }: React.PropsWithChildren) {
+// Karta (biała, zaokrąglona, z cieniem) – do bloków informacji (pulpit, potwierdzenie). `flat`: sama grupa bez ramki i wcięcia –
+// w formularzach, gdzie liczy się każdy piksel szerokości (pola na pełną szerokość, grupę wyznacza nagłówek sekcji nad nią).
+export function UdCard({ children, flat }: React.PropsWithChildren<{ flat?: boolean }>) {
+  if (flat) return <View style={{ marginVertical: 4 }}>{children}</View>;
   return (
     <View style={{ backgroundColor: ud.surface, borderRadius: ud.radiusCard, padding: 16, marginVertical: 8, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 20, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
       {children}

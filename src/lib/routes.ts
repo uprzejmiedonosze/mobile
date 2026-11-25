@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 // Nazwy ekranów → adresy tras expo-router (pliki w app/). Adresy jak na webie (/app, /app/new, /app/list…).
 // Ekrany i lib (letterEntry, openUdPage) posługują się nazwami, a nawigacja dostaje gotowy href.
 export const ROUTES = {
@@ -22,8 +24,13 @@ export const ROUTES = {
 export type RouteName = keyof typeof ROUTES;
 export type RouteParams = Record<string, string | number | undefined>;
 
+// Android: zamiast zakładki „Nowe” jest pływający przycisk „+” na Starcie (SpeedDial), a zakładka jest ukryta – ukrytej zakładki
+// nie da się otworzyć, więc nowe zgłoszenie to ten sam formularz nad zakładkami (/app/edit bez parametrów = zapamiętany szkic).
+export const newReportTab = Platform?.OS !== 'android'; // ?. – w testach jednostkowych (ts-jest) react-native nie ma Platform
+const path = (name: RouteName) => (name === 'NewReport' && !newReportTab ? ROUTES.EditReport : ROUTES[name]);
+
 export const href = (name: RouteName, params?: RouteParams) =>
-  params ? { pathname: ROUTES[name], params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined)) as Record<string, string | number> } : ROUTES[name];
+  params ? { pathname: path(name), params: Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined)) as Record<string, string | number> } : path(name);
 
 // Listy (id zdjęć, id zgłoszeń) w parametrach adresu jako „a,b,c” – parametr może przyjść jako string albo string[].
 export const joinIds = (ids: string[]) => ids.join(',');

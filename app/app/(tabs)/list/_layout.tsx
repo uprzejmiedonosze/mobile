@@ -17,7 +17,9 @@ export default function ListLayout() {
         headerLargeStyle: { backgroundColor: 'transparent' },
         headerStyle: Platform.OS === 'ios' ? undefined : { backgroundColor: ud.surfaceLow },
         headerTintColor: ud.primary,
-        headerTitleStyle: { color: ud.heading },
+        // Android: jak pasek pozostałych zakładek (LargeTitleScreen) – Bricolage 22, wyrównany do lewej. iOS: systemowy krój jak w SwiftUI.
+        headerTitleStyle: Platform.OS === 'ios' ? { color: ud.heading } : { color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 22 },
+        headerTitleAlign: 'left',
         headerLargeTitleStyle: { color: ud.heading },
         scrollEdgeEffects: { top: 'soft' },
       }}

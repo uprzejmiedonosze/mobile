@@ -8,6 +8,7 @@ import { validIdToken } from '../api/udApi';
 import { ImageViewer } from '../components/ImageViewer';
 import { UdButton, UdCard } from '../components/UD';
 import { LargeTitleScreen } from '../components/LargeTitleScreen';
+import { FAB_SPACE, fabShown, NewReportFab } from '../components/NewReportFab';
 import { SectionHeader } from '../components/FormBits';
 import { plural } from '../lib/reports';
 import { bestFix, packPhotos, type Pack, type WaitingPhoto } from '../lib/waitingRoom';
@@ -155,8 +156,9 @@ export function WaitingRoomScreen() {
   const camera = () => router.push(href('WaitingCamera'));
 
   return (
+    <>
     <LargeTitleScreen title="Poczekalnia" trailing={{ label: 'Zrób zdjęcia', systemImage: 'camera', onPress: camera }}>
-      <View style={{ paddingHorizontal: 16, paddingBottom: 32 }}>
+      <View style={{ paddingHorizontal: 16, paddingBottom: fabShown ? FAB_SPACE : 32 }}>
         {!photos.length ? (
           // Pusty stan: co to jest i jedna akcja
           <UdCard>
@@ -221,5 +223,7 @@ export function WaitingRoomScreen() {
       </View>
       <ImageViewer urls={viewerUrls} index={viewer} onClose={() => setViewer(null)} />
     </LargeTitleScreen>
+    <NewReportFab hide={['waiting']} />
+    </>
   );
 }

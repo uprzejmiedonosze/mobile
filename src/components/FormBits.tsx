@@ -7,7 +7,7 @@ import { ud, ripple, switchColors } from '../theme';
 
 // Nagłówek sekcji nad kartą – drobny, wersalikami (jak w listach iOS), opcjonalnie z dopiskiem po prawej.
 export const SectionHeader = ({ children, aside }: { children: string; aside?: string }) => (
-  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 24, marginBottom: 2, paddingHorizontal: 4 }}>
+  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 24, marginBottom: 2 }}>
     <Text accessibilityRole="header" style={{ fontFamily: ud.fontBodyBold, color: ud.muted, fontSize: 13, letterSpacing: 0.4 }}>{children.toUpperCase()}</Text>
     {aside ? <Text style={{ color: ud.muted, fontSize: 13 }}>{aside}</Text> : null}
   </View>

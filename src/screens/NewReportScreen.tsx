@@ -88,7 +88,7 @@ function formFromApp(a: UdApp, prev: Form = EMPTY): Form {
   };
 }
 
-// Karta kategorii (jak #category na webie, bez kółka radia): wybrana ma zieloną ramkę i znaczek ✓; ⓘ otwiera szczegóły.
+// Karta kategorii (jak #category na webie, bez kółka radia): wybrana ma zieloną ramkę i znaczek ✓; „WIĘCEJ…” otwiera szczegóły.
 const selectCard = (on: boolean) => ({ backgroundColor: ud.surface, borderWidth: 2, borderColor: on ? ud.primary : ud.hairline, borderRadius: ud.radiusCard, marginTop: 8 }) as const;
 
 export function NewReportScreen() {
@@ -511,7 +511,7 @@ export function NewReportScreen() {
 
         {/* POJAZD */}
         <SectionHeader>Pojazd</SectionHeader>
-        <UdCard>
+        <UdCard flat>
           <FormField
             first
             label="Numer rejestracyjny"
@@ -549,7 +549,7 @@ export function NewReportScreen() {
 
         {/* KIEDY I GDZIE */}
         <SectionHeader>Kiedy i gdzie</SectionHeader>
-        <UdCard>
+        <UdCard flat>
           <DateTimeField disabled={lock.photoFields} fromPhoto={form.dtFromPicture} value={form.datetime} onChange={(iso) => { setForm((f) => ({ ...f, datetime: iso, dtFromPicture: false })); setErr((e) => clearFieldError(e, 'datetime')); }} />
           {fieldErr('datetime') ? <Text style={[FIELD_HINT, { color: ud.plateVerified }]}>{fieldErr('datetime')}</Text> : null}
 
@@ -609,7 +609,7 @@ export function NewReportScreen() {
 
         {/* SZCZEGÓŁY */}
         <SectionHeader>Szczegóły</SectionHeader>
-        <UdCard>
+        <UdCard flat>
           <FormField
             first
             label="Komentarz"
@@ -665,7 +665,7 @@ export function NewReportScreen() {
 }
 
 // Jak #category na webie: karta ze zdjęciem kategorii (punkty karne w czerwonej kropce), wybrana ma zieloną ramkę i ✓.
-// Szczegóły pod przyciskiem ⓘ (44 pt), zamiast zakładki „WIĘCEJ…” w rogu.
+// Szczegóły pod zakładką „WIĘCEJ…” w rogu karty – jak na webie.
 function CategoryRow({ c, on, onPress, onMore }: { c: Category; on: boolean; onPress: () => void; onMore?: (c: Category) => void }) {
   const more = onMore && (c.desc || c.law);
   return (
@@ -685,24 +685,24 @@ function CategoryRow({ c, on, onPress, onMore }: { c: Category; on: boolean; onP
           </View>
         ) : null}
       </View>
-      <View style={{ flex: 1 }}>
+      {/* dół kolumny zostawia miejsce na zakładkę „WIĘCEJ…”, żeby nie zasłaniała mandatu */}
+      <View style={{ flex: 1, paddingRight: on ? 0 : 4, paddingBottom: more ? 18 : 0 }}>
         <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 15, color: on ? ud.primary : ud.text }}>{c.title}</Text>
         {c.short ? <Text style={{ color: ud.muted, fontSize: 13, lineHeight: 18, marginTop: 2 }} numberOfLines={3}>{c.short}</Text> : null}
         {c.mandate ? <Text style={{ color: ud.muted, fontSize: 13, marginTop: 2 }}>Mandat {c.mandate > 100 ? '~' : ''}{c.mandate} zł</Text> : null}
       </View>
-      <View style={{ alignItems: 'center', gap: 4 }}>
-        {on ? (
-          <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: ud.primary, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: '#fff', fontFamily: ud.fontBodyBold, fontSize: 14, lineHeight: 16 }}>✓</Text>
-          </View>
-        ) : null}
-        {more ? (
-          <Pressable onPress={() => onMore!(c)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Więcej o kategorii ${c.title}`}
-            style={({ pressed }) => ({ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: ud.surfaceLow, opacity: pressed ? 0.6 : 1 })}>
-            <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, fontSize: 15 }}>i</Text>
-          </Pressable>
-        ) : null}
-      </View>
+      {on ? (
+        <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: ud.primary, alignItems: 'center', justifyContent: 'center', marginRight: 4, marginBottom: more ? 18 : 0 }}>
+          <Text style={{ color: '#fff', fontFamily: ud.fontBodyBold, fontSize: 14, lineHeight: 16 }}>✓</Text>
+        </View>
+      ) : null}
+      {more ? (
+        // jak a.category-popup na webie: zakładka „WIĘCEJ…” w prawym dolnym rogu karty (spójnie z webem)
+        <Pressable onPress={() => onMore!(c)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Więcej o kategorii ${c.title}`}
+          style={{ position: 'absolute', right: 0, bottom: 0, backgroundColor: '#ede9df', paddingHorizontal: 10, paddingVertical: 5, borderTopLeftRadius: ud.radiusCard - 2, borderBottomRightRadius: ud.radiusCard - 2 }}>
+          <Text style={{ fontSize: 11, color: '#333', fontFamily: ud.fontBodyBold }}>WIĘCEJ…</Text>
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }

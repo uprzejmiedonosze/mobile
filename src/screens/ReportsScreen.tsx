@@ -12,6 +12,7 @@ import { fetchPhotoQuota } from '../api/photos';
 import { log } from '../lib/log';
 import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plateHistory, plural, reportBody, shortAddress, statusColor, witnessText } from '../lib/reports';
 import { ImageViewer } from '../components/ImageViewer';
+import { FAB_SPACE, fabShown, NewReportFab } from '../components/NewReportFab';
 import { KeyboardDoneBar } from '../components/KeyboardDoneBar';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { openUdPage } from '../lib/openPage';
@@ -633,7 +634,7 @@ export function ReportsScreen() {
           contentInsetAdjustmentBehavior="automatic"
           ListHeaderComponent={listHeader}
           renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onStatus={onStatus} onFields={onFields} onFieldFocus={onFieldFocus} onPage={(path, title) => openUdPage(router, path, title)} onAccount={() => go('Account')} onEdit={(id) => router.push(href('EditReport', { editId: id }))} open={false} onToggle={() => openSheet(item)} />}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: fabShown ? FAB_SPACE : 32 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={ud.primary} />}
           onEndReachedThreshold={0.5}
           onEndReached={() => { if (more && !loading && !refreshing) load(false); }}
@@ -649,6 +650,7 @@ export function ReportsScreen() {
           initialNumToRender={6}
         />
       )}
+      <NewReportFab />
     </KeyboardAvoidingView>
   );
 }

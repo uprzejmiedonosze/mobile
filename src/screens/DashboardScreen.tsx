@@ -14,6 +14,7 @@ import { ErrorScreen } from '../components/ErrorScreen';
 import { UdButton, UdCard, UdLogo } from '../components/UD';
 import { LargeTitleScreen } from '../components/LargeTitleScreen';
 import { SectionHeader } from '../components/FormBits';
+import { FAB_SPACE, fabShown, NewReportFab } from '../components/NewReportFab';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../store/useAuth';
 import { useWaitingRoom, waitingRoomEnabled } from '../store/useWaitingRoom';
@@ -166,24 +167,35 @@ export function DashboardScreen() {
 
   const earned = d?.badges.filter((b) => b.earned).length ?? 0;
 
+  const fab = fabShown;
+
   return (
+    <>
     <LargeTitleScreen title="Start" principal={brand} onRefresh={load}>
-      <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: 32 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: fab ? FAB_SPACE : 32 }}>{/* miejsce pod pływającym „+”, żeby nie zasłaniał ostatniej karty */}
         {!d ? <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} accessibilityLabel="Wczytuję pulpit" /> : (
           <>
             <Text accessibilityRole="header" style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 30, lineHeight: 36, letterSpacing: -0.4, marginTop: 8 }}>{firstName ? `Cześć, ${firstName}` : 'Cześć'}</Text>
             {d.introMsg ? <Text style={{ color: ud.text, fontSize: 16, lineHeight: 22, marginTop: 4 }}>{stripHtml(d.introMsg)}</Text> : null}
 
-            {/* Główna akcja ekranu – pierwsza i najmocniejsza; zdjęcia „na potem” jako akcje drugorzędne obok siebie. */}
-            <View style={{ marginTop: 14 }}>
-              <UdButton title="Nowe zgłoszenie" onPress={() => go('NewReport')} />
-              {waitingRoomEnabled ? (
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <View style={{ flex: 1 }}><UdButton title="Zrób zdjęcia" variant="outline" pill onPress={() => router.push(href('WaitingCamera'))} /></View>
-                  <View style={{ flex: 1 }}><UdButton title={waitingCount ? `Poczekalnia (${waitingCount})` : 'Poczekalnia'} variant="outline" pill onPress={() => go('WaitingRoom')} /></View>
-                </View>
-              ) : null}
-            </View>
+            {/* Główna akcja ekranu: aparat – zgłoszenia zaczynają się na ulicy, w pośpiechu, więc zdjęcia mają być na jedno dotknięcie;
+                Poczekalnia (gotowe paczki zdjęć) zaraz obok, a ręczne „Nowe zgłoszenie” jako akcja drugorzędna. Bez poczekalni – jak dawniej.
+                Android: te akcje są pod pływającym „+” (SpeedDial na dole ekranu), więc w treści ich nie powtarzamy. */}
+            {fab ? null : (
+              <View style={{ marginTop: 14 }}>
+                {waitingRoomEnabled ? (
+                  <>
+                    <UdButton title="Zrób zdjęcia" onPress={() => router.push(href('WaitingCamera'))} />
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <View style={{ flex: 1 }}><UdButton title={waitingCount ? `Poczekalnia (${waitingCount})` : 'Poczekalnia'} variant="outline" pill onPress={() => go('WaitingRoom')} /></View>
+                      <View style={{ flex: 1 }}><UdButton title="Nowe zgłoszenie" variant="outline" pill onPress={() => go('NewReport')} /></View>
+                    </View>
+                  </>
+                ) : (
+                  <UdButton title="Nowe zgłoszenie" onPress={() => go('NewReport')} />
+                )}
+              </View>
+            )}
 
             <SectionHeader>Twoje statystyki</SectionHeader>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 8 }}>
@@ -259,5 +271,7 @@ export function DashboardScreen() {
       </View>
 
     </LargeTitleScreen>
+    {d ? <NewReportFab /> : null}
+    </>
   );
 }

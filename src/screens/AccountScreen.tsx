@@ -15,6 +15,7 @@ import { ud, ripple, rippleOnDark } from '../theme';
 import { SvgXml } from 'react-native-svg';
 import { UdButton, UdCard, UdSplash } from '../components/UD';
 import { LargeTitleScreen } from '../components/LargeTitleScreen';
+import { FAB_SPACE, fabShown, NewReportFab } from '../components/NewReportFab';
 import { LoginHero } from '../components/LoginHero';
 import { Collapsible } from '../components/Collapsible';
 import { FIELD_HINT, FormField } from '../components/FormField';
@@ -57,11 +58,14 @@ export function AccountScreen() {
 
   // Ten sam układ co Start: natywny duży tytuł (LargeTitleScreen), sekcje z nagłówkiem nad kartą.
   return (
+    <>
     <LargeTitleScreen title="Konto">
-      <View style={{ paddingHorizontal: 16, paddingBottom: 32 }}>
+      <View style={{ paddingHorizontal: 16, paddingBottom: fabShown ? FAB_SPACE : 32 }}>
         <ProfileCards onLogout={a.logout} router={router} />
       </View>
     </LargeTitleScreen>
+    <NewReportFab />
+    </>
   );
 }
 
@@ -102,7 +106,7 @@ function LoginPanel() {
 
       <Collapsible open={emailOpen}>
         {onlyEmail ? <View style={{ height: 8 }} /> : <SectionHeader>Logowanie przez e-mail</SectionHeader>}
-        <UdCard>
+        <UdCard flat>
           <FormField
             first
             label="E-mail"
@@ -270,7 +274,7 @@ function ProfileCards({ onLogout, router }: { onLogout: () => void; router: { pu
   return (
     <>
       {/* Podsumowanie konta jak karta Apple ID w Ustawieniach: inicjały, imię, e-mail, odznaka PRO. */}
-      <UdCard>
+      <UdCard flat>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: ud.primary, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: '#fff', fontFamily: ud.fontDisplay, fontSize: 22 }}>{initials}</Text>
@@ -290,7 +294,7 @@ function ProfileCards({ onLogout, router }: { onLogout: () => void; router: { pu
       </UdCard>
 
       <SectionHeader>Dane konta</SectionHeader>
-      <UdCard>
+      <UdCard flat>
         <ProfileFields value={p} onChange={(patch) => { setMsg(null); setP((o) => ({ ...o, ...patch })); }} disabled={!loaded} router={router} askSex />
         {/* Zapis aktywny dopiero po zmianie; wynik przy przycisku. */}
         <View style={{ marginTop: 16 }}>
@@ -300,7 +304,7 @@ function ProfileCards({ onLogout, router }: { onLogout: () => void; router: { pu
       </UdCard>
 
       <SectionHeader>Logowanie</SectionHeader>
-      <UdCard>
+      <UdCard flat>
         <Text style={{ color: ud.muted, fontSize: 14, lineHeight: 20 }}>Passkey to logowanie odciskiem palca, twarzą lub PIN-em – bez hasła i poczty.</Text>
         {passkeys === null ? (
           <ActivityIndicator style={{ marginVertical: 12 }} color={ud.primary} />
@@ -330,7 +334,7 @@ function ProfileCards({ onLogout, router }: { onLogout: () => void; router: { pu
       {(galleryCopyAvailable && waitingRoomEnabled) || aiConsent ? (
         <>
           <SectionHeader>Prywatność</SectionHeader>
-          <UdCard>
+          <UdCard flat>
             {galleryCopyAvailable && waitingRoomEnabled ? (
               <SwitchRow
                 title="Kopie zdjęć w galerii"
@@ -355,7 +359,7 @@ function ProfileCards({ onLogout, router }: { onLogout: () => void; router: { pu
       ) : null}
 
       <SectionHeader>Informacje</SectionHeader>
-      <UdCard>
+      <UdCard flat>
         <InfoRow title="Wersja" value={`${appVersion} (${appBuild})`} />
         <InfoRow title="Środowisko" value={`${udEnv}${demoMode ? ' · konto demo' : ''}`} />
         <InfoRow title="Serwer" value={udConfig.base.replace(/^https?:\/\//, '')} last />
@@ -363,14 +367,14 @@ function ProfileCards({ onLogout, router }: { onLogout: () => void; router: { pu
       </UdCard>
 
       <View style={{ marginTop: 24 }}>
-        <UdCard>
+        <UdCard flat>
           <ActionRow title="Wyloguj się" tone="destructive" center onPress={onLogout} last />
         </UdCard>
       </View>
 
       {/* Skasowanie konta jest nieodwracalne – potwierdzenie wpisaniem e-maila, rozwijane płynnie pod przyciskiem. */}
       <SectionHeader>Usuń konto</SectionHeader>
-      <UdCard>
+      <UdCard flat>
         <Text style={{ color: ud.muted, fontSize: 14, lineHeight: 20 }}>Skasowanie konta jest nieodwracalne: usuniemy twoje dane, zgłoszenia i zdjęcia (kopie zapasowe i logi znikną w ciągu 14 dni).</Text>
         <ActionRow title={confirmDelete ? 'Nie kasuj' : 'Skasuj konto…'} tone={confirmDelete ? 'default' : 'destructive'} onPress={() => { setConfirmDelete((v) => !v); setDeleteEmail(''); }} last={!confirmDelete} />
         <Collapsible open={confirmDelete}>
