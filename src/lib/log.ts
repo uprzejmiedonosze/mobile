@@ -49,7 +49,12 @@ export class UserError extends Error {}
 // useAppUpdate) oraz brak sieci/timeout (ApiError ze statusem 0 – telefon bez zasięgu, nie usterka) –
 // duck typing po `status`, żeby log.ts nie importował api/udApi (cykl importów).
 // Surowy błąd łączności z natywnego fetch (Android: „fetch failed: java.net.ConnectException…”) to też brak sieci.
-const CONNECTIVITY = /java\.net\.(ConnectException|UnknownHostException|SocketTimeoutException|SocketException|NoRouteToHostException)/;
+// iOS (NSURLSession przez expo/fetch) zgłasza to samo słowami: „The Internet connection appears to be offline”, itp.
+const CONNECTIVITY = new RegExp(
+  'java\\.net\\.(ConnectException|UnknownHostException|SocketTimeoutException|SocketException|NoRouteToHostException)' +
+    '|Internet connection appears to be offline|network connection was lost|Could not connect to the server|A server with the specified hostname could not be found',
+  'i',
+);
 export const isExpectedError = (e: unknown): boolean =>
   e instanceof UserError ||
   [0, 402, 403, 422, 426].includes((e as { status?: unknown } | null)?.status as number) ||

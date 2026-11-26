@@ -8,6 +8,7 @@ describe('isExpectedError', () => {
     expect(isExpectedError(Object.assign(new Error('Brak połączenia z internetem.'), { status: 0 }))).toBe(true);
     expect(isExpectedError(Object.assign(new Error('Nie udało się pobrać pulpitu (HTTP 403).'), { status: 403 }))).toBe(true);
     expect(isExpectedError(new Error('Google: fetch failed: java.net.ConnectException: Failed to connect to identitytoolkit.googleapis.com/172.217.119.4:443'))).toBe(true);
+    expect(isExpectedError(new Error('fetch failed: UnexpectedException: The Internet connection appears to be offline. (at ExpoModulesCore/Promise.swift:56)'))).toBe(true);
     expect(isExpectedError(Object.assign(new Error('Ta wersja aplikacji jest już nieobsługiwana.'), { status: 426 }))).toBe(true);
   });
 
