@@ -52,14 +52,14 @@ Przenosimy ręcznie, bez cherry-picka. Lokalna gałąź `pr9` nie nadaje się na
 ### 7. Klawiatura
 - `KeyboardDoneBar` (iOS) przy polach wielowierszowych: komentarz, uwagi w arkuszu, notatka z pisma.
 - Przechodzenie „Dalej” między polami danych konta.
-- Autouzupełnianie i typ przycisku Return: e-mail logowania, dane konta, adres zgłoszenia.
+- Autouzupełnianie i typ przycisku Return: e-mail logowania i dane konta. Adres zgłoszenia bez autouzupełniania (to miejsce wykroczenia).
 
 ### 8. Deep-linki
-- `linking` w `NavigationContainer`, schematy `udpro` i `udpro-dev`:
+- Własna lista adresów (`src/lib/deepLink.ts`, `useDeepLinks`) zamiast `linking`, schematy `udpro` i `udpro-dev`:
   `/app`, `/app/new`, `/app/list`, `/app/waiting`, `/app/account`, `/app/camera`.
 - Poczekalnia i aparat tylko przy `waitingRoomEnabled`. Bez sesji link nic nie otwiera.
-- `linking.filter` wyklucza `e2e-login` (pasuje do schematu); link logowania z maila (https) też poza `linking`.
-- Start na zimno: w czasie splasha nie ma jeszcze właściwego stosu. Sprawdzić `UNSTABLE_routeNamesChangeBehavior` w React Navigation 7, a jeśli nie wystarczy, zapamiętać pierwszy adres i otworzyć go po zalogowaniu.
+- Inne linki (`e2e-login`, logowanie z maila) nie są na liście, więc przechodzą obok.
+- Start na zimno: adres czeka, aż sprawdzi się sesja i stanie właściwy stos.
 - Bez `/page` i ekranów procesu.
 
 ## Kolejność
