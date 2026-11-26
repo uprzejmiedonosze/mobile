@@ -3,6 +3,7 @@ import { ActivityIndicator, Image, PanResponder, Platform, Pressable, Text, View
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { useIsFocused } from '@react-navigation/native';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UdButton } from '../components/UD';
 import { goTab } from '../lib/goTab';
@@ -189,6 +190,7 @@ export function WaitingCameraScreen({ navigation }: any) {
 
   return (
     <View onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })} style={{ flex: 1, backgroundColor: '#000' }}>
+      {focused ? <StatusBar style="light" /> : null}
       {/* Podgląd 3:4 = cała matryca 4:3 (jak w aparacie systemowym); reszta ekranu to czerń pod przyciski. Na bardzo niskim ekranie podgląd się zmniejsza. */}
       <View style={{ position: 'absolute', left: 0, right: 0, top: previewTop, height: previewH, overflow: 'hidden' }}>
         <CameraView ref={camera} style={{ flex: 1 }} facing="back" mode="picture" ratio="4:3" active={focused} zoom={zoom} enableTorch={torch} />

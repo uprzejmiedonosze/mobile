@@ -9,6 +9,7 @@ import { LETTER_LINK_LABEL, letterEntry } from '../lib/letters';
 import { fetchPhotoQuota } from '../api/photos';
 import { log } from '../lib/log';
 import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plateHistory, plural, reportBody, shortAddress, statusColor, witnessText } from '../lib/reports';
+import { PageHeader } from '../components/PageHeader';
 import { MultilineInput } from '../components/MultilineInput';
 import { ImageViewer } from '../components/ImageViewer';
 import { ErrorScreen } from '../components/ErrorScreen';
@@ -531,25 +532,40 @@ export function ReportsScreen({ navigation, route }: any) {
     return () => { show.remove(); hide.remove(); };
   }, []);
 
-  // Wyszukiwarka w nagłówku (systemowa). Bez ani jednego zgłoszenia nie ma czego szukać.
+  // Wyszukiwarka w nagłówku: Android – systemowa w pasku aplikacji, iOS – pole pod tytułem we własnym nagłówku
+  // (systemowa wymaga systemowego paska). Bez ani jednego zgłoszenia nie ma czego szukać.
   useLayoutEffect(() => {
-    const android = Platform.OS === 'android';
+    if (Platform.OS === 'ios') {
+      navigation.setOptions({
+        header: () => (
+          <PageHeader title="Zgłoszenia">
+            {noReports ? null : (
+              // niekontrolowane: nagłówek nie renderuje się przy każdej literze, więc kursor nie skacze
+              <TextInput {...inputColors}
+                onChangeText={setSearch}
+                placeholder="Adres, numer rej. lub zgłoszenia, komentarz"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
+                clearButtonMode="while-editing"
+                accessibilityLabel="Szukaj zgłoszeń"
+                style={{ marginTop: 8, backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusButton, paddingHorizontal: 14, paddingVertical: 10, color: ud.text }}
+              />
+            )}
+          </PageHeader>
+        ),
+      });
+      return;
+    }
     navigation.setOptions({
       headerSearchBarOptions: noReports ? undefined : {
         placeholder: 'Adres, numer rej., zgłoszenia, komentarz',
-        cancelButtonText: 'Anuluj',
         autoCapitalize: 'none',
-        placement: 'stacked',
-        hideWhenScrolling: false,
-        obscureBackground: false,
-        // iOS: białe pole na zielonym nagłówku; Android: biały tekst i ikony w pasku aplikacji
-        barTintColor: android ? ud.primary : '#ffffff',
-        tintColor: android ? '#ffffff' : ud.primary,
-        textColor: android ? '#ffffff' : ud.text,
-        hintTextColor: android ? ud.primaryOutline : ud.muted,
-        headerIconColor: '#ffffff',
+        tintColor: ud.primary,
+        textColor: ud.text,
+        hintTextColor: ud.muted,
+        headerIconColor: ud.primary,
         onChangeText: (e: { nativeEvent: { text: string } }) => setSearch(e.nativeEvent.text),
-        onCancelButtonPress: () => setSearch(''),
         onClose: () => setSearch(''),
       },
     });
@@ -589,11 +605,10 @@ export function ReportsScreen({ navigation, route }: any) {
   );
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }} collapsable={false}>
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       <FlatList
         data={apps}
         keyExtractor={(a) => a.id}
-        contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         ListHeaderComponent={listHeader}
         renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onOpen={() => openSheet(item)} />}

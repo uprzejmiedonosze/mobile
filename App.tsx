@@ -24,7 +24,7 @@ import { PhotoPickerHost } from './src/components/PhotoPickerHost';
 import { ToastHost } from './src/components/ToastHost';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { UdSplash } from './src/components/UD';
-import { HeaderBrand, headerOptions, largeTitle, newReportOptions, tabOptions } from './src/components/header';
+import { HeaderBrand, headerOptions, pageTitle, newReportOptions, tabOptions } from './src/components/header';
 import { installGlobalLogHandlers, log } from './src/lib/log';
 import { installE2eLogin } from './src/lib/e2eLogin';
 import { installEmailLinkLogin } from './src/lib/emailLinkLogin';
@@ -102,8 +102,7 @@ export default function App() {
     <SafeAreaProvider>
     <ErrorBoundary>
     <NavigationContainer ref={navigation} onReady={() => setNavReady(true)}>
-      {/* zielony nagłówek → jasne ikony; jasny ekran startowy → ciemne */}
-      <StatusBar style={updateStatus === 'required' || splash ? 'dark' : 'light'} />
+      <StatusBar style="dark" />
       {updateStatus === 'required' && fontsLoaded ? (
         <UpdateRequiredScreen />
       ) : splash ? (
@@ -124,9 +123,9 @@ export default function App() {
           {/* zakładki dolnego menu (tabOptions) – patrz lib/tabRoutes.ts */}
           <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ ...tabOptions, title: 'Start', headerTitle: () => <HeaderBrand /> }} />
           <Stack.Screen name="NewReport" component={NewReportScreen} options={newReportOptions} />
-          <Stack.Screen name="Reports" component={ReportsScreen} options={{ ...tabOptions, ...largeTitle, title: 'Zgłoszenia' }} />
-          <Stack.Screen name="WaitingRoom" component={WaitingRoomScreen} options={{ ...tabOptions, ...largeTitle, title: 'Poczekalnia' }} />
-          <Stack.Screen name="Account" component={AccountScreen} options={{ ...tabOptions, ...largeTitle, title: 'Konto' }} />
+          <Stack.Screen name="Reports" component={ReportsScreen} options={{ ...tabOptions, ...pageTitle, title: 'Zgłoszenia' }} />
+          <Stack.Screen name="WaitingRoom" component={WaitingRoomScreen} options={{ ...tabOptions, ...pageTitle, title: 'Poczekalnia' }} />
+          <Stack.Screen name="Account" component={AccountScreen} options={{ ...tabOptions, ...pageTitle, title: 'Konto' }} />
           {/* szczegóły zgłoszenia z listy: arkusz od dołu – do ¾ ekranu, przeciągnięty w górę na cały */}
           <Stack.Screen name="Report" component={ReportSheet} options={{ headerShown: false, presentation: 'formSheet', sheetAllowedDetents: [0.75, 1], sheetGrabberVisible: true, sheetCornerRadius: 28, contentStyle: { backgroundColor: ud.surfaceLow } }} />
           <Stack.Screen name="ReportConfirm" component={ReportConfirmScreen} options={{ title: 'Sprawdź zgłoszenie', headerTitle: () => <HeaderBrand /> }} />
