@@ -8,7 +8,6 @@
 - Formularze mówią, czego jeszcze brakuje, a błędy w danych konta pokazują się po wyjściu z pola.
 - Start: główny przycisk to teraz „Zrób zdjęcia” (tam, gdzie jest Poczekalnia).
 - Wygodniejsze pisanie: „Gotowe” nad klawiaturą iPhone’a przy dłuższych opisach, przechodzenie między polami konta i podpowiadanie danych.
-- Skróty i linki mogą otwierać wybrane ekrany aplikacji (Start, nowe zgłoszenie, listę, Poczekalnię, aparat i Konto).
 
 ## v1.4.0 — 2026-11-20
 
