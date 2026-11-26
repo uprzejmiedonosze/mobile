@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { deleteAccount, fetchPasskeys, fetchProfile, removePasskey, updateUserProfile, type Passkey } from '../api/user';
 import { registerPasskey } from '../api/passkey';
@@ -12,16 +12,15 @@ import { hasAiConsent, revokeAiConsent } from '../lib/aiConsent';
 import { galleryCopyAvailable, getGalleryCopy, setGalleryCopy } from '../lib/galleryCopy';
 import { ud, inputColors, ripple, rippleOnDark } from '../theme';
 import { SvgXml } from 'react-native-svg';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UdButton, UdCard, UdSplash, UdTabs } from '../components/UD';
 import { goTab } from '../lib/goTab';
+import { LoginHero } from '../components/LoginHero';
 import { FINGERPRINT_ICON, GOOGLE_ICON, MAIL_ICON } from '../components/loginIcons';
 import { leaveDemo } from '../lib/demoLogin';
-import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
+import { EMPTY_PROFILE, ProfileFields, profileValid, sameProfile, type ProfileDraft } from '../components/ProfileFields';
 
 export function AccountScreen({ navigation }: any) {
   const a = useAuth();
-  const insets = useSafeAreaInsets();
   const go = (r: string) => goTab(navigation, r);
 
   const logged = a.status === 'logged' && !!a.idToken;
@@ -33,8 +32,13 @@ export function AccountScreen({ navigation }: any) {
   // KeyboardAvoidingView jak na pozostałych ekranach z polami: bez niego klawiatura iOS zasłaniała dół formularza (nie dało się przewinąć).
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }} collapsable={false}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, paddingBottom: 28, paddingTop: logged ? 16 : insets.top + 16 }} keyboardShouldPersistTaps="handled">
-        {logged ? <ProfileCards onLogout={a.logout} navigation={navigation} /> : <LoginPanel />}
+      {logged ? null : <StatusBar style="dark" />}
+      {/* bez sesji: zdjęcie od samej góry (pod paskiem statusu), pod nim logowanie */}
+      <ScrollView contentInsetAdjustmentBehavior={logged ? 'automatic' : 'never'} contentContainerStyle={{ paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+        {logged ? null : <LoginHero />}
+        <View style={{ paddingHorizontal: 16, paddingTop: logged ? 16 : 0 }}>
+          {logged ? <ProfileCards onLogout={a.logout} navigation={navigation} /> : <LoginPanel />}
+        </View>
       </ScrollView>
       {logged ? <UdTabs current="Account" navigate={go} /> : null}
     </KeyboardAvoidingView>
@@ -138,6 +142,7 @@ const label = { color: ud.muted, fontSize: 13, marginTop: 12 } as const;
 // Passkeye (lista/usuń) i „Skasuj konto” przez REST; dodanie passkeya wymaga WebAuthn w natywnej apce – na razie na www.
 function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigation: any }) {
   const [p, setP] = useState<ProfileDraft>(EMPTY_PROFILE);
+  const [saved, setSaved] = useState<ProfileDraft>(EMPTY_PROFILE); // ostatnio wczytane/zapisane – zapis tylko po zmianie
   const [email, setEmail] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -152,7 +157,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
 
   useEffect(() => {
     fetchProfile()
-      .then((x) => { setP({ name: x.name, address: x.address, msisdn: x.msisdn, edelivery: x.edelivery, shareRecydywa: x.shareRecydywa, sex: x.sex }); setEmail(x.email); setLoaded(true); })
+      .then((x) => { const d = { name: x.name, address: x.address, msisdn: x.msisdn, edelivery: x.edelivery, shareRecydywa: x.shareRecydywa, sex: x.sex }; setP(d); setSaved(d); setEmail(x.email); setLoaded(true); })
       .catch((e: any) => setMsg({ ok: false, text: e?.message ?? String(e) }));
   }, []);
 
@@ -173,6 +178,12 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
     catch (e: any) { setMsg({ ok: false, text: e?.message ?? String(e) }); }
   };
 
+  // Usunięcie passkeya odcina tę metodę logowania – pytamy raz, systemowym alertem.
+  const confirmDropPasskey = (k: Passkey) => Alert.alert('Usunąć passkey?', `„${k.label}” przestanie działać jako sposób logowania.`, [
+    { text: 'Anuluj', style: 'cancel' },
+    { text: 'Usuń', style: 'destructive', onPress: () => dropPasskey(k.id) },
+  ]);
+
   const removeAccount = async () => {
     setDeleting(true);
     try { await deleteAccount(deleteEmail.trim()); onLogout(); } // konto nie istnieje – kończymy sesję lokalnie
@@ -180,6 +191,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
   };
 
   const valid = profileValid(p);
+  const dirty = loaded && !sameProfile(p, saved);
 
   const save = async () => {
     setSaving(true);
@@ -191,6 +203,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
         shareRecydywa: p.shareRecydywa,
         sex: p.sex,
       });
+      setSaved(p);
       setMsg({ ok: true, text: 'Zapisano.' });
     } catch (e: any) {
       setMsg({ ok: false, text: e?.message ?? String(e) });
@@ -206,7 +219,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
       <View style={{ marginTop: 20 }}>
         <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 34 }}>Dane konta</Text>
         <ProfileFields value={p} onChange={(patch) => { setMsg(null); setP((o) => ({ ...o, ...patch })); }} email={email} disabled={!loaded} navigation={navigation} askSex />
-        <UdButton title={saving ? 'Zapisuję…' : 'Zapisz'} variant="primary" onPress={save} disabled={!loaded || saving || !valid} />
+        <UdButton title={saving ? 'Zapisuję…' : 'Zapisz zmiany'} variant="primary" onPress={save} disabled={!loaded || saving || !valid || !dirty} />
         {msg ? <Text style={{ color: msg.ok ? ud.primary : 'red', marginTop: 6, fontWeight: '700' }}>{msg.text}</Text> : null}
         <Text style={{ color: ud.muted, fontSize: 12, marginTop: 10 }}>Wersja {appVersion} ({appBuild}) · Środowisko: {udEnv}{demoMode ? ' (konto demo – zgłoszenia nie trafiają do SM ani na Policję)' : ''} ({udConfig.base})</Text>
       </View>
@@ -223,7 +236,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
                 <Text style={{ color: ud.text, fontFamily: ud.fontBodyBold }}>{k.label}</Text>
                 <Text style={{ color: ud.muted, fontSize: 12 }}>{k.createdAt ? `dodano ${k.createdAt.slice(0, 10)}` : 'dodano'}{k.lastUsedAt ? `, ostatnio użyto ${k.lastUsedAt.slice(0, 10)}` : ''}</Text>
               </View>
-              <Pressable onPress={() => dropPasskey(k.id)}><Text style={{ color: ud.plateVerified, fontFamily: ud.fontBodyBold }}>Usuń</Text></Pressable>
+              <Pressable onPress={() => confirmDropPasskey(k)} accessibilityRole="button"><Text style={{ color: ud.plateVerified, fontFamily: ud.fontBodyBold }}>Usuń</Text></Pressable>
             </View>
           ))
         )}
