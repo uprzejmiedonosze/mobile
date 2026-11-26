@@ -7,6 +7,7 @@
 - Konto: „Zapisz zmiany” działa dopiero po faktycznej zmianie danych, a usunięcie passkeya wymaga potwierdzenia.
 - Formularze mówią, czego jeszcze brakuje, a błędy w danych konta pokazują się po wyjściu z pola.
 - Wygodniejsze pisanie: „Gotowe” nad klawiaturą iPhone’a przy dłuższych opisach, przechodzenie między polami konta i podpowiadanie danych.
+- Android: panel ze szczegółami zgłoszenia zamyka się krótkim pociągnięciem w dół.
 
 ## v1.4.0 — 2026-11-20
 
