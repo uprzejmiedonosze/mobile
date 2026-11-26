@@ -6,6 +6,12 @@
 UD Pro — an Expo/React Native mobile client for uprzejmiedonosze.net (Polish parking-violation
 reporting service). Screens: Dashboard (`/app`), report creation (`/app/new`), list (`/app/list`) and
 account (`/app/account`), bottom tabs Start / Nowe / Zgłoszenia / Konto (same icons as the web tab bar), plus Poczekalnia where `waitingRoomEnabled`.
+
+**Nawigacja (React Navigation, `App.tsx`).** Nagłówki to natywne nagłówki native-stack (`src/components/header.tsx`); `UdHeader` został tylko
+w nieosiągalnych ekranach pipeline'u. Dolne menu (`UdTabs`) i zakładki siedzą w jednym stosie: na zakładki przechodź przez `goTab`
+(`src/lib/goTab.ts`, stos = [Start, zakładka], bez „wstecz”), na ekrany procesów zwykłym `navigate`/`push`. `NewReport` z `editId`/`waitingIds`
+to ekran procesu. Szczegóły zgłoszenia z listy to arkusz `Report` (`ReportSheet` + `useReportSheet`). Deep linki `udpro:///app`, `/app/new`,
+`/app/list`, `/app/waiting`, `/app/account`, `/app/camera` (dev: `udpro-dev`): lista w `src/lib/deepLink.ts`; bez sesji są ignorowane.
 Everything goes through the JWT REST API (`/api/rest/*`, Firebase Bearer) — never the cookie-based
 `/api/app/*` the web uses; both share their implementation in the backend's `src/inc/API.php`.
 
