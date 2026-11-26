@@ -15,7 +15,7 @@ Przenosimy ręcznie, bez cherry-picka. Lokalna gałąź `pr9` nie nadaje się na
 
 ### 1. Nagłówki
 - `App.tsx`: włączyć nagłówek native-stack z tytułami; usunąć `UdHeader` z osiągalnych ekranów. Stare ekrany pipeline'u bez zmian.
-- Jasny nagłówek jak w PR #9 (tło ekranu, ciemny tytuł, zielone przyciski) – zielony okazał się w praktyce gorszy. Na iOS ekrany zakładek mają własny nagłówek z H1 pod paskiem statusu (systemowy duży tytuł zostawiał pusty pasek), ekrany procesu mały tytuł systemowy.
+- Jasny nagłówek jak w PR #9 (tło ekranu, ciemny tytuł, zielone przyciski) – zielony okazał się w praktyce gorszy. Ekrany zakładek mają na obu platformach własny nagłówek z H1 pod paskiem statusu (systemowy duży tytuł zostawiał pusty pasek), ekrany procesu mały tytuł na środku; typografia jak na iOS.
 - Ekrany zakładek (Start, Nowe, Zgłoszenia, Poczekalnia, Konto): bez przycisku i gestu „wstecz”; przełączanie zakładek nie dokłada ekranów na stos. Sprawdzić parametr `filter` listy i otwieranie edycji (`editId`).
 - Start: logo (z „PRO”) jako tytuł. Logowanie i splash bez nagłówka.
 - Zachować działanie przycisków: „popraw” na potwierdzeniu, wylogowanie na rejestracji, historia WebView na stronie, brak powrotu na ekranie po wysłaniu.
@@ -25,7 +25,7 @@ Przenosimy ręcznie, bez cherry-picka. Lokalna gałąź `pr9` nie nadaje się na
 ### 2. Lista i szczegóły
 - Dotknięcie karty otwiera arkusz od dołu (`presentation: 'formSheet'`), zamiast rozwijania. Wzór: `ReportSheet`, `useReportSheet`.
 - Wygląd karty, teksty, filtry i link do pism bez zmian.
-- Wyszukiwarka w nagłówku: na Androidzie `headerSearchBarOptions`, na iOS pole pod tytułem.
+- Wyszukiwarka w nagłówku: pole pod tytułem.
 - Toasty widoczne nad arkuszem.
 - Przejście z arkusza (edycja, strona, konto) najpierw go zamyka.
 - Android: sprawdzić przewijanie i klawiaturę w arkuszu; w razie problemów zwykły ekran modalny.
@@ -46,8 +46,7 @@ Przenosimy ręcznie, bez cherry-picka. Lokalna gałąź `pr9` nie nadaje się na
 - Bez nowych etykiet, pól i układu.
 
 ### 6. Start
-- Główny przycisk „Zrób zdjęcia”; pod nim Poczekalnia (licznik tylko > 0) i „Nowe zgłoszenie”.
-- Bez poczekalni główny zostaje „Nowe zgłoszenie”.
+- Bez zmian: główny przycisk to nadal „Nowe zgłoszenie” (zmiana z PR #9 wycofana po sprawdzeniu w appce).
 
 ### 7. Klawiatura
 - `KeyboardDoneBar` (iOS) przy polach wielowierszowych: komentarz, uwagi w arkuszu, notatka z pisma.
@@ -64,7 +63,7 @@ Przenosimy ręcznie, bez cherry-picka. Lokalna gałąź `pr9` nie nadaje się na
 
 ## Kolejność
 
-Nagłówki → lista z arkuszem → logowanie i Konto → walidacja, Start, klawiatura → deep-linki.
+Nagłówki → lista z arkuszem → logowanie i Konto → walidacja, klawiatura → deep-linki.
 Osobny commit na każdy etap.
 
 ## Weryfikacja

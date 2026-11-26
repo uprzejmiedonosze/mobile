@@ -7,23 +7,21 @@ import { useAuth } from '../store/useAuth';
 import { isProcessParams } from '../lib/tabRoutes';
 import { rippleBorderless, ud } from '../theme';
 
-// Natywny nagłówek (pasek aplikacji na Androidzie, UINavigationBar na iOS) jak w PR #9: jasny, w kolorze tła ekranu,
-// ciemny tytuł i zielone przyciski. iOS używa systemowego kroju, Android – kroju marki.
-const ios = Platform.OS === 'ios';
-
+// Nagłówki na obu platformach wyglądają tak samo, z typografią iOS (decyzja po porównaniu na telefonach): systemowy krój,
+// jasne tło ekranu, ciemny tytuł, zielone przyciski. Ekrany procesu mają natywny pasek z małym tytułem na środku.
 export const headerOptions: NativeStackNavigationOptions = {
   headerStyle: { backgroundColor: ud.surfaceLow },
   headerTintColor: ud.primary,
-  headerTitleStyle: ios ? { color: ud.heading } : { color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 22 },
-  headerTitleAlign: ios ? 'center' : 'left',
+  headerTitleStyle: { color: ud.heading, fontSize: 17, fontWeight: '600' },
+  headerTitleAlign: 'center',
   headerShadowVisible: false,
   headerBackButtonDisplayMode: 'minimal',
 };
 
-// Zakładki z tytułem: na iOS własny nagłówek z H1 pod paskiem statusu (PageHeader), na Androidzie pasek aplikacji.
-export const pageTitle: NativeStackNavigationOptions = ios
-  ? { header: ({ options }) => <PageHeader title={options.title} /> }
-  : {};
+// Zakładki z tytułem: własny nagłówek z H1 pod paskiem statusu (PageHeader) zamiast systemowego paska.
+export const pageTitle: NativeStackNavigationOptions = {
+  header: ({ options }) => <PageHeader title={options.title} />,
+};
 
 // Zakładka dolnego menu: bez „wstecz” i gestu cofania, bez animacji przejścia (jak przełączenie karty).
 export const tabOptions: NativeStackNavigationOptions = { headerBackVisible: false, gestureEnabled: false, animation: 'none' };

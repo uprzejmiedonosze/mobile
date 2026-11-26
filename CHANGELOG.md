@@ -6,7 +6,6 @@
 - Ekran logowania ma na górze zdjęcie ze strony uprzejmiedonosze.net z logo aplikacji, a pod nim krótki opis, do czego służy.
 - Konto: „Zapisz zmiany” działa dopiero po faktycznej zmianie danych, a usunięcie passkeya wymaga potwierdzenia.
 - Formularze mówią, czego jeszcze brakuje, a błędy w danych konta pokazują się po wyjściu z pola.
-- Start: główny przycisk to teraz „Zrób zdjęcia” (tam, gdzie jest Poczekalnia).
 - Wygodniejsze pisanie: „Gotowe” nad klawiaturą iPhone’a przy dłuższych opisach, przechodzenie między polami konta i podpowiadanie danych.
 
 ## v1.4.0 — 2026-11-20
