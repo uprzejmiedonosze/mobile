@@ -2,8 +2,8 @@ import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ud } from '../theme';
 
-// Nagłówek zakładek na iOS: tytuł tuż pod paskiem statusu. Systemowy duży tytuł zostawia nad sobą pusty pasek,
-// którego wysokości nie da się zmniejszyć. Pod tytułem opcjonalna zawartość (wyszukiwarka w Zgłoszeniach).
+// Nagłówek zakładek: tytuł tuż pod paskiem statusu, systemowym krojem (iOS i Android). Systemowy duży tytuł iOS zostawiał
+// nad sobą pusty pasek, którego wysokości nie da się zmniejszyć. Pod tytułem opcjonalna zawartość (wyszukiwarka w Zgłoszeniach).
 export function PageHeader({ title, children }: { title?: string; children?: React.ReactNode }) {
   const insets = useSafeAreaInsets();
   return (

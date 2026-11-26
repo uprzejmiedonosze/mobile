@@ -127,7 +127,7 @@ export default function App() {
           <Stack.Screen name="WaitingRoom" component={WaitingRoomScreen} options={{ ...tabOptions, ...pageTitle, title: 'Poczekalnia' }} />
           <Stack.Screen name="Account" component={AccountScreen} options={{ ...tabOptions, ...pageTitle, title: 'Konto' }} />
           {/* szczegóły zgłoszenia z listy: arkusz od dołu – do ¾ ekranu, przeciągnięty w górę na cały */}
-          <Stack.Screen name="Report" component={ReportSheet} options={{ headerShown: false, presentation: 'formSheet', sheetAllowedDetents: [0.75, 1], sheetGrabberVisible: true, sheetCornerRadius: 28, contentStyle: { backgroundColor: ud.surfaceLow } }} />
+          <Stack.Screen name="Report" component={ReportSheet} options={{ headerShown: false, presentation: 'formSheet', sheetAllowedDetents: [0.75, 1], sheetGrabberVisible: true, sheetCornerRadius: 28, contentStyle: { backgroundColor: ud.surface } }} />
           <Stack.Screen name="ReportConfirm" component={ReportConfirmScreen} options={{ title: 'Sprawdź zgłoszenie', headerTitle: () => <HeaderBrand /> }} />
           <Stack.Screen name="ReportDone" component={ReportDoneScreen} options={{ title: 'Zgłoszenie', headerTitle: () => <HeaderBrand />, headerBackVisible: false, gestureEnabled: false }} />
           <Stack.Screen name="Letter" component={LetterScreen} options={{ title: 'Pismo' }} />

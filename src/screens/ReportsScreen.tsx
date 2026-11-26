@@ -290,8 +290,9 @@ export function ReportCard({ app, statuses, categories, onOpen, details }: CardP
   return (
     // Biała karta bez ramki; odróżnia ją pasek w kolorze statusu z lewej – osobny widok przycięty zaokrągleniem karty
     // (borderLeft przy borderRadius zwęża się w rogach).
-    <Pressable onPress={onOpen} disabled={open} android_ripple={open ? undefined : ripple} accessibilityRole={open ? undefined : 'button'} accessibilityHint={open ? undefined : 'Otwiera szczegóły zgłoszenia'} style={{ backgroundColor: ud.surface, paddingLeft: 16, paddingRight: 12, paddingVertical: 10, marginBottom: open ? 0 : 12, borderRadius: ud.radiusSm, overflow: 'hidden' }}>
-      <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: accent === '#FFFFFF' ? '#C5C5C5' : accent }} />
+    <Pressable onPress={onOpen} disabled={open} android_ripple={open ? undefined : ripple} accessibilityRole={open ? undefined : 'button'} accessibilityHint={open ? undefined : 'Otwiera szczegóły zgłoszenia'} style={{ backgroundColor: ud.surface, paddingLeft: 16, paddingRight: open ? 16 : 12, paddingVertical: 10, marginBottom: open ? 0 : 12, borderRadius: open ? 0 : ud.radiusSm, overflow: 'hidden' }}>
+      {/* w arkuszu bez paska – tam kontenerem jest sam arkusz, a status pokazuje kropka */}
+      {open ? null : <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: accent === '#FFFFFF' ? '#C5C5C5' : accent }} />}
       <View style={{ paddingVertical: 4 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <StatusDot status={app.status} label={statusName} police={police} />
@@ -532,42 +533,26 @@ export function ReportsScreen({ navigation, route }: any) {
     return () => { show.remove(); hide.remove(); };
   }, []);
 
-  // Wyszukiwarka w nagłówku: Android – systemowa w pasku aplikacji, iOS – pole pod tytułem we własnym nagłówku
-  // (systemowa wymaga systemowego paska). Bez ani jednego zgłoszenia nie ma czego szukać.
+  // Wyszukiwarka pod tytułem, we własnym nagłówku. Bez ani jednego zgłoszenia nie ma czego szukać.
   useLayoutEffect(() => {
-    if (Platform.OS === 'ios') {
-      navigation.setOptions({
-        header: () => (
-          <PageHeader title="Zgłoszenia">
-            {noReports ? null : (
-              // niekontrolowane: nagłówek nie renderuje się przy każdej literze, więc kursor nie skacze
-              <TextInput {...inputColors}
-                onChangeText={setSearch}
-                placeholder="Adres, numer rej. lub zgłoszenia, komentarz"
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="search"
-                clearButtonMode="while-editing"
-                accessibilityLabel="Szukaj zgłoszeń"
-                style={{ marginTop: 8, backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusButton, paddingHorizontal: 14, paddingVertical: 10, color: ud.text }}
-              />
-            )}
-          </PageHeader>
-        ),
-      });
-      return;
-    }
     navigation.setOptions({
-      headerSearchBarOptions: noReports ? undefined : {
-        placeholder: 'Adres, numer rej., zgłoszenia, komentarz',
-        autoCapitalize: 'none',
-        tintColor: ud.primary,
-        textColor: ud.text,
-        hintTextColor: ud.muted,
-        headerIconColor: ud.primary,
-        onChangeText: (e: { nativeEvent: { text: string } }) => setSearch(e.nativeEvent.text),
-        onClose: () => setSearch(''),
-      },
+      header: () => (
+        <PageHeader title="Zgłoszenia">
+          {noReports ? null : (
+            // niekontrolowane: nagłówek nie renderuje się przy każdej literze, więc kursor nie skacze
+            <TextInput {...inputColors}
+              onChangeText={setSearch}
+              placeholder="Adres, numer rej. lub zgłoszenia, komentarz"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+              accessibilityLabel="Szukaj zgłoszeń"
+              style={{ marginTop: 8, backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusButton, paddingHorizontal: 14, paddingVertical: 10, color: ud.text }}
+            />
+          )}
+        </PageHeader>
+      ),
     });
   }, [navigation, noReports]);
 
