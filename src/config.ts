@@ -106,7 +106,7 @@ export const sentryConfig = {
 } as const;
 
 // RevenueCat (subskrypcje App Store): publiczny klucz SDK aplikacji iOS („appl_…”), z natury jawny – to nie sekret.
-// Pusty = ekran subskrypcji pokazuje, że zakupy są niedostępne. Klucz secret zna tylko backend.
+// Domyślny klucz jest tutaj, więc działa we wszystkich buildach (EAS nie czyta .env). Klucz secret zna tylko backend.
 export const purchasesConfig = {
-  iosKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || '',
+  iosKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || 'appl_BpaRZFMEVnDUMisKRCEAzWVMazx',
 } as const;
