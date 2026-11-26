@@ -11,6 +11,7 @@ import { NewReportScreen } from './src/screens/NewReportScreen';
 import { ReportConfirmScreen } from './src/screens/ReportConfirmScreen';
 import { ReportDoneScreen } from './src/screens/ReportDoneScreen';
 import { ReportsScreen } from './src/screens/ReportsScreen';
+import { ReportSheet } from './src/screens/ReportSheet';
 import { LetterScreen } from './src/screens/LetterScreen';
 import { QuotaInfoScreen } from './src/screens/QuotaInfoScreen';
 import { AccountScreen } from './src/screens/AccountScreen';
@@ -31,6 +32,7 @@ import { useAuth } from './src/store/useAuth';
 import { useAppUpdate } from './src/store/useAppUpdate';
 import { toast } from './src/store/useToast';
 import { udConfig, udEnv } from './src/config';
+import { ud } from './src/theme';
 
 const Stack = createNativeStackNavigator();
 
@@ -117,6 +119,8 @@ export default function App() {
           <Stack.Screen name="Reports" component={ReportsScreen} options={{ ...tabOptions, ...largeTitle, title: 'Zgłoszenia' }} />
           <Stack.Screen name="WaitingRoom" component={WaitingRoomScreen} options={{ ...tabOptions, ...largeTitle, title: 'Poczekalnia' }} />
           <Stack.Screen name="Account" component={AccountScreen} options={{ ...tabOptions, ...largeTitle, title: 'Konto' }} />
+          {/* szczegóły zgłoszenia z listy: arkusz od dołu – do ¾ ekranu, przeciągnięty w górę na cały */}
+          <Stack.Screen name="Report" component={ReportSheet} options={{ headerShown: false, presentation: 'formSheet', sheetAllowedDetents: [0.75, 1], sheetGrabberVisible: true, sheetCornerRadius: 28, contentStyle: { backgroundColor: ud.surfaceLow } }} />
           <Stack.Screen name="ReportConfirm" component={ReportConfirmScreen} options={{ title: 'Sprawdź zgłoszenie', headerTitle: () => <HeaderBrand /> }} />
           <Stack.Screen name="ReportDone" component={ReportDoneScreen} options={{ title: 'Zgłoszenie', headerTitle: () => <HeaderBrand />, headerBackVisible: false, gestureEnabled: false }} />
           <Stack.Screen name="Letter" component={LetterScreen} options={{ title: 'Pismo' }} />

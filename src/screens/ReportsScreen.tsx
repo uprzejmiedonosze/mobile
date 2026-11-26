@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { changeStatus, fetchApps, fetchStatusCounts, fetchStatuses, imageUrl, PAGE_SIZE, setReportFields, type StatusDef, type UdApp } from '../api/apps';
@@ -16,6 +16,7 @@ import { UdButton, UdTabs } from '../components/UD';
 import { goTab } from '../lib/goTab';
 import type { Category, RecydywaEntry, RecydywaGallery, RecydywaInfo } from '../types';
 import { useAuth } from '../store/useAuth';
+import { useReportSheet } from '../store/useReportSheet';
 import { toast } from '../store/useToast';
 import { ud, inputColors, ripple, rippleBorderless } from '../theme';
 import { SvgXml } from 'react-native-svg';
@@ -78,10 +79,10 @@ function Row({ label, icon, children }: { label: React.ReactNode; icon?: string;
 }
 
 // Pole zapisywane po wyjściu z niego, tylko gdy się zmieniło (jak .app-field-editable na webie, my-apps.js).
-function EditableField({ label, value, multiline, placeholder, onSave, onFocus, icon }: { label: React.ReactNode; value: string; multiline?: boolean; placeholder?: string; onSave: (v: string) => Promise<void>; onFocus?: () => void; icon?: string }) {
+function EditableField({ label, value, multiline, placeholder, onSave, icon }: { label: React.ReactNode; value: string; multiline?: boolean; placeholder?: string; onSave: (v: string) => Promise<void>; icon?: string }) {
   const [text, setText] = useState(value);
   const [state, setState] = useState<'idle' | 'saving' | 'error'>('idle');
-  // Refy, bo zapis odpala też sprzątanie przy odmontowaniu (zwinięcie karty), gdzie stan z domknięcia jest nieaktualny.
+  // Refy, bo zapis odpala też sprzątanie przy odmontowaniu (zamknięcie arkusza), gdzie stan z domknięcia jest nieaktualny.
   const textRef = useRef(value);
   const savedRef = useRef(value); // ostatnia zapisana wartość (web: data-initial-value)
   const onSaveRef = useRef(onSave);
@@ -112,7 +113,6 @@ function EditableField({ label, value, multiline, placeholder, onSave, onFocus, 
         value={text}
         onChangeText={(t) => { setText(t); textRef.current = t; if (state === 'error') setState('idle'); }}
         onBlur={commit}
-        onFocus={onFocus}
         editable={state !== 'saving'}
         multiline={multiline}
         placeholder={placeholder}
@@ -224,21 +224,24 @@ function RecydywaHistory({ info, categories, onClose, onAccount }: { info: Recyd
   );
 }
 
+type CardDetails = {
+  onStatus: (id: string, status: string) => Promise<void>;
+  onEdit: (id: string) => void;
+  onFields: (id: string, fields: { externalId?: string; privateComment?: string }) => Promise<void>;
+  onPage: (path: string, title?: string) => void;
+  onAccount: () => void;
+};
+
 type CardProps = {
   app: UdApp;
   statuses: Record<string, StatusDef>;
   categories: Map<number, Category>;
-  onStatus: (id: string, status: string) => Promise<void>;
-  onEdit: (id: string) => void;
-  onFields: (id: string, fields: { externalId?: string; privateComment?: string }) => Promise<void>;
-  onFieldFocus: (id: string) => void;
-  onPage: (path: string, title?: string) => void;
-  onAccount: () => void;
-  open: boolean;
-  onToggle: (id: string) => void;
+  onOpen?: () => void; // karta na liście: dotknięcie otwiera arkusz
+  details?: CardDetails; // karta w arkuszu (ReportSheet): pełne szczegóły
 };
 
-function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onFieldFocus, onPage, onAccount, open, onToggle }: CardProps) {
+export function ReportCard({ app, statuses, categories, onOpen, details }: CardProps) {
+  const open = !!details;
   const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState(false);
   const [recydywa, setRecydywa] = useState<RecydywaInfo | null>(null);
@@ -258,7 +261,7 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
       .catch(() => toast.error('Nie udało się skopiować komentarza.'));
   };
 
-  // Recydywa (1 wywołanie na kartę) dopiero po rozwinięciu – lista może mieć setki pozycji.
+  // Recydywa (1 wywołanie na kartę) dopiero w szczegółach – lista może mieć setki pozycji.
   useEffect(() => {
     if (!open || !plate || app.status === 'archived' || recydywa) return;
     validIdToken().then((t) => fetchRecydywa(plate, t)).then(setRecydywa).catch(() => {});
@@ -267,8 +270,6 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
   const slots = (['contextImage', 'carImage', 'thirdImage'] as const);
   const thumbs = slots.map((k) => imageUrl(app[k], app, false, k)).filter(Boolean) as string[];
   const fulls = slots.map((k) => imageUrl(app[k], app, true, k)).filter(Boolean) as string[];
-  // Zwinięte zgłoszenie: dotknięcie czegokolwiek (także zdjęcia) rozwija; rozwinięte: zdjęcie się powiększa.
-  const toggle = () => onToggle(app.id);
   const accent = statusColor(app.status).stroke;
 
   // jak Application::wasSent() w backendzie: wysłane i już poza szkicem/potwierdzeniem – dopiero wtedy ma sens numer sprawy
@@ -279,13 +280,13 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
   const pick = async (k: string) => {
     setMenu(false);
     setBusy(true);
-    try { await onStatus(app.id, k); } finally { setBusy(false); }
+    try { await details!.onStatus(app.id, k); } finally { setBusy(false); }
   };
 
   return (
     // Biała karta bez ramki; odróżnia ją pasek w kolorze statusu z lewej – osobny widok przycięty zaokrągleniem karty
     // (borderLeft przy borderRadius zwęża się w rogach).
-    <Pressable onPress={toggle} android_ripple={ripple} style={{ backgroundColor: ud.surface, paddingLeft: 16, paddingRight: 12, paddingVertical: 10, marginBottom: 12, borderRadius: ud.radiusSm, overflow: 'hidden' }}>
+    <Pressable onPress={onOpen} disabled={open} android_ripple={open ? undefined : ripple} accessibilityRole={open ? undefined : 'button'} accessibilityHint={open ? undefined : 'Otwiera szczegóły zgłoszenia'} style={{ backgroundColor: ud.surface, paddingLeft: 16, paddingRight: 12, paddingVertical: 10, marginBottom: open ? 0 : 12, borderRadius: ud.radiusSm, overflow: 'hidden' }}>
       <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: accent === '#FFFFFF' ? '#C5C5C5' : accent }} />
       <View style={{ paddingVertical: 4 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -299,16 +300,16 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
           <Text numberOfLines={1} style={{ flex: 1, fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 17 }}>
             {shortAddress(app.address?.address) || 'Brak adresu'}
           </Text>
-          {/* chevron z webu (.expander): w dół zwinięta, obrócony o 180° po rozwinięciu */}
-          <View style={{ transform: [{ rotate: open ? '180deg' : '0deg' }], padding: 2 }}><SvgXml xml={CHEVRON_ICON.replace('COLOR', ud.muted)} width={16} height={16} /></View>
+          {/* na liście strzałka w bok (otwiera arkusz ze szczegółami); w arkuszu bez strzałki */}
+          {open ? null : <View style={{ transform: [{ rotate: '-90deg' }], padding: 2 }}><SvgXml xml={CHEVRON_ICON.replace('COLOR', ud.muted)} width={16} height={16} /></View>}
         </View>
         {cat ? <Text numberOfLines={open ? 0 : 1} style={{ color: ud.muted, fontSize: 13, marginTop: 2 }}>{cat.title}</Text> : null}
       </View>
 
-      <Photos thumbs={thumbs} onPress={(i) => (open ? setViewer(i) : toggle())} />
+      <Photos thumbs={thumbs} onPress={(i) => (open ? setViewer(i) : onOpen?.())} />
       <ImageViewer urls={fulls} index={viewer} onClose={() => setViewer(null)} />
 
-      {open ? (
+      {details ? (
         <View style={{ paddingTop: 4, paddingBottom: 14, gap: 16 }}>
           <View style={{ gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -332,7 +333,7 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
           />
 
           {statuses[app.status]?.editable ? (
-            <Pressable onPress={() => onEdit(app.id)} style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: ud.text, borderRadius: ud.radiusPill, paddingHorizontal: 12, paddingVertical: 4 }}>
+            <Pressable onPress={() => details.onEdit(app.id)} style={{ alignSelf: 'flex-start', borderWidth: 1, borderColor: ud.text, borderRadius: ud.radiusPill, paddingHorizontal: 12, paddingVertical: 4 }}>
               <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: ud.text }}>EDYTUJ</Text>
             </Pressable>
           ) : null}
@@ -355,7 +356,7 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
                 </Text>
                 <Text style={{ color: ud.primary, fontSize: 12, textDecorationLine: 'underline' }}>Zobacz zgłoszenia</Text>
               </Pressable>
-              {history ? <RecydywaHistory info={recydywa!} categories={categories} onClose={() => setHistory(false)} onAccount={() => { setHistory(false); onAccount(); }} /> : null}
+              {history ? <RecydywaHistory info={recydywa!} categories={categories} onClose={() => setHistory(false)} onAccount={() => { setHistory(false); details.onAccount(); }} /> : null}
             </>
           ) : null}
 
@@ -375,12 +376,12 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
             ) : null}
           </Row>
           {wasSent ? (
-            <EditableField label="NUMER SPRAWY SM/POLICJI" value={app.externalId ?? ''} placeholder="RSOW 0000/24 / WP 000/24" onSave={(v) => onFields(app.id, { externalId: v })} onFocus={() => onFieldFocus(app.id)} />
+            <EditableField label="NUMER SPRAWY SM/POLICJI" value={app.externalId ?? ''} placeholder="RSOW 0000/24 / WP 000/24" onSave={(v) => details.onFields(app.id, { externalId: v })} />
           ) : null}
           <EditableField
-            label={<>UWAGI (<Text onPress={() => onPage('/bezpieczenstwo.html', 'Bezpieczeństwo')} style={{ color: ud.primary, textDecorationLine: 'underline' }}>widoczne tylko dla Ciebie</Text>)</>}
+            label={<>UWAGI (<Text onPress={() => details.onPage('/bezpieczenstwo.html', 'Bezpieczeństwo')} style={{ color: ud.primary, textDecorationLine: 'underline' }}>widoczne tylko dla Ciebie</Text>)</>}
             icon={ENCRYPTED_ICON}
-            value={app.privateComment ?? ''} multiline onSave={(v) => onFields(app.id, { privateComment: v })} onFocus={() => onFieldFocus(app.id)} />
+            value={app.privateComment ?? ''} multiline onSave={(v) => details.onFields(app.id, { privateComment: v })} />
         </View>
       ) : null}
     </Pressable>
@@ -397,7 +398,6 @@ export function ReportsScreen({ navigation, route }: any) {
     navigation.navigate(e.route, e.params);
   };
   const [apps, setApps] = useState<UdApp[]>([]);
-  const [openId, setOpenId] = useState<string | null>(null); // rozwinięte jest zawsze najwyżej jedno zgłoszenie
   const [statuses, setStatuses] = useState<Record<string, StatusDef>>({});
   const [cats, setCats] = useState<Category[]>([]);
   const [filter, setFilter] = useState<string>(route?.params?.filter ?? 'all'); // 'all' = brak aktywnego chipa
@@ -483,11 +483,13 @@ export function ReportsScreen({ navigation, route }: any) {
     const onFocus = navigation.addListener('focus', () => {
       setFocused(true);
       if (firstFocus.current) { firstFocus.current = false; return; } // pierwsze wejście ładują efekty wyżej
+      // zamknięty arkusz: lista zostaje (doładowane strony, miejsce przewinięcia), zmiany już w niej są – tylko liczniki
+      if (useReportSheet.getState().keepList) { useReportSheet.getState().leave(); refreshCounts(); return; }
       load(true);
     });
     const onBlur = navigation.addListener('blur', () => setFocused(false));
     return () => { onFocus(); onBlur(); };
-  }, [navigation, load]);
+  }, [navigation, load, refreshCounts]);
 
   // Wysyłka trwa chwilę (status „Wysyłam”) – dopóki jakieś zgłoszenie jest w tym stanie, odświeżamy co 5 s.
   const sending = apps.some((a) => a.status === 'sending');
@@ -502,47 +504,53 @@ export function ReportsScreen({ navigation, route }: any) {
     if (filter !== 'all' && Object.keys(counts).length && !chips.some((c) => c.key === filter)) setFilter('all');
   }, [filter, counts, chips]);
 
-  const onStatus = async (id: string, status: string) => {
-    try {
-      await changeStatus(id, status);
-      setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
-      refreshCounts();
-    } catch (e: any) {
-      setErr(e?.message ?? String(e));
-    }
+  // Zmiany zrobione w arkuszu (status, numer sprawy, uwagi) od razu na liście; po zmianie statusu – świeże liczniki filtrów.
+  useEffect(() => useReportSheet.subscribe(({ patched }, prev) => {
+    if (!patched || patched === prev.patched) return;
+    setApps((list) => list.map((a) => (a.id === patched.id ? { ...a, ...patched.patch } : a)));
+    if (patched.patch.status) refreshCounts();
+  }), [refreshCounts]);
+
+  // Słowniki wczytane już po otwarciu arkusza (słaby net) też mają do niego trafić.
+  useEffect(() => { useReportSheet.setState({ statuses, categories }); }, [statuses, categories]);
+  useEffect(() => { useReportSheet.getState().leave(); }, []); // świeża lista nie dziedziczy stanu po poprzednim arkuszu
+
+  const openSheet = (app: UdApp) => {
+    useReportSheet.getState().open(app, statuses, categories);
+    navigation.navigate('Report');
   };
 
-  // Klawiatura: lista kurczy się nad nią (KeyboardAvoidingView), a edytowane pole przewijamy w widok – karta ze zdjęciami
-  // jest wysoka, a pola są na jej dole; bez tego klawiatura zasłaniała wpisywany tekst.
-  const listRef = useRef<FlatList<UdApp>>(null);
+  // Klawiatura wyszukiwarki: lista kurczy się nad nią, a pasek zakładek znika.
   const [kbd, setKbd] = useState(false);
   useEffect(() => {
     const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKbd(true));
-    // Android: schowanie klawiatury (wstecz/gest) nie zdejmuje fokusu z pola, więc nie byłoby blur i zapisu – zdejmujemy go sami.
-    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => {
-      setKbd(false);
-      TextInput.State.currentlyFocusedInput()?.blur();
-    });
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKbd(false));
     return () => { show.remove(); hide.remove(); };
   }, []);
-  const onFieldFocus = (id: string) => {
-    const index = apps.findIndex((a) => a.id === id);
-    if (index < 0) return;
-    // po zmianie rozmiaru listy przez klawiaturę: dół karty (z polami) na dół widocznego obszaru
-    setTimeout(() => listRef.current?.scrollToIndex({ index, viewPosition: 1, animated: true }), 300);
-  };
 
-  const onFields = async (id: string, fields: { externalId?: string; privateComment?: string }) => {
-    const r = await setReportFields(id, fields); // błąd wraca do pola (EditableField pokazuje komunikat)
-    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, ...fields } : a)));
-    // wysłane + numer sprawy → jak na webie: zaproponuj status „potwierdzone”
-    if (r.suggestStatusChange && fields.externalId !== undefined) {
-      Alert.alert('Numer sprawy', 'Zgłoszenie ma numer sprawy. Zmienić jego status na „potwierdzone”?', [
-        { text: 'Nie', style: 'cancel' },
-        { text: 'Tak', onPress: () => void onStatus(id, 'confirmed-sm') },
-      ]);
-    }
-  };
+  // Wyszukiwarka w nagłówku (systemowa). Bez ani jednego zgłoszenia nie ma czego szukać.
+  useLayoutEffect(() => {
+    const android = Platform.OS === 'android';
+    navigation.setOptions({
+      headerSearchBarOptions: noReports ? undefined : {
+        placeholder: 'Adres, numer rej., zgłoszenia, komentarz',
+        cancelButtonText: 'Anuluj',
+        autoCapitalize: 'none',
+        placement: 'stacked',
+        hideWhenScrolling: false,
+        obscureBackground: false,
+        // iOS: białe pole na zielonym nagłówku; Android: biały tekst i ikony w pasku aplikacji
+        barTintColor: android ? ud.primary : '#ffffff',
+        tintColor: android ? '#ffffff' : ud.primary,
+        textColor: android ? '#ffffff' : ud.text,
+        hintTextColor: android ? ud.primaryOutline : ud.muted,
+        headerIconColor: '#ffffff',
+        onChangeText: (e: { nativeEvent: { text: string } }) => setSearch(e.nativeEvent.text),
+        onCancelButtonPress: () => setSearch(''),
+        onClose: () => setSearch(''),
+      },
+    });
+  }, [navigation, noReports]);
 
   // Lista się nie wczytała (np. 500) i nie ma czego pokazać → pełny ekran błędu z linkiem do kontaktu.
   if (err && !apps.length && !loading) {
@@ -554,21 +562,11 @@ export function ReportsScreen({ navigation, route }: any) {
     );
   }
 
-  return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }} collapsable={false}>
-      {noReports ? null : (
-      <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
+  const listHeader = noReports ? null : (
+    <View style={{ paddingTop: 10 }}>
         <Pressable onPress={openLetters} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 8 }}>
           <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, textDecorationLine: 'underline' }}>{LETTER_LINK_LABEL}</Text>
         </Pressable>
-        <TextInput {...inputColors}
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Adres, numer rej. lub zgłoszenia, komentarz"
-          placeholderTextColor={ud.muted}
-          autoCorrect={false}
-          style={{ backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.hairline, borderRadius: ud.radiusButton, paddingHorizontal: 14, paddingVertical: 10, color: ud.text }}
-        />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 18, rowGap: 10, paddingVertical: 12 }}>
           {chips.map((c) => {
             const on = c.key === filter;
@@ -584,32 +582,31 @@ export function ReportsScreen({ navigation, route }: any) {
             );
           })}
         </View>
-      </View>
-      )}
-      {loading && !apps.length ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} />
-      ) : (
-        <FlatList
-          ref={listRef}
-          onScrollToIndexFailed={() => {}}
-          data={apps}
-          keyExtractor={(a) => a.id}
-          keyboardShouldPersistTaps="handled"
-          renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onStatus={onStatus} onFields={onFields} onFieldFocus={onFieldFocus} onPage={(path, title) => openUdPage(navigation, path, title)} onAccount={() => go('Account')} onEdit={(id) => navigation.navigate('NewReport', { editId: id })} open={openId === item.id} onToggle={(id) => setOpenId((cur) => (cur === id ? null : id))} />}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={ud.primary} />}
-          onEndReachedThreshold={0.5}
-          onEndReached={() => { if (more && !loading && !refreshing) load(false); }}
-          ListEmptyComponent={
-            <View style={{ alignItems: 'center', marginTop: 40, gap: 12 }}>
-              <Text style={{ color: ud.muted }}>{query || filter !== 'all' ? 'Brak zgłoszeń dla tych kryteriów.' : 'Nie masz jeszcze ani jednego zgłoszenia.'}</Text>
-              {!query && filter === 'all' ? <UdButton title="Dodaj zgłoszenia" onPress={() => go('NewReport')} /> : null}
-            </View>
-          }
-          removeClippedSubviews
-          initialNumToRender={6}
-        />
-      )}
+    </View>
+  );
+
+  return (
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }} collapsable={false}>
+      <FlatList
+        data={apps}
+        keyExtractor={(a) => a.id}
+        contentInsetAdjustmentBehavior="automatic"
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={listHeader}
+        renderItem={({ item }) => <ReportCard app={item} statuses={statuses} categories={categories} onOpen={() => openSheet(item)} />}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(true); }} tintColor={ud.primary} />}
+        onEndReachedThreshold={0.5}
+        onEndReached={() => { if (more && !loading && !refreshing) load(false); }}
+        ListEmptyComponent={loading ? <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} /> : (
+          <View style={{ alignItems: 'center', marginTop: 40, gap: 12 }}>
+            <Text style={{ color: ud.muted }}>{query || filter !== 'all' ? 'Brak zgłoszeń dla tych kryteriów.' : 'Nie masz jeszcze ani jednego zgłoszenia.'}</Text>
+            {!query && filter === 'all' ? <UdButton title="Dodaj zgłoszenia" onPress={() => go('NewReport')} /> : null}
+          </View>
+        )}
+        removeClippedSubviews
+        initialNumToRender={6}
+      />
       {kbd ? null : <UdTabs current="Reports" navigate={go} />}
     </KeyboardAvoidingView>
   );
