@@ -17,6 +17,8 @@ import { goTab } from '../lib/goTab';
 import { LoginHero } from '../components/LoginHero';
 import { FINGERPRINT_ICON, GOOGLE_ICON, MAIL_ICON } from '../components/loginIcons';
 import { leaveDemo } from '../lib/demoLogin';
+import { storeBilling } from '../lib/purchases';
+import { DELETE_ACCOUNT_NOTE } from '../lib/subscription';
 import { EMPTY_PROFILE, ProfileFields, profileMissing, profileValid, sameProfile, type ProfileDraft } from '../components/ProfileFields';
 
 export function AccountScreen({ navigation }: any) {
@@ -257,6 +259,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
           <Text style={{ color: ud.plateVerified, textDecorationLine: 'underline', marginTop: 10 }} onPress={() => setConfirmDelete(true)}>Skasuj konto</Text>
         ) : (
           <>
+            {storeBilling ? <Text style={label}>{DELETE_ACCOUNT_NOTE}</Text> : null}
             <Text style={label}>Aby potwierdzić, wpisz swój adres e-mail: {email}</Text>
             <TextInput {...inputColors} style={input} value={deleteEmail} onChangeText={setDeleteEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" />
             <UdButton title={deleting ? 'Kasuję…' : 'Skasuj konto'} variant="outline" onPress={removeAccount} disabled={deleting || deleteEmail.trim().toLowerCase() !== email.toLowerCase()} />

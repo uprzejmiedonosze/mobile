@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { fetchProfile } from '../api/user';
 import { openUdPage } from '../lib/openPage';
+import { storeBilling } from '../lib/purchases';
 import { plural } from '../lib/reports';
 import { PATRONEM_DEFAULT } from '../lib/sex';
 import { UdButton, UdTabs } from '../components/UD';
@@ -54,7 +55,9 @@ export function ReportDoneScreen({ navigation }: any) {
         {!isPatron ? (
           <Text style={{ color: ud.text, marginTop: 16 }}>
             Utrzymanie serwisu kosztuje.{' '}
-            <Text style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => openUdPage(navigation, '/patronite.html', 'Wspieraj Uprzejmie Donoszę')}>{`Zostań ${patron}`}</Text>.
+            {storeBilling
+              ? <Text style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => navigation.navigate('QuotaInfo')}>Wesprzyj nas subskrypcją</Text>
+              : <Text style={{ color: ud.primary, textDecorationLine: 'underline' }} onPress={() => openUdPage(navigation, '/patronite.html', 'Wspieraj Uprzejmie Donoszę')}>{`Zostań ${patron}`}</Text>}.
           </Text>
         ) : null}
 

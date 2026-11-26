@@ -6,6 +6,8 @@ import { log } from '../lib/log';
 import { cachedDashboard, saveDashboard } from '../lib/startupCache';
 import { externalUrl, openUdPage } from '../lib/openPage';
 import { patronem } from '../lib/sex';
+import { storeBilling } from '../lib/purchases';
+import { PATRON_BADGE_DESC } from '../lib/subscription';
 import { plural } from '../lib/reports';
 import type { PhotoQuota } from '../api/udApi';
 import { ErrorScreen } from '../components/ErrorScreen';
@@ -40,7 +42,12 @@ function PhotoQuotaSection({ q, patronem, onMore }: { q: PhotoQuota; patronem: s
           ? 'Dziękujemy za wsparcie – Twoje zdjęcia nie są limitowane.'
           : `Zdjęcia w ostatnich ${q.windowDays} dniach. Powtórne wysłanie tego samego zdjęcia nie zużywa limitu.${left === 0 && resets ? ` Limit odnowi się ${resets}.` : ''}`}
       </Text>
-      {upsell ? (
+      {storeBilling ? (
+        // iOS: wejście do subskrypcji (i zarządzania nią) jest zawsze – tu odsyła też komunikat o wyczerpanym limicie
+        <Pressable onPress={onMore} accessibilityRole="link" style={{ marginTop: 8 }}>
+          <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>{upsell ? 'Potrzebujesz więcej? Zwiększ limit w subskrypcji' : 'Limity i subskrypcja'}</Text>
+        </Pressable>
+      ) : upsell ? (
         <Pressable onPress={onMore} accessibilityRole="link" style={{ marginTop: 8 }}>
           <Text style={{ color: ud.text, lineHeight: 21 }}>
             Potrzebujesz więcej? <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>{`Zostań ${patronem} już od 10 zł`}</Text>
@@ -207,6 +214,8 @@ export function DashboardScreen({ navigation }: any) {
               <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Miejska Agenda Parkingowa" text="Poznaj zmiany w przepisach, po których Uprzejmie Donoszę nie będzie potrzebne." url="https://agendaparkingowa.pl/" />
               {patron ? (
                 <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Wniosek do RPO" text="Poprzyj mój wniosek do Rzecznika Praw Obywatelskich o równe prawa dla pieszych i kierowców." url="https://www.change.org/Rowne-Prawa-Dla-Pieszych-i-Kierowcow/" />
+              ) : storeBilling ? (
+                <SupportCard onOpen={() => navigation.navigate('QuotaInfo')} title="Subskrypcja" text="Utrzymanie serwerów kosztuje. Subskrypcja zwiększa limit zdjęć i pomaga nam działać stabilnie." url="" />
               ) : (
                 <>
                   <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} title="Patronite" text={`Utrzymanie serwerów kosztuje. Zostań ${patronem(d.sexStrings)} i pomóż nam działać stabilnie.`} url="/patronite.html" />
@@ -224,7 +233,7 @@ export function DashboardScreen({ navigation }: any) {
             <Pressable style={{ backgroundColor: ud.surface, borderRadius: ud.radiusCard, padding: 22, alignItems: 'center', width: '100%', maxWidth: 360 }}>
               {badge.img ? <Image source={{ uri: `${udConfig.base}/${badge.img}` }} style={{ width: 96, height: 96 }} resizeMode="contain" /> : null}
               <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 16, color: ud.text, marginTop: 10, textAlign: 'center' }}>{badge.name}</Text>
-              <Text style={{ color: ud.muted, marginTop: 8, textAlign: 'center', lineHeight: 20 }}>{stripHtml(badge.desc)}</Text>
+              <Text style={{ color: ud.muted, marginTop: 8, textAlign: 'center', lineHeight: 20 }}>{storeBilling && badge.id === 'patron' ? PATRON_BADGE_DESC : stripHtml(badge.desc)}</Text>
               <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: badge.earned ? ud.text : ud.muted, marginTop: 10 }}>{badge.earned ? 'ZDOBYTA' : 'JESZCZE NIEZDOBYTA'}</Text>
             </Pressable>
           ) : null}

@@ -5,6 +5,8 @@ import { HeaderButton } from '../components/header';
 import { udConfig } from '../config';
 import { embedInjection } from '../lib/embedStyle';
 import { isUdPage, withEmbed } from '../lib/openPage';
+import { storeBilling } from '../lib/purchases';
+import { isOutsidePaymentUrl } from '../lib/subscription';
 import { ud } from '../theme';
 
 let WebView: any = null;
@@ -42,6 +44,7 @@ export function WebPageScreen({ navigation, route }: any) {
   }, [navigation, uri]);
 
   const onRequest = (req: { url: string; isTopFrame?: boolean }) => {
+    if (storeBilling && isOutsidePaymentUrl(req.url)) return false; // iOS: bez przejść do płatności poza App Store
     if (req.url === uri || req.url.startsWith('about:') || req.isTopFrame === false) return true;
     const page = isUdPage(req.url);
     if (page && req.url.startsWith(udConfig.base)) {
