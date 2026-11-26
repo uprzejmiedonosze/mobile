@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -28,6 +28,7 @@ import { HeaderBrand, headerOptions, largeTitle, newReportOptions, tabOptions } 
 import { installGlobalLogHandlers, log } from './src/lib/log';
 import { installE2eLogin } from './src/lib/e2eLogin';
 import { installEmailLinkLogin } from './src/lib/emailLinkLogin';
+import { useDeepLinks } from './src/lib/useDeepLinks';
 import { useAuth } from './src/store/useAuth';
 import { useAppUpdate } from './src/store/useAppUpdate';
 import { toast } from './src/store/useToast';
@@ -90,15 +91,22 @@ export default function App() {
     if (logged && !registrationChecked) checkRegistration();
   }, [logged, registrationChecked, checkRegistration]);
 
+  // Linki do ekranów (udpro:///app/…) – dopiero gdy wiadomo, czy jest sesja, i stoi stos zalogowanej części.
+  const navigation = useNavigationContainerRef<any>();
+  const [navReady, setNavReady] = useState(false);
+  const settled = ready && !(logged && !registrationChecked) && !['verifying', 'google-signing', 'passkey-signing'].includes(status);
+  const splash = !fontsLoaded || !ready || (logged && !registrationChecked);
+  useDeepLinks(navigation, settled && fontsLoaded ? logged && registered : null, navReady && !splash && updateStatus !== 'required');
+
   return (
     <SafeAreaProvider>
     <ErrorBoundary>
-    <NavigationContainer>
+    <NavigationContainer ref={navigation} onReady={() => setNavReady(true)}>
       {/* zielony nagłówek → jasne ikony; jasny ekran startowy → ciemne */}
-      <StatusBar style={updateStatus === 'required' || !fontsLoaded || !ready || (logged && !registrationChecked) ? 'dark' : 'light'} />
+      <StatusBar style={updateStatus === 'required' || splash ? 'dark' : 'light'} />
       {updateStatus === 'required' && fontsLoaded ? (
         <UpdateRequiredScreen />
-      ) : !fontsLoaded || !ready || (logged && !registrationChecked) ? (
+      ) : splash ? (
         <UdSplash label={ready ? 'sprawdzam konto…' : 'sprawdzam sesję…'} />
       ) : !logged ? (
         <Stack.Navigator initialRouteName="Account" screenOptions={headerOptions}>
