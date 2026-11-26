@@ -31,12 +31,13 @@ export function AccountScreen({ navigation }: any) {
 
   // KeyboardAvoidingView jak na pozostałych ekranach z polami: bez niego klawiatura iOS zasłaniała dół formularza (nie dało się przewinąć).
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }} collapsable={false}>
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
       {logged ? null : <StatusBar style="dark" />}
       {/* bez sesji: zdjęcie od samej góry (pod paskiem statusu), pod nim logowanie */}
-      <ScrollView contentInsetAdjustmentBehavior={logged ? 'automatic' : 'never'} contentContainerStyle={{ paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
         {logged ? null : <LoginHero />}
-        <View style={{ paddingHorizontal: 16, paddingTop: logged ? 16 : 0 }}>
+        {/* bez sesji tytuł zachodzi na gradient pod zdjęciem */}
+        <View style={{ paddingHorizontal: 16, paddingTop: logged ? 16 : 0, marginTop: logged ? 0 : -28 }}>
           {logged ? <ProfileCards onLogout={a.logout} navigation={navigation} /> : <LoginPanel />}
         </View>
       </ScrollView>
@@ -59,7 +60,8 @@ function LoginPanel() {
 
   return (
     <>
-      <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 34, marginTop: 16, textAlign: 'center' }}>Zaloguj się</Text>
+      <Text accessibilityRole="header" style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 30, lineHeight: 36, letterSpacing: -0.4 }}>Zaloguj się</Text>
+      <Text style={{ color: ud.text, fontSize: 16, lineHeight: 22, marginTop: 4 }}>Zgłaszaj źle zaparkowane auta i śledź, co dzieje się z twoimi zgłoszeniami.</Text>
       <View style={{ alignItems: 'center', marginTop: 8 }}>
         {passkeysEnabled() ? (
           <LoginButton icon={FINGERPRINT_ICON} label="Zaloguj urządzeniem" bg={ud.primary} fg="#fff" onPress={a.signInWithPasskey} disabled={busy} />
@@ -216,8 +218,8 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
 
   return (
     <>
-      <View style={{ marginTop: 20 }}>
-        <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 34 }}>Dane konta</Text>
+      {/* bez własnego nagłówka – tytuł „Konto” daje systemowy pasek */}
+      <View>
         <ProfileFields value={p} onChange={(patch) => { setMsg(null); setP((o) => ({ ...o, ...patch })); }} email={email} disabled={!loaded} navigation={navigation} askSex />
         <UdButton title={saving ? 'Zapisuję…' : 'Zapisz zmiany'} variant="primary" onPress={save} disabled={!loaded || saving || !valid || !dirty} />
         {loaded && !valid ? <Text style={{ color: ud.muted, fontSize: 13 }}>{profileMissing(p)}</Text> : null}

@@ -1,9 +1,9 @@
 ## RELEASE-CANDIDATE
 
 - iPhone: aparat w Poczekalni przy zdjęciach robionych poziomo miał napisy do góry nogami – teraz układ obraca się w dobrą stronę.
-- Nagłówki ekranów są teraz systemowe (na iPhonie z dużym tytułem), a przełączanie zakładek w dolnym menu nie tworzy już historii do cofania – „wstecz” z zakładki wraca na Start.
+- Nowe, jaśniejsze nagłówki ekranów, a przełączanie zakładek w dolnym menu nie tworzy już historii do cofania – „wstecz” z zakładki wraca na Start.
 - Zgłoszenia: szczegóły otwierają się w panelu wysuwanym od dołu zamiast rozwijania na liście, a po jego zamknięciu lista zostaje w tym samym miejscu. Wyszukiwarka jest w nagłówku.
-- Ekran logowania ma na górze zdjęcie ze strony uprzejmiedonosze.net.
+- Ekran logowania ma na górze zdjęcie ze strony uprzejmiedonosze.net z logo aplikacji, a pod nim krótki opis, do czego służy.
 - Konto: „Zapisz zmiany” działa dopiero po faktycznej zmianie danych, a usunięcie passkeya wymaga potwierdzenia.
 - Formularze mówią, czego jeszcze brakuje, a błędy w danych konta pokazują się po wyjściu z pola.
 - Start: główny przycisk to teraz „Zrób zdjęcia” (tam, gdzie jest Poczekalnia).

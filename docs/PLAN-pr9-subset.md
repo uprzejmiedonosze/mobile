@@ -15,7 +15,7 @@ Przenosimy ręcznie, bez cherry-picka. Lokalna gałąź `pr9` nie nadaje się na
 
 ### 1. Nagłówki
 - `App.tsx`: włączyć nagłówek native-stack z tytułami; usunąć `UdHeader` z osiągalnych ekranów. Stare ekrany pipeline'u bez zmian.
-- Kolory jak dziś (zielone tło, białe napisy). Na iOS duży tytuł na ekranach zakładek, mały na ekranach procesu.
+- Jasny nagłówek jak w PR #9 (tło ekranu, ciemny tytuł, zielone przyciski) – zielony okazał się w praktyce gorszy. Na iOS ekrany zakładek mają własny nagłówek z H1 pod paskiem statusu (systemowy duży tytuł zostawiał pusty pasek), ekrany procesu mały tytuł systemowy.
 - Ekrany zakładek (Start, Nowe, Zgłoszenia, Poczekalnia, Konto): bez przycisku i gestu „wstecz”; przełączanie zakładek nie dokłada ekranów na stos. Sprawdzić parametr `filter` listy i otwieranie edycji (`editId`).
 - Start: logo (z „PRO”) jako tytuł. Logowanie i splash bez nagłówka.
 - Zachować działanie przycisków: „popraw” na potwierdzeniu, wylogowanie na rejestracji, historia WebView na stronie, brak powrotu na ekranie po wysłaniu.
@@ -25,15 +25,15 @@ Przenosimy ręcznie, bez cherry-picka. Lokalna gałąź `pr9` nie nadaje się na
 ### 2. Lista i szczegóły
 - Dotknięcie karty otwiera arkusz od dołu (`presentation: 'formSheet'`), zamiast rozwijania. Wzór: `ReportSheet`, `useReportSheet`.
 - Wygląd karty, teksty, filtry i link do pism bez zmian.
-- Wyszukiwarka w nagłówku (`headerSearchBarOptions`) zamiast pola nad listą.
+- Wyszukiwarka w nagłówku: na Androidzie `headerSearchBarOptions`, na iOS pole pod tytułem.
 - Toasty widoczne nad arkuszem.
 - Przejście z arkusza (edycja, strona, konto) najpierw go zamyka.
 - Android: sprawdzić przewijanie i klawiaturę w arkuszu; w razie problemów zwykły ekran modalny.
 
 ### 3. Logowanie
 - Zdjęcie zmniejszyć przed wbudowaniem (oryginał 1200×903, 511 KB) i dopasować `HERO_ASPECT`.
-- `LoginHero`: samo zdjęcie od krawędzi do krawędzi (także pod paskiem statusu), bez nakładek, gradientu i animacji.
-- Przyciski, formularz i teksty bez zmian.
+- `LoginHero`: zdjęcie od krawędzi do krawędzi (także pod paskiem statusu) z gradientem w tło, bez nakładek i animacji.
+- Tytuł do lewej i opis pod nim jak w PR; przyciski i formularz bez zmian.
 
 ### 4. Konto
 - Alert „Usunąć passkey?” przed usunięciem.

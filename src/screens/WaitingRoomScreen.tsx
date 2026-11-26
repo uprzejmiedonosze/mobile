@@ -136,7 +136,7 @@ export function WaitingRoomScreen({ navigation }: any) {
   let lastDay = '';
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
         <UdButton title="Zrób zdjęcia" onPress={() => navigation.replace('WaitingCamera')} />
         {!photos.length ? (
           <Text style={{ color: ud.muted, marginTop: 16, lineHeight: 21 }}>Zdjęcia zrobione w aplikacji poczekają tutaj, poza rolką aparatu. Zostają tylko na tym telefonie: odinstalowanie aplikacji je usunie.</Text>

@@ -7,7 +7,8 @@ UD Pro — an Expo/React Native mobile client for uprzejmiedonosze.net (Polish p
 reporting service). Screens: Dashboard (`/app`), report creation (`/app/new`), list (`/app/list`) and
 account (`/app/account`), bottom tabs Start / Nowe / Zgłoszenia / Konto (same icons as the web tab bar), plus Poczekalnia where `waitingRoomEnabled`.
 
-**Nawigacja (React Navigation, `App.tsx`).** Nagłówki to natywne nagłówki native-stack (`src/components/header.tsx`); `UdHeader` został tylko
+**Nawigacja (React Navigation, `App.tsx`).** Nagłówki to nagłówki native-stack (`src/components/header.tsx`); na iOS ekrany zakładek mają własny `PageHeader`
+(H1 pod paskiem statusu, w Zgłoszeniach z wyszukiwarką; Android: systemowy pasek z wyszukiwarką). `UdHeader` został tylko
 w nieosiągalnych ekranach pipeline'u. Dolne menu (`UdTabs`) i zakładki siedzą w jednym stosie: na zakładki przechodź przez `goTab`
 (`src/lib/goTab.ts`, stos = [Start, zakładka], bez „wstecz”), na ekrany procesów zwykłym `navigate`/`push`. `NewReport` z `editId`/`waitingIds`
 to ekran procesu. Szczegóły zgłoszenia z listy to arkusz `Report` (`ReportSheet` + `useReportSheet`). Deep linki `udpro:///app`, `/app/new`,
