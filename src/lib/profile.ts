@@ -26,3 +26,11 @@ export function profileErrors(p: ProfileDraft): { name?: string; address?: strin
 export const sameProfile = (a: ProfileDraft, b: ProfileDraft) => (Object.keys(EMPTY_PROFILE) as (keyof ProfileDraft)[]).every((k) => a[k] === b[k]);
 
 export const profileValid = (p: ProfileDraft) => !!p.name.trim() && !!p.address.trim() && Object.keys(profileErrors(p)).length === 0;
+
+// Podpowiedź pod zablokowanym przyciskiem zapisu: czego brakuje. null = formularz gotowy; błędy formatu są przy polach.
+export function profileMissing(p: ProfileDraft): string | null {
+  const missing = [!p.name.trim() && 'imię i nazwisko', !p.address.trim() && 'adres'].filter(Boolean) as string[];
+  if (missing.length) return `Uzupełnij ${missing.join(' i ')}.`;
+  if (Object.keys(profileErrors(p)).length) return 'Popraw zaznaczone pola.';
+  return null;
+}

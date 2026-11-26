@@ -1,9 +1,10 @@
+import { useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { openUdPage } from '../lib/openPage';
 import { ud, inputColors } from '../theme';
-import { EMPTY_PROFILE, profileErrors, profileValid, sameProfile, type ProfileDraft } from '../lib/profile';
+import { EMPTY_PROFILE, profileErrors, profileMissing, profileValid, sameProfile, type ProfileDraft } from '../lib/profile';
 
-export { EMPTY_PROFILE, profileValid, sameProfile, type ProfileDraft };
+export { EMPTY_PROFILE, profileMissing, profileValid, sameProfile, type ProfileDraft };
 
 // Pola konta wspólne dla rejestracji (OnboardingScreen) i edycji (AccountScreen) – jak register.html.twig na www:
 // imię i nazwisko, e-mail z logowania, adres, telefon, e-Doręczenia, (tylko w edycji) forma gramatyczna i zgoda na galerię.
@@ -32,6 +33,13 @@ type Props = {
 
 export function ProfileFields({ value: p, onChange, email, disabled, navigation, askSex }: Props) {
   const err = profileErrors(p);
+  // Błąd formatu dopiero po wyjściu z pola – w trakcie pisania „Jan” to jeszcze nie błąd.
+  const [editing, setEditing] = useState<keyof typeof err | null>(null);
+  const track = (k: keyof typeof err) => ({ onFocus: () => setEditing(k), onBlur: () => setEditing((c) => (c === k ? null : c)) });
+  const shown = (k: keyof typeof err) => (editing === k ? undefined : err[k]);
+  const addressRef = useRef<TextInput>(null);
+  const msisdnRef = useRef<TextInput>(null);
+  const edeliveryRef = useRef<TextInput>(null);
   const fieldErr = (t?: string) => (t ? <Text style={{ color: ud.plateVerified, marginTop: 4 }}>{t}</Text> : null);
   return (
     <>
@@ -44,8 +52,9 @@ export function ProfileFields({ value: p, onChange, email, disabled, navigation,
       </Text>
 
       <Text style={label}>Imię i nazwisko, które posłużą SM do identyfikacji autora zgłoszenia</Text>
-      <TextInput {...inputColors} style={input} value={p.name} onChangeText={(name) => onChange({ name })} maxLength={30} editable={!disabled} autoCapitalize="words" autoComplete="name" placeholder="(twoje imię i nazwisko)" />
-      {fieldErr(err.name)}
+      <TextInput {...inputColors} style={input} value={p.name} onChangeText={(name) => onChange({ name })} maxLength={30} editable={!disabled} autoCapitalize="words" autoComplete="name" textContentType="name" placeholder="(twoje imię i nazwisko)"
+        {...track('name')} returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => addressRef.current?.focus()} />
+      {fieldErr(shown('name'))}
 
       {email !== undefined ? (
         <>
@@ -55,15 +64,17 @@ export function ProfileFields({ value: p, onChange, email, disabled, navigation,
       ) : null}
 
       <Text style={label}>Adres zamieszkania wraz z numerem lokalu i miastem</Text>
-      <TextInput {...inputColors} style={input} value={p.address} onChangeText={(address) => onChange({ address })} maxLength={70} editable={!disabled} autoComplete="street-address" placeholder="(Ulica 10a/7, Miasto)" />
-      {fieldErr(err.address)}
+      <TextInput ref={addressRef} {...inputColors} style={input} value={p.address} onChangeText={(address) => onChange({ address })} maxLength={70} editable={!disabled} autoComplete="street-address" textContentType="fullStreetAddress" placeholder="(Ulica 10a/7, Miasto)"
+        {...track('address')} returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => msisdnRef.current?.focus()} />
+      {fieldErr(shown('address'))}
 
       <Text style={label}>Numer kontaktowy (opcjonalny, ale ułatwi SM kontakt z Tobą)</Text>
-      <TextInput {...inputColors} style={input} value={p.msisdn} onChangeText={(msisdn) => onChange({ msisdn })} maxLength={12} keyboardType="phone-pad" editable={!disabled} placeholder="666 666 666" />
+      <TextInput ref={msisdnRef} {...inputColors} style={input} value={p.msisdn} onChangeText={(msisdn) => onChange({ msisdn })} maxLength={12} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" editable={!disabled} placeholder="666 666 666"
+        returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => edeliveryRef.current?.focus()} />
 
       <Text style={label}>Adres e-Doręczeń (opcjonalny)</Text>
-      <TextInput {...inputColors} style={input} value={p.edelivery} onChangeText={(edelivery) => onChange({ edelivery: edelivery.toUpperCase() })} maxLength={26} autoCapitalize="characters" autoCorrect={false} editable={!disabled} placeholder="AE:PL-00000-00000-AAAAA-00" />
-      {fieldErr(err.edelivery)}
+      <TextInput ref={edeliveryRef} {...inputColors} style={input} value={p.edelivery} onChangeText={(edelivery) => onChange({ edelivery: edelivery.toUpperCase() })} maxLength={26} autoCapitalize="characters" autoCorrect={false} editable={!disabled} placeholder="AE:PL-00000-00000-AAAAA-00" {...track('edelivery')} returnKeyType="done" />
+      {fieldErr(shown('edelivery'))}
 
       <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 22, marginTop: 24 }}>Ustawienia</Text>
       {askSex ? (

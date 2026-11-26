@@ -17,7 +17,7 @@ import { goTab } from '../lib/goTab';
 import { LoginHero } from '../components/LoginHero';
 import { FINGERPRINT_ICON, GOOGLE_ICON, MAIL_ICON } from '../components/loginIcons';
 import { leaveDemo } from '../lib/demoLogin';
-import { EMPTY_PROFILE, ProfileFields, profileValid, sameProfile, type ProfileDraft } from '../components/ProfileFields';
+import { EMPTY_PROFILE, ProfileFields, profileMissing, profileValid, sameProfile, type ProfileDraft } from '../components/ProfileFields';
 
 export function AccountScreen({ navigation }: any) {
   const a = useAuth();
@@ -75,7 +75,7 @@ function LoginPanel() {
       {emailOpen ? (
         <UdCard>
           <Text style={{ color: ud.heading, fontWeight: '700' }}>1. Podaj e-mail</Text>
-          <TextInput {...inputColors} value={a.email} onChangeText={a.setEmail} placeholder="ty@przyklad.pl" autoCapitalize="none" keyboardType="email-address" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
+          <TextInput {...inputColors} value={a.email} onChangeText={a.setEmail} placeholder="ty@przyklad.pl" autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="emailAddress" returnKeyType="send" onSubmitEditing={() => { if (!busy && a.email.trim()) a.requestLink(); }} style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
           <UdButton
             title={a.status === 'link-sending' ? 'Wysyłam…' : 'Wyślij link logowania'}
             variant="primary"
@@ -96,7 +96,7 @@ function LoginPanel() {
               <Text style={{ color: ud.muted, marginTop: 2 }}>Linku NIE otwieraj (jest jednorazowy) – skopiuj go z maila i wklej tutaj całość.</Text>
             </>
           )}
-          <TextInput {...inputColors} value={code} onChangeText={setCode} placeholder={demoMode ? 'kod' : 'link z maila'} autoCapitalize="none" style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
+          <TextInput {...inputColors} value={code} onChangeText={setCode} placeholder={demoMode ? 'kod' : 'link z maila'} autoCapitalize="none" autoCorrect={false} returnKeyType="go" onSubmitEditing={() => { if (!busy && code.trim()) a.verifyCode(code); }} style={{ borderWidth: 1, borderColor: ud.hairline, borderRadius: 10, padding: 10, marginTop: 6, color: ud.text }} />
           <UdButton title="Zaloguj" variant="accent" onPress={() => a.verifyCode(code)} disabled={busy || !code.trim()} />
           {a.status === 'link-sent' && !demoMode ? <Text style={{ color: ud.primary, fontWeight: '700' }}>{a.appLinkSent ? 'Link wysłany – otwórz mail na tym telefonie i kliknij link.' : 'Link wysłany – sprawdź skrzynkę.'}</Text> : null}
         </UdCard>
@@ -220,6 +220,7 @@ function ProfileCards({ onLogout, navigation }: { onLogout: () => void; navigati
         <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 34 }}>Dane konta</Text>
         <ProfileFields value={p} onChange={(patch) => { setMsg(null); setP((o) => ({ ...o, ...patch })); }} email={email} disabled={!loaded} navigation={navigation} askSex />
         <UdButton title={saving ? 'Zapisuję…' : 'Zapisz zmiany'} variant="primary" onPress={save} disabled={!loaded || saving || !valid || !dirty} />
+        {loaded && !valid ? <Text style={{ color: ud.muted, fontSize: 13 }}>{profileMissing(p)}</Text> : null}
         {msg ? <Text style={{ color: msg.ok ? ud.primary : 'red', marginTop: 6, fontWeight: '700' }}>{msg.text}</Text> : null}
         <Text style={{ color: ud.muted, fontSize: 12, marginTop: 10 }}>Wersja {appVersion} ({appBuild}) · Środowisko: {udEnv}{demoMode ? ' (konto demo – zgłoszenia nie trafiają do SM ani na Policję)' : ''} ({udConfig.base})</Text>
       </View>

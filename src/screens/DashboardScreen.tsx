@@ -141,13 +141,18 @@ export function DashboardScreen({ navigation }: any) {
             <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 26 }}>Cześć{d.name ? ` ${d.name}` : ''},</Text>
             <Text style={{ color: ud.text, marginTop: 6, lineHeight: 21 }}>{stripHtml(d.introMsg)}</Text>
             <View style={{ marginTop: 14 }}>
-              <UdButton title="Nowe zgłoszenie" onPress={() => go('NewReport')} />
+              {/* Główna akcja: aparat – zgłoszenia zaczynają się na ulicy, w pośpiechu. Bez poczekalni główne jest „Nowe zgłoszenie”. */}
               {waitingRoomEnabled ? (
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <View style={{ flex: 1 }}><UdButton title="Zrób zdjęcia" variant="outline" pill onPress={() => go('WaitingCamera')} /></View>
-                  <View style={{ flex: 1 }}><UdButton title={`Poczekalnia (${waitingCount})`} variant="outline" pill onPress={() => go('WaitingRoom')} /></View>
-                </View>
-              ) : null}
+                <>
+                  <UdButton title="Zrób zdjęcia" onPress={() => go('WaitingCamera')} />
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <View style={{ flex: 1 }}><UdButton title={waitingCount ? `Poczekalnia (${waitingCount})` : 'Poczekalnia'} variant="outline" pill onPress={() => go('WaitingRoom')} /></View>
+                    <View style={{ flex: 1 }}><UdButton title="Nowe zgłoszenie" variant="outline" pill onPress={() => go('NewReport')} /></View>
+                  </View>
+                </>
+              ) : (
+                <UdButton title="Nowe zgłoszenie" onPress={() => go('NewReport')} />
+              )}
             </View>
 
             {d.rank ? (

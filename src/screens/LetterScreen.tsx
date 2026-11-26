@@ -4,6 +4,7 @@ import { fetchStatuses, type StatusDef } from '../api/apps';
 import { analyzeLetter, applyLetter, type LetterAnalysis, type LetterCandidate, type LetterCaseResult } from '../api/letters';
 import { isPhotoQuotaError } from '../api/udApi';
 import { fetchProfile } from '../api/user';
+import { MultilineInput } from '../components/MultilineInput';
 import { PhotoQuotaNotice } from '../components/PhotoQuotaNotice';
 import { UdButton, UdCard, UdTabs } from '../components/UD';
 import { goTab } from '../lib/goTab';
@@ -121,7 +122,7 @@ function CaseCard({ result, letter, statuses }: { result: LetterCaseResult; lett
 
           {p.append.privateComment !== null ? (
             <Row on={draft.useNote} onChange={(v) => setDraft({ ...draft, useNote: v })} title="Dopisz do uwag (widocznych tylko dla Ciebie)">
-              <TextInput {...inputColors} value={draft.note} onChangeText={(t) => setDraft({ ...draft, note: t })} multiline style={{ ...input, marginTop: 6, minHeight: 64, textAlignVertical: 'top' }} />
+              <MultilineInput value={draft.note} onChangeText={(t) => setDraft({ ...draft, note: t })} style={{ ...input, marginTop: 6, minHeight: 64, textAlignVertical: 'top' }} />
             </Row>
           ) : null}
 
