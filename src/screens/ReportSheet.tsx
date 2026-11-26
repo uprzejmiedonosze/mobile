@@ -48,7 +48,7 @@ export function ReportSheet({ navigation }: any) {
     // ScrollView jako pierwsze dziecko ekranu – arkusz iOS łączy z nim gest rozwijania; tło daje contentStyle w App.tsx.
     <>
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingTop: 24, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingTop: 16, paddingBottom: 40 }} // bez marginesów: kontenerem karty jest sam arkusz
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
         nestedScrollEnabled
