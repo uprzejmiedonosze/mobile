@@ -5,7 +5,8 @@ import { analyzeLetter, applyLetter, type LetterAnalysis, type LetterCandidate, 
 import { isPhotoQuotaError } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { PhotoQuotaNotice } from '../components/PhotoQuotaNotice';
-import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdCard, UdTabs } from '../components/UD';
+import { goTab } from '../lib/goTab';
 import { ensureAiConsent } from '../lib/aiConsent';
 import { pickPhotos, takePhoto } from '../lib/gallery';
 import {
@@ -140,7 +141,7 @@ function CaseCard({ result, letter, statuses }: { result: LetterCaseResult; lett
 
 // Jedno zdjęcie na raz: po zrobieniu zdjęcia (domyślnie aparat) albo wyborze z galerii analiza startuje od razu.
 export function LetterScreen({ navigation }: any) {
-  const go = (r: string) => navigation.navigate(r);
+  const go = (r: string) => goTab(navigation, r);
   const [uri, setUri] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<LetterAnalysis | null>(null);
   const [busy, setBusy] = useState(false);
@@ -192,7 +193,6 @@ export function LetterScreen({ navigation }: any) {
 
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader title="Pismo" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {!uri ? (
           <>

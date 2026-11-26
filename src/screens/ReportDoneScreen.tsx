@@ -4,14 +4,15 @@ import { fetchProfile } from '../api/user';
 import { openUdPage } from '../lib/openPage';
 import { plural } from '../lib/reports';
 import { PATRONEM_DEFAULT } from '../lib/sex';
-import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdTabs } from '../components/UD';
+import { goTab } from '../lib/goTab';
 import { useNewReport } from '../store/useNewReport';
 import { useWaitingRoom } from '../store/useWaitingRoom';
 import { ud } from '../theme';
 
 // Odpowiednik dziekujemy.html.twig – wynik „Potwierdź i wyślij” (POST /api/rest/app/{id}/finish).
 export function ReportDoneScreen({ navigation }: any) {
-  const go = (r: string, params?: object) => navigation.navigate(r, params);
+  const go = (r: string, params?: object) => goTab(navigation, r, params);
   const results = useNewReport((s) => s.done);
   const [patron, setPatron] = useState(PATRONEM_DEFAULT); // „Patronem”/„Patronką” wg płci z profilu (sexStrings z backendu)
   useEffect(() => { fetchProfile().then((p) => setPatron(p.patronem)).catch(() => {}); }, []);
@@ -23,7 +24,6 @@ export function ReportDoneScreen({ navigation }: any) {
   if (!done) {
     return (
       <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-        <UdHeader />
         <View style={{ padding: 16 }}><UdButton title="Nowe zgłoszenie" onPress={() => go('NewReport')} /></View>
         <UdTabs current="ReportDone" navigate={go} />
       </View>
@@ -40,7 +40,6 @@ export function ReportDoneScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
         <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>{edited ? 'Zgłoszenie zaktualizowane' : 'Dziękujemy!'}</Text>
         {results!.length > 1

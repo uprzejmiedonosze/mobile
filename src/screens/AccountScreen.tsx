@@ -12,14 +12,17 @@ import { hasAiConsent, revokeAiConsent } from '../lib/aiConsent';
 import { galleryCopyAvailable, getGalleryCopy, setGalleryCopy } from '../lib/galleryCopy';
 import { ud, inputColors, ripple, rippleOnDark } from '../theme';
 import { SvgXml } from 'react-native-svg';
-import { UdButton, UdCard, UdHeader, UdSplash, UdTabs } from '../components/UD';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { UdButton, UdCard, UdSplash, UdTabs } from '../components/UD';
+import { goTab } from '../lib/goTab';
 import { FINGERPRINT_ICON, GOOGLE_ICON, MAIL_ICON } from '../components/loginIcons';
 import { leaveDemo } from '../lib/demoLogin';
 import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
 
 export function AccountScreen({ navigation }: any) {
   const a = useAuth();
-  const go = (r: string) => navigation.navigate(r);
+  const insets = useSafeAreaInsets();
+  const go = (r: string) => goTab(navigation, r);
 
   const logged = a.status === 'logged' && !!a.idToken;
   // Weryfikacja tokenu trwa 1–2 s – sam napis na przycisku wyglądał, jakby logowanie stanęło. Ten sam ekran co
@@ -29,9 +32,8 @@ export function AccountScreen({ navigation }: any) {
 
   // KeyboardAvoidingView jak na pozostałych ekranach z polami: bez niego klawiatura iOS zasłaniała dół formularza (nie dało się przewinąć).
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }} collapsable={false}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, paddingBottom: 28, paddingTop: logged ? 16 : insets.top + 16 }} keyboardShouldPersistTaps="handled">
         {logged ? <ProfileCards onLogout={a.logout} navigation={navigation} /> : <LoginPanel />}
       </ScrollView>
       {logged ? <UdTabs current="Account" navigate={go} /> : null}

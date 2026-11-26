@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { ScrollView, Text, TextInput, View } from 'react-native';
 import { useAuth } from '../store/useAuth';
 import { confirmTerms, ensureUserRow, fetchTerms, updateUserProfile, type TermsDoc } from '../api/user';
 import { useNavigation } from '@react-navigation/native';
 import { log } from '../lib/log';
+import { HeaderButton } from '../components/header';
 import { openUdPage } from '../lib/openPage';
 import { termSegments } from '../lib/reports';
 import { ud } from '../theme';
-import { UdButton, UdCard, UdHeader } from '../components/UD';
+import { UdButton, UdCard } from '../components/UD';
 import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
 
 // Rejestracja + regulamin po REST (bez web UI), patrz CLAUDE.md sekcja Auth.
@@ -64,9 +65,14 @@ export function OnboardingScreen() {
     }
   };
 
+  // „Wstecz” w nagłówku wylogowuje – wyjście, gdy to złe konto.
+  const logout = a.logout;
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerLeft: () => <HeaderButton onPress={logout} /> });
+  }, [navigation, logout]);
+
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader title="Rejestracja" onBack={a.logout} />
       <ScrollView contentContainerStyle={{ padding: 16 }}>
         <UdCard>
           <Text style={{ color: ud.heading, fontWeight: '800', fontSize: 17 }}>Witaj, {a.name || a.email}</Text>

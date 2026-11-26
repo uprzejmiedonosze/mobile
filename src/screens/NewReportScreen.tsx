@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { type UdApp, imageUrl } from '../api/apps';
@@ -19,7 +19,8 @@ import { MapPicker, type PickedPlace } from '../components/MapPicker';
 import { MapPreview } from '../components/MapPreview';
 import { CROP_TILE_ID, PhotosSection, type Tile } from '../components/PhotosSection';
 import { PhotoQuotaNotice } from '../components/PhotoQuotaNotice';
-import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdTabs } from '../components/UD';
+import { goTab } from '../lib/goTab';
 import { usePhotoQuota } from '../lib/usePhotoQuota';
 import { ensureAiConsent } from '../lib/aiConsent';
 import { PATRONEM_DEFAULT } from '../lib/sex';
@@ -113,7 +114,7 @@ function Radio({ on, onPress, children, disabled, hint }: { on: boolean; onPress
 }
 
 export function NewReportScreen({ navigation, route }: any) {
-  const go = (r: string) => navigation.navigate(r);
+  const go = (r: string) => goTab(navigation, r);
   const editId: string | undefined = route?.params?.editId;
   // Paczka z poczekalni: osobny szkic, którego id pamiętają zdjęcia – zapamiętany `draftId` zwykłego formularza zostaje nietknięty
   // (szkiców nie ma na liście zgłoszeń, więc nadpisanie go oznaczałoby utratę dostępu do niego).
@@ -157,6 +158,12 @@ export function NewReportScreen({ navigation, route }: any) {
     if (field) setErr({ field, text: m });
     toast.error(m); // formularz jest długi – błąd pola mógłby zostać poza ekranem
   }, [setQuota]);
+
+  // Ekran procesu: tytuł w nagłówku mówi, co robisz – edycja konkretnego numeru albo paczka z poczekalni.
+  useLayoutEffect(() => {
+    if (editId) navigation.setOptions({ title: `Edycja${app?.number ? ` ${app.number}` : ''}` });
+    else if (waitingIds) navigation.setOptions({ title: 'Z poczekalni' });
+  }, [navigation, editId, waitingIds, app?.number]);
 
   useEffect(() => { hydrate(); }, [hydrate]);
   // Punkt startowy mapy jak na www: ostatnie zgłoszenie → adres zamieszkania → (brak) środek Polski. Odświeżane przy
@@ -477,14 +484,11 @@ export function NewReportScreen({ navigation, route }: any) {
   }, []);
 
   const fieldErr = (f: string) => (err?.field === f ? <Text style={{ color: ud.plateVerified, marginTop: 4 }}>{err.text}</Text> : null);
-  if (loading) return <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}><UdHeader /><ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} /></View>;
+  if (loading) return <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}><ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} /></View>;
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
-        {editId ? <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28 }}>{`Edycja${app?.number ? ` ${app.number}` : ''}`}</Text> : null}
-
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }} collapsable={false}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {!editId && !waitingIds && tiles.length > 0 ? (
           <Pressable onPress={startOver} disabled={uploading} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 10, opacity: uploading ? 0.5 : 1 }}>
             <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold, textDecorationLine: 'underline' }}>Zacznij od nowa</Text>

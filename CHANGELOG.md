@@ -1,6 +1,7 @@
 ## RELEASE-CANDIDATE
 
 - iPhone: aparat w Poczekalni przy zdjęciach robionych poziomo miał napisy do góry nogami – teraz układ obraca się w dobrą stronę.
+- Nagłówki ekranów są teraz systemowe (na iPhonie z dużym tytułem), a przełączanie zakładek w dolnym menu nie tworzy już historii do cofania – „wstecz” z zakładki wraca na Start.
 
 ## v1.4.0 — 2026-11-20
 

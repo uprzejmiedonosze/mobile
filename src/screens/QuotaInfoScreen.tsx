@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Linking, ScrollView, Text, View } from 'react-native';
 import { fetchProfile } from '../api/user';
-import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdCard, UdTabs } from '../components/UD';
+import { goTab } from '../lib/goTab';
 import { udConfig } from '../config';
 import { openUdPage } from '../lib/openPage';
 import { BENEFITS, ctaLabel, HEADING, INTRO, LETTERS_NOTICE, MORE_LINK, PATRONITE_URL, SUPPORT_HEADING, tierRows, TIERS_HEADING, TIERS_INTRO, usageLine } from '../lib/quotaInfo';
@@ -18,7 +19,7 @@ const P = ({ children }: { children: React.ReactNode }) => <Text style={{ color:
 // Tabela progów i zużycie przychodzą z backendu (`quota.tiers`); CTA prowadzi na Patronite.
 export function QuotaInfoScreen({ navigation, route }: any) {
   const fromLetters = route?.params?.reason === 'letters';
-  const go = (r: string) => navigation.navigate(r);
+  const go = (r: string) => goTab(navigation, r);
   const { quota, refresh } = usePhotoQuota();
   const [patron, setPatron] = useState(PATRONEM_DEFAULT);
 
@@ -32,7 +33,6 @@ export function QuotaInfoScreen({ navigation, route }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader title="Limity" onBack={() => navigation.goBack()} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
         {fromLetters ? (
           <View style={{ backgroundColor: ud.surface, borderWidth: 1, borderColor: ud.accent, borderRadius: ud.radiusCard, padding: 14, marginBottom: 16 }}>

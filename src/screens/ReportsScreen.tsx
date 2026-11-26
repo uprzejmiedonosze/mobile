@@ -12,7 +12,8 @@ import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plateHistory, plural, 
 import { ImageViewer } from '../components/ImageViewer';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { openUdPage } from '../lib/openPage';
-import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdTabs } from '../components/UD';
+import { goTab } from '../lib/goTab';
 import type { Category, RecydywaEntry, RecydywaGallery, RecydywaInfo } from '../types';
 import { useAuth } from '../store/useAuth';
 import { toast } from '../store/useToast';
@@ -388,7 +389,7 @@ function ReportCard({ app, statuses, categories, onStatus, onEdit, onFields, onF
 
 export function ReportsScreen({ navigation, route }: any) {
   const isPatron = useAuth((s) => s.isPatron); // odznaka PRO z backendu
-  const go = (r: string) => navigation.navigate(r);
+  const go = (r: string) => goTab(navigation, r);
   const openLetters = async () => {
     // Odznaka z cache'owanych statystyk bywa nieaktualna (do 24 h) – bez niej pytamy o aktualny próg wsparcia.
     const quota = isPatron ? null : await fetchPhotoQuota().catch(() => null);
@@ -547,7 +548,6 @@ export function ReportsScreen({ navigation, route }: any) {
   if (err && !apps.length && !loading) {
     return (
       <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-        <UdHeader />
         <ErrorScreen error={err} onRetry={() => load(true)} onContact={() => openUdPage(navigation, '/kontakt.html', 'Kontakt')} />
         <UdTabs current="Reports" navigate={go} />
       </View>
@@ -555,8 +555,7 @@ export function ReportsScreen({ navigation, route }: any) {
   }
 
   return (
-    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader />
+    <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }} collapsable={false}>
       {noReports ? null : (
       <View style={{ paddingHorizontal: 16, paddingTop: 10 }}>
         <Pressable onPress={openLetters} accessibilityRole="button" style={{ alignSelf: 'flex-start', marginBottom: 8 }}>
