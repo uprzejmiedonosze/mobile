@@ -9,7 +9,8 @@ import { patronem } from '../lib/sex';
 import { plural } from '../lib/reports';
 import type { PhotoQuota } from '../api/udApi';
 import { ErrorScreen } from '../components/ErrorScreen';
-import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdTabs } from '../components/UD';
+import { goTab } from '../lib/goTab';
 import { useWaitingRoom, waitingRoomEnabled } from '../store/useWaitingRoom';
 import { ripple, rippleOnDark, ud } from '../theme';
 
@@ -89,7 +90,7 @@ function SupportCard({ title, text, url, external, onOpen }: { title: string; te
 }
 
 export function DashboardScreen({ navigation }: any) {
-  const go = (r: string, params?: object) => navigation.navigate(r, params);
+  const go = (r: string, params?: object) => goTab(navigation, r, params);
   const [d, setD] = useState<Dashboard | null>(cachedDashboard); // ostatni pulpit z pamięci: pokazujemy od razu, load() odświeża
   const [err, setErr] = useState<unknown>(null); // błąd ładowania pulpitu (ApiError/Error) → ErrorScreen
   const [refreshing, setRefreshing] = useState(false);
@@ -125,7 +126,6 @@ export function DashboardScreen({ navigation }: any) {
   if (err && !d) {
     return (
       <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-        <UdHeader />
         <ErrorScreen error={err} onRetry={load} onContact={() => openUdPage(navigation, '/kontakt.html', 'Kontakt')} />
         <UdTabs current="Dashboard" navigate={(r) => go(r)} />
       </View>
@@ -134,7 +134,6 @@ export function DashboardScreen({ navigation }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={ud.primary} />}>
         {!d && !err ? <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} /> : null}
         {d ? (

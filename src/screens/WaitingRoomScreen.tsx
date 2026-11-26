@@ -3,7 +3,8 @@ import { Alert, Animated, Image, PanResponder, Pressable, ScrollView, Text, useW
 import { reverseGeocode } from '../api/geo';
 import { validIdToken } from '../api/udApi';
 import { ImageViewer } from '../components/ImageViewer';
-import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdTabs } from '../components/UD';
+import { goTab } from '../lib/goTab';
 import { plural } from '../lib/reports';
 import { bestFix, packPhotos, type Pack, type WaitingPhoto } from '../lib/waitingRoom';
 import { useWaitingRoom } from '../store/useWaitingRoom';
@@ -103,7 +104,7 @@ function SwipeToRemove({ onRemove, children }: { onRemove: (back: () => void) =>
 // z paczki (zostaje w poczekalni i wchodzi do kolejnej), przytrzymanie powiększa. Usuwanie (✕ albo przesunięcie w lewo) obejmuje zaznaczone,
 // a gdy żadne nie jest zaznaczone: całą paczkę.
 export function WaitingRoomScreen({ navigation }: any) {
-  const go = (r: string) => navigation.navigate(r);
+  const go = (r: string) => goTab(navigation, r);
   const photos = useWaitingRoom((s) => s.photos);
   const remove = useWaitingRoom((s) => s.remove);
   const restore = useWaitingRoom((s) => s.restore);
@@ -135,8 +136,7 @@ export function WaitingRoomScreen({ navigation }: any) {
   let lastDay = '';
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader title="Poczekalnia" onBack={() => navigation.goBack()} />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ padding: 16, paddingBottom: 28 }}>
         <UdButton title="Zrób zdjęcia" onPress={() => navigation.replace('WaitingCamera')} />
         {!photos.length ? (
           <Text style={{ color: ud.muted, marginTop: 16, lineHeight: 21 }}>Zdjęcia zrobione w aplikacji poczekają tutaj, poza rolką aparatu. Zostają tylko na tym telefonie: odinstalowanie aplikacji je usunie.</Text>

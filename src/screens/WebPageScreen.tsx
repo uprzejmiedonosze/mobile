@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, Linking, Text, View } from 'react-native';
-import { UdButton, UdHeader } from '../components/UD';
+import { UdButton } from '../components/UD';
+import { HeaderButton } from '../components/header';
 import { udConfig } from '../config';
 import { embedInjection } from '../lib/embedStyle';
 import { isUdPage, withEmbed } from '../lib/openPage';
@@ -26,6 +27,11 @@ export function WebPageScreen({ navigation, route }: any) {
     else navigation.goBack();
   }, [canGoBack, navigation]);
 
+  // Strzałka w nagłówku najpierw cofa historię strony w WebView.
+  useLayoutEffect(() => {
+    navigation.setOptions({ title: title ?? '', headerBackVisible: false, headerLeft: () => <HeaderButton onPress={back} /> });
+  }, [navigation, title, back]);
+
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { back(); return true; });
     return () => sub.remove();
@@ -49,7 +55,6 @@ export function WebPageScreen({ navigation, route }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader title={title} onBack={back} />
       {WebView ? (
         <View style={{ flex: 1 }}>
           {failed ? (

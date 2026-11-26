@@ -23,6 +23,7 @@ import { PhotoPickerHost } from './src/components/PhotoPickerHost';
 import { ToastHost } from './src/components/ToastHost';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { UdSplash } from './src/components/UD';
+import { HeaderBrand, headerOptions, largeTitle, newReportOptions, tabOptions } from './src/components/header';
 import { installGlobalLogHandlers, log } from './src/lib/log';
 import { installE2eLogin } from './src/lib/e2eLogin';
 import { installEmailLinkLogin } from './src/lib/emailLinkLogin';
@@ -91,36 +92,38 @@ export default function App() {
     <SafeAreaProvider>
     <ErrorBoundary>
     <NavigationContainer>
-      {/* zielony nagłówek (UdHeader) → jasne ikony; jasny ekran startowy → ciemne */}
+      {/* zielony nagłówek → jasne ikony; jasny ekran startowy → ciemne */}
       <StatusBar style={updateStatus === 'required' || !fontsLoaded || !ready || (logged && !registrationChecked) ? 'dark' : 'light'} />
       {updateStatus === 'required' && fontsLoaded ? (
         <UpdateRequiredScreen />
       ) : !fontsLoaded || !ready || (logged && !registrationChecked) ? (
         <UdSplash label={ready ? 'sprawdzam konto…' : 'sprawdzam sesję…'} />
       ) : !logged ? (
-        <Stack.Navigator initialRouteName="Account" screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Account" component={AccountScreen} />
-          <Stack.Screen name="WebPage" component={WebPageScreen} />
+        <Stack.Navigator initialRouteName="Account" screenOptions={headerOptions}>
+          {/* logowanie bez nagłówka */}
+          <Stack.Screen name="Account" component={AccountScreen} options={{ headerShown: false, title: 'Logowanie' }} />
+          <Stack.Screen name="WebPage" component={WebPageScreen} options={{ title: '' }} />
         </Stack.Navigator>
       ) : !registered ? (
-        <Stack.Navigator initialRouteName="Onboarding" screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-          <Stack.Screen name="WebPage" component={WebPageScreen} />
+        <Stack.Navigator initialRouteName="Onboarding" screenOptions={headerOptions}>
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ title: 'Rejestracja' }} />
+          <Stack.Screen name="WebPage" component={WebPageScreen} options={{ title: '' }} />
         </Stack.Navigator>
       ) : (
-        <Stack.Navigator initialRouteName="Dashboard" screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Dashboard" component={DashboardScreen} />
-          <Stack.Screen name="NewReport" component={NewReportScreen} />
-          <Stack.Screen name="ReportConfirm" component={ReportConfirmScreen} />
-          <Stack.Screen name="ReportDone" component={ReportDoneScreen} />
-          <Stack.Screen name="Reports" component={ReportsScreen} />
-          <Stack.Screen name="Letter" component={LetterScreen} />
-          <Stack.Screen name="QuotaInfo" component={QuotaInfoScreen} />
-          <Stack.Screen name="WaitingRoom" component={WaitingRoomScreen} />
+        <Stack.Navigator initialRouteName="Dashboard" screenOptions={headerOptions}>
+          {/* zakładki dolnego menu (tabOptions) – patrz lib/tabRoutes.ts */}
+          <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ ...tabOptions, title: 'Start', headerTitle: () => <HeaderBrand /> }} />
+          <Stack.Screen name="NewReport" component={NewReportScreen} options={newReportOptions} />
+          <Stack.Screen name="Reports" component={ReportsScreen} options={{ ...tabOptions, ...largeTitle, title: 'Zgłoszenia' }} />
+          <Stack.Screen name="WaitingRoom" component={WaitingRoomScreen} options={{ ...tabOptions, ...largeTitle, title: 'Poczekalnia' }} />
+          <Stack.Screen name="Account" component={AccountScreen} options={{ ...tabOptions, ...largeTitle, title: 'Konto' }} />
+          <Stack.Screen name="ReportConfirm" component={ReportConfirmScreen} options={{ title: 'Sprawdź zgłoszenie', headerTitle: () => <HeaderBrand /> }} />
+          <Stack.Screen name="ReportDone" component={ReportDoneScreen} options={{ title: 'Zgłoszenie', headerTitle: () => <HeaderBrand />, headerBackVisible: false, gestureEnabled: false }} />
+          <Stack.Screen name="Letter" component={LetterScreen} options={{ title: 'Pismo' }} />
+          <Stack.Screen name="QuotaInfo" component={QuotaInfoScreen} options={{ title: 'Limity' }} />
           {/* leniwie: expo-camera przy imporcie wymaga modułu natywnego, a build bez niego ma działać (poza tym ekranem) */}
-          <Stack.Screen name="WaitingCamera" getComponent={() => require('./src/screens/WaitingCameraScreen').WaitingCameraScreen} />
-          <Stack.Screen name="Account" component={AccountScreen} />
-          <Stack.Screen name="WebPage" component={WebPageScreen} />
+          <Stack.Screen name="WaitingCamera" getComponent={() => require('./src/screens/WaitingCameraScreen').WaitingCameraScreen} options={{ headerShown: false, title: 'Aparat' }} />
+          <Stack.Screen name="WebPage" component={WebPageScreen} options={{ title: '' }} />
         </Stack.Navigator>
       )}
     </NavigationContainer>

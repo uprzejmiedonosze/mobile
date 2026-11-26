@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { imageUrl, type UdApp } from '../api/apps';
 import { fetchConfirmation, fetchReport, finishReport, type Confirmation, type FinishResult } from '../api/reports';
+import { HeaderButton } from '../components/header';
 import { ImageViewer } from '../components/ImageViewer';
 import { MapPreview } from '../components/MapPreview';
-import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdTabs } from '../components/UD';
+import { goTab } from '../lib/goTab';
 import { fmtPlDateTime } from '../lib/format';
 import { log } from '../lib/log';
 import { useNewReport } from '../store/useNewReport';
@@ -45,7 +47,7 @@ export function ReportConfirmScreen({ navigation, route }: any) {
   const [armed, setArmed] = useState(false); // jak na www: przycisk aktywny dopiero po chwili (ochrona przed przypadkowym dotknięciem)
   const [viewer, setViewer] = useState<{ item: number; index: number } | null>(null);
   const finished = useRef(new Map<string, FinishResult>()); // już potwierdzone zgłoszenia (ponowienie po częściowej awarii nie wysyła ich drugi raz)
-  const go = (r: string) => navigation.navigate(r);
+  const go = (r: string) => goTab(navigation, r);
   const key = appIds.join(',');
 
   useEffect(() => {
@@ -55,6 +57,11 @@ export function ReportConfirmScreen({ navigation, route }: any) {
     const t = setTimeout(() => setArmed(true), 1500);
     return () => clearTimeout(t);
   }, [key]);
+
+  // W nagłówku zamiast strzałki ołówek „popraw” – powrót do formularza.
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerBackVisible: false, headerLeft: () => <HeaderButton icon="edit" onPress={() => navigation.goBack()} /> });
+  }, [navigation]);
 
   const confirm = async () => {
     if (!items) return;
@@ -81,7 +88,6 @@ export function ReportConfirmScreen({ navigation, route }: any) {
   if (!items) {
     return (
       <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-        <UdHeader onBack={() => navigation.goBack()} backIcon="edit" />
         <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} />
       </View>
     );
@@ -104,7 +110,6 @@ export function ReportConfirmScreen({ navigation, route }: any) {
 
   return (
     <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader onBack={() => navigation.goBack()} backIcon="edit" />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
         <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 26 }}>{rcpt.automated ? 'Sprawdź przed wysłaniem' : 'Sprawdź zgłoszenie'}</Text>
         <Text style={{ color: ud.text, marginTop: 6, lineHeight: 21 }}>

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, PanResponder, Platform, Pressable, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
 import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { UdButton, UdHeader } from '../components/UD';
+import { UdButton } from '../components/UD';
+import { goTab } from '../lib/goTab';
 import { SESS_GAP_S } from '../lib/grouping';
 import { log } from '../lib/log';
 import { plural } from '../lib/reports';
@@ -119,13 +120,16 @@ export function WaitingCameraScreen({ navigation }: any) {
   };
 
   const nextCar = () => { setCarSeq((n) => n + 1); setCarShots(0); };
-  const close = () => navigation.replace('WaitingRoom');
+  const close = () => goTab(navigation, 'WaitingRoom');
+
+  // Pełnoekranowy aparat bez nagłówka; pytanie o zgodę ma zwykły nagłówek ze strzałką.
+  const needsPermission = !!permission && !permission.granted;
+  useLayoutEffect(() => { navigation.setOptions({ headerShown: needsPermission }); }, [navigation, needsPermission]);
 
   if (!permission) return <View style={{ flex: 1, backgroundColor: '#000' }} />;
   if (!permission.granted) {
     return (
       <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-        <UdHeader title="Aparat" onBack={() => navigation.goBack()} />
         <View style={{ padding: 16 }}>
           <Text style={{ color: ud.text, lineHeight: 21, marginBottom: 12 }}>Do robienia zdjęć w aplikacji potrzebna jest zgoda na aparat.</Text>
           <UdButton title="Zezwól na aparat" onPress={requestPermission} />
