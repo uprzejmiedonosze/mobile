@@ -45,7 +45,8 @@ export function ReportSheet({ navigation }: any) {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
+    // ScrollView jako pierwsze dziecko ekranu – arkusz iOS łączy z nim gest rozwijania; tło daje contentStyle w App.tsx.
+    <>
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingTop: 24, paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
@@ -68,6 +69,6 @@ export function ReportSheet({ navigation }: any) {
       </ScrollView>
       {/* iOS rysuje arkusz nad całym oknem, więc główny ToastHost jest pod nim; na Androidzie widać tamten */}
       {Platform.OS === 'ios' ? <ToastHost top={16} /> : null}
-    </View>
+    </>
   );
 }
