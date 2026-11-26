@@ -22,4 +22,7 @@ export function profileErrors(p: ProfileDraft): { name?: string; address?: strin
   return e;
 }
 
+// Czy w formularzu jest coś do zapisania (porównanie z ostatnio wczytanym / zapisanym stanem).
+export const sameProfile = (a: ProfileDraft, b: ProfileDraft) => (Object.keys(EMPTY_PROFILE) as (keyof ProfileDraft)[]).every((k) => a[k] === b[k]);
+
 export const profileValid = (p: ProfileDraft) => !!p.name.trim() && !!p.address.trim() && Object.keys(profileErrors(p)).length === 0;

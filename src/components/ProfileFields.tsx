@@ -1,9 +1,9 @@
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { openUdPage } from '../lib/openPage';
 import { ud, inputColors } from '../theme';
-import { EMPTY_PROFILE, profileErrors, profileValid, type ProfileDraft } from '../lib/profile';
+import { EMPTY_PROFILE, profileErrors, profileValid, sameProfile, type ProfileDraft } from '../lib/profile';
 
-export { EMPTY_PROFILE, profileValid, type ProfileDraft };
+export { EMPTY_PROFILE, profileValid, sameProfile, type ProfileDraft };
 
 // Pola konta wspólne dla rejestracji (OnboardingScreen) i edycji (AccountScreen) – jak register.html.twig na www:
 // imię i nazwisko, e-mail z logowania, adres, telefon, e-Doręczenia, (tylko w edycji) forma gramatyczna i zgoda na galerię.
