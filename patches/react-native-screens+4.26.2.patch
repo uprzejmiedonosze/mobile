@@ -1,0 +1,56 @@
+diff --git a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/SheetDelegate.kt b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/SheetDelegate.kt
+index 8004079..4e6db69 100644
+--- a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/SheetDelegate.kt
++++ b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/SheetDelegate.kt
+@@ -189,6 +189,8 @@ class SheetDelegate(
+         behavior.apply {
+             isHideable = true
+             isDraggable = true
++            // UD: flings count towards dismissal sooner (Material default: 0.1)
++            hideFriction = SWIPE_HIDE_FRICTION
+         }
+ 
+         // There is a guard internally that does not allow the callback to be duplicated.
+@@ -478,17 +480,31 @@ class SheetDelegate(
+     }
+ 
+     private inner class SheetStateObserver : BottomSheetBehavior.BottomSheetCallback() {
++        // UD: Material hides a slowly dragged sheet only past half of its height (a constant without a setter).
++        // We dismiss it ourselves when the finger is lifted after a much shorter drag below the lowest detent.
++        private var wasDragging = false
++        private var lastSlideOffset = 0f
++
+         override fun onStateChanged(
+             bottomSheet: View,
+             newState: Int,
+         ) {
++            val released = wasDragging && newState != BottomSheetBehavior.STATE_DRAGGING
++            wasDragging = newState == BottomSheetBehavior.STATE_DRAGGING
+             this@SheetDelegate.onSheetStateChanged(newState)
++
++            // slideOffset < 0 means "below the collapsed position", -1 means fully hidden
++            if (released && newState != BottomSheetBehavior.STATE_HIDDEN && lastSlideOffset < -SWIPE_DISMISS_FRACTION) {
++                bottomSheet.post { sheetBehavior?.state = BottomSheetBehavior.STATE_HIDDEN }
++            }
+         }
+ 
+         override fun onSlide(
+             bottomSheet: View,
+             slideOffset: Float,
+-        ) = Unit
++        ) {
++            lastSlideOffset = slideOffset
++        }
+     }
+ 
+     internal data class SheetAnimationContext(
+@@ -500,5 +516,9 @@ class SheetDelegate(
+ 
+     companion object {
+         const val TAG = "SheetDelegate"
++
++        // UD: share of the lowest detent height that has to be dragged down to dismiss the sheet
++        private const val SWIPE_DISMISS_FRACTION = 0.15f
++        private const val SWIPE_HIDE_FRICTION = 0.5f
+     }
+ }
