@@ -5,6 +5,9 @@
 - Zgłoszenia: szczegóły otwierają się w panelu wysuwanym od dołu zamiast rozwijania na liście, a po jego zamknięciu lista zostaje w tym samym miejscu. Wyszukiwarka jest w nagłówku.
 - Ekran logowania ma na górze zdjęcie ze strony uprzejmiedonosze.net.
 - Konto: „Zapisz zmiany” działa dopiero po faktycznej zmianie danych, a usunięcie passkeya wymaga potwierdzenia.
+- Formularze mówią, czego jeszcze brakuje, a błędy w danych konta pokazują się po wyjściu z pola.
+- Start: główny przycisk to teraz „Zrób zdjęcia” (tam, gdzie jest Poczekalnia).
+- Wygodniejsze pisanie: „Gotowe” nad klawiaturą iPhone’a przy dłuższych opisach, przechodzenie między polami konta i podpowiadanie danych.
 
 ## v1.4.0 — 2026-11-20
 

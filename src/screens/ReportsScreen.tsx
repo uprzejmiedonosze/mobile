@@ -9,6 +9,7 @@ import { LETTER_LINK_LABEL, letterEntry } from '../lib/letters';
 import { fetchPhotoQuota } from '../api/photos';
 import { log } from '../lib/log';
 import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plateHistory, plural, reportBody, shortAddress, statusColor, witnessText } from '../lib/reports';
+import { MultilineInput } from '../components/MultilineInput';
 import { ImageViewer } from '../components/ImageViewer';
 import { ErrorScreen } from '../components/ErrorScreen';
 import { openUdPage } from '../lib/openPage';
@@ -107,9 +108,11 @@ function EditableField({ label, value, multiline, placeholder, onSave, icon }: {
   // Zwinięcie karty z niezapisaną zmianą odmontowuje pole bez blur – zapisujemy przy odmontowaniu.
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; void commit(); }; }, []);
 
+  const Input = multiline ? MultilineInput : TextInput; // uwagi: „Gotowe” nad klawiaturą
+
   return (
     <Row label={label}>
-      <TextInput {...inputColors}
+      <Input {...inputColors}
         value={text}
         onChangeText={(t) => { setText(t); textRef.current = t; if (state === 'error') setState('idle'); }}
         onBlur={commit}

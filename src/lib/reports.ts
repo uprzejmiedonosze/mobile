@@ -160,3 +160,13 @@ export function imageVersion(app: { statusHistory?: unknown; wipPhotos?: Partial
   const wip = type ? app.wipPhotos?.[type] : undefined;
   return wip ? `${n}-${wip.slice(0, 12)}` : String(n);
 }
+
+// Podpowiedź pod „Dalej” w nowym zgłoszeniu: pierwsza rzecz, której jeszcze brakuje (a gdy nic – co będzie dalej).
+export function nextStepHint(f: { photosOk: boolean; uploading: boolean; geoBusy: boolean; address: string; category: number; comment: string }): string {
+  if (f.uploading) return 'Czekam, aż zdjęcia się wyślą…';
+  if (!f.photosOk) return 'Dodaj zdjęcie auta z widocznym numerem i zdjęcie kontekstu.';
+  if (f.geoBusy) return 'Ustalam adres…';
+  if (f.address.trim().length <= 10) return 'Podaj adres albo wskaż miejsce na mapie.';
+  if (f.category === 0 && !f.comment.trim()) return 'Przy „Pozostałych przypadkach” opisz sytuację w komentarzu.';
+  return 'Na następnym ekranie sprawdzisz zgłoszenie przed wysłaniem.';
+}

@@ -9,7 +9,7 @@ import { openUdPage } from '../lib/openPage';
 import { termSegments } from '../lib/reports';
 import { ud } from '../theme';
 import { UdButton, UdCard } from '../components/UD';
-import { EMPTY_PROFILE, ProfileFields, profileValid, type ProfileDraft } from '../components/ProfileFields';
+import { EMPTY_PROFILE, ProfileFields, profileMissing, profileValid, type ProfileDraft } from '../components/ProfileFields';
 
 // Rejestracja + regulamin po REST (bez web UI), patrz CLAUDE.md sekcja Auth.
 // App.tsx pokazuje ten ekran, gdy zalogowany, ale isRegistered/isTermsConfirmed = false
@@ -91,6 +91,7 @@ export function OnboardingScreen() {
               onPress={submitProfile}
               disabled={saving || !profileValid(profile)}
             />
+            {profileMissing(profile) ? <Text style={{ color: ud.muted, fontSize: 13, textAlign: 'center' }}>{profileMissing(profile)}</Text> : null}
           </UdCard>
         ) : (
           <UdCard>

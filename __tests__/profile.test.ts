@@ -1,4 +1,4 @@
-import { EMPTY_PROFILE, profileErrors, profileValid, sameProfile } from '../src/lib/profile';
+import { EMPTY_PROFILE, profileErrors, profileMissing, profileValid, sameProfile } from '../src/lib/profile';
 
 const ok = { ...EMPTY_PROFILE, name: 'Jan Kowalski', address: 'Ulica 10a/7, Szczecin' };
 
@@ -24,5 +24,16 @@ describe('sameProfile – „Zapisz zmiany” tylko po faktycznej zmianie', () =
     expect(sameProfile({ ...ok, shareRecydywa: !ok.shareRecydywa }, ok)).toBe(false);
     expect(sameProfile({ ...ok, msisdn: '1' }, ok)).toBe(false);
     expect(sameProfile({ ...ok, msisdn: ok.msisdn }, ok)).toBe(true);
+  });
+});
+
+describe('profileMissing – podpowiedź pod przyciskiem zapisu', () => {
+  it('mówi, których pól wymaganych brakuje', () => {
+    expect(profileMissing(EMPTY_PROFILE)).toBe('Uzupełnij imię i nazwisko i adres.');
+    expect(profileMissing({ ...ok, address: ' ' })).toBe('Uzupełnij adres.');
+  });
+  it('przy błędzie formatu odsyła do pól, przy poprawnych danych milczy', () => {
+    expect(profileMissing({ ...ok, edelivery: 'AE:PL' })).toBe('Popraw zaznaczone pola.');
+    expect(profileMissing(ok)).toBeNull();
   });
 });

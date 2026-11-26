@@ -12,12 +12,13 @@ import {
 import { ApiError, isPhotoQuotaError, validIdToken } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { log } from '../lib/log';
-import { commentWarning, dropMatchingExtension, clearFieldError, exifToIso, fmtLongDate, formLocks, hasRequiredPhotos, isExtensionDisabled, ownSameDayReport, plural } from '../lib/reports';
+import { commentWarning, dropMatchingExtension, clearFieldError, exifToIso, fmtLongDate, formLocks, hasRequiredPhotos, isExtensionDisabled, nextStepHint, ownSameDayReport, plural } from '../lib/reports';
 import { DateTimeField } from '../components/DateTimeField';
 import { HtmlText } from '../components/HtmlText';
 import { MapPicker, type PickedPlace } from '../components/MapPicker';
 import { MapPreview } from '../components/MapPreview';
 import { CROP_TILE_ID, PhotosSection, type Tile } from '../components/PhotosSection';
+import { MultilineInput } from '../components/MultilineInput';
 import { PhotoQuotaNotice } from '../components/PhotoQuotaNotice';
 import { UdButton, UdTabs } from '../components/UD';
 import { goTab } from '../lib/goTab';
@@ -552,7 +553,7 @@ export function NewReportScreen({ navigation, route }: any) {
         {form.lat == null ? <Text style={{ color: ud.muted, fontSize: 12, marginTop: 4 }}>Brak lokalizacji ze zdjęcia – wskaż miejsce na mapie.</Text> : null}
 
         <L>Adres (z GPS zdjęcia, możesz poprawić)</L>
-        <TextInput {...inputColors} style={[input, lock.address && locked]} editable={!lock.address} value={form.address} maxLength={70} onChangeText={(t) => { edited.current.address = true; setAddrNote(null); set('address', t); }} onEndEditing={lookupAddress} />
+        <TextInput {...inputColors} style={[input, lock.address && locked]} editable={!lock.address} value={form.address} maxLength={70} returnKeyType="done" onChangeText={(t) => { edited.current.address = true; setAddrNote(null); set('address', t); }} onEndEditing={lookupAddress} />
         {addrNote ? <Text style={{ color: ud.warning, marginTop: 4 }}>{addrNote}</Text> : null}
         {fieldErr('address')}
 
@@ -594,7 +595,7 @@ export function NewReportScreen({ navigation, route }: any) {
         <CategoryRow c={otherCat ?? { id: 0, title: 'Pozostałe przypadki', short: 'Opisz sytuację w komentarzu.' }} on={form.category === 0} onPress={() => chooseCategory(0)} onMore={otherCat ? setCatInfo : undefined} />
 
         <L>Komentarz{form.category === 0 ? ' (wymagany)' : ''}</L>
-        <TextInput {...inputColors} style={[input, { minHeight: 80, textAlignVertical: 'top' }]} multiline value={form.comment} onChangeText={(t) => set('comment', t)} onEndEditing={() => { const w = !form.witness && commentWarning(form.comment); if (w) toast.info(`${w} Sprawdź opcję „świadek momentu parkowania”.`); }} placeholder="Dodatkowy opis wykroczenia" />
+        <MultilineInput style={[input, { minHeight: 80, textAlignVertical: 'top' }]} value={form.comment} onChangeText={(t) => set('comment', t)} onEndEditing={() => { const w = !form.witness && commentWarning(form.comment); if (w) toast.info(`${w} Sprawdź opcję „świadek momentu parkowania”.`); }} placeholder="Dodatkowy opis wykroczenia" />
         {fieldErr('comment')}
         {/* jak na webie: ostrzeżenie o masie pojazdu jest częścią pola komentarza; przy dwóch pojazdach z numerem tablicy */}
         {weightWarning ? <Text style={{ color: ud.warning, marginTop: 6 }}>{form.plateId2 ? `${form.plateId}: ` : ''}{weightWarning}</Text> : null}
@@ -620,7 +621,7 @@ export function NewReportScreen({ navigation, route }: any) {
         <View style={{ marginTop: 20 }}>
           <UdButton title={submitting ? 'Zapisuję…' : 'Dalej'} onPress={submit} disabled={submitting || uploading || geoBusy > 0} />
         </View>
-        <Text style={{ color: ud.muted, fontSize: 12, marginTop: 6 }}>Na następnym ekranie sprawdzisz zgłoszenie przed wysłaniem.</Text>
+        <Text style={{ color: ud.muted, fontSize: 12, marginTop: 6 }}>{nextStepHint({ photosOk, uploading, geoBusy: geoBusy > 0, address: form.address, category: form.category, comment: form.comment })}</Text>
       </ScrollView>
       <CategoryInfo c={catInfo} onClose={() => setCatInfo(null)} onPageLink={(path) => openUdPage(navigation, path)} />
       <MapPicker visible={mapOpen} initial={form.lat != null && form.lng != null ? { lat: form.lat, lng: form.lng } : null} fallback={mapStart} onConfirm={onMapConfirm} onClose={() => setMapOpen(false)} />
