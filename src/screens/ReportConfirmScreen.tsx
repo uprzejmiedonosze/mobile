@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { href, splitIds } from '../lib/routes';
+import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
 import { imageUrl, type UdApp } from '../api/apps';
 import { fetchConfirmation, fetchReport, finishReport, type Confirmation, type FinishResult } from '../api/reports';
 import { ImageViewer } from '../components/ImageViewer';
 import { MapPreview } from '../components/MapPreview';
-import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdCard } from '../components/UD';
+import { LargeTitleScreen } from '../components/LargeTitleScreen';
+import { SectionHeader } from '../components/FormBits';
+import { SvgXml } from 'react-native-svg';
+import { DATETIME_ICON, PIN_ICON } from '../assets/detailIcons';
+import { plural } from '../lib/reports';
 import { fmtPlDateTime } from '../lib/format';
 import { log } from '../lib/log';
 import { useNewReport } from '../store/useNewReport';
@@ -21,7 +28,7 @@ const parseMs = (iso?: string) => { const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2
 function Shot({ uri, natural, box, plate, onPress }: { uri: string; natural?: { w?: number; h?: number }; box?: Confirmation['vehicleBox']; plate?: string | null; onPress: () => void }) {
   const w = natural?.w ?? 1200, h = natural?.h ?? 900;
   return (
-    <Pressable onPress={onPress} style={{ marginTop: 12, aspectRatio: w / h, borderRadius: ud.radiusSm, overflow: 'hidden', backgroundColor: ud.surfaceCream }}>
+    <Pressable onPress={onPress} accessibilityRole="imagebutton" accessibilityLabel="Powiększ zdjęcie" style={({ pressed }) => ({ marginTop: 10, aspectRatio: w / h, borderRadius: 14, overflow: 'hidden', backgroundColor: ud.surfaceCream, transform: [{ scale: pressed ? 0.98 : 1 }] })}>
       <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
       {box ? <View pointerEvents="none" style={{ position: 'absolute', left: `${(100 * box.x) / w}%`, top: `${(100 * box.y) / h}%`, width: `${(100 * box.width) / w}%`, height: `${(100 * box.height) / h}%`, borderWidth: 3, borderColor: '#FFD60A', borderRadius: 4 }} /> : null}
       {plate ? (
@@ -35,9 +42,11 @@ function Shot({ uri, natural, box, plate, onPress }: { uri: string; natural?: { 
 
 type Item = { app: UdApp; c: Confirmation };
 
-export function ReportConfirmScreen({ navigation, route }: any) {
+export function ReportConfirmScreen() {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ appIds?: string }>();
   // „Oba” = dwa osobne zgłoszenia: ekran dostaje listę szkiców i potwierdza je razem (każde ma własny numer i status).
-  const appIds: string[] = route.params.appIds ?? [route.params.appId];
+  const appIds: string[] = splitIds(params.appIds) ?? [];
   const setDraftId = useNewReport((s) => s.setDraftId);
   const setDone = useNewReport((s) => s.setDone);
   const [items, setItems] = useState<Item[] | null>(null);
@@ -45,7 +54,6 @@ export function ReportConfirmScreen({ navigation, route }: any) {
   const [armed, setArmed] = useState(false); // jak na www: przycisk aktywny dopiero po chwili (ochrona przed przypadkowym dotknięciem)
   const [viewer, setViewer] = useState<{ item: number; index: number } | null>(null);
   const finished = useRef(new Map<string, FinishResult>()); // już potwierdzone zgłoszenia (ponowienie po częściowej awarii nie wysyła ich drugi raz)
-  const go = (r: string) => navigation.navigate(r);
   const key = appIds.join(',');
 
   useEffect(() => {
@@ -66,24 +74,27 @@ export function ReportConfirmScreen({ navigation, route }: any) {
         finished.current.set(app.id, await finishReport(app.id, c.recipient.automated));
       }
       // tylko gdy potwierdzamy zapamiętany szkic: zgłoszenie z poczekalni nie może zgubić rozpoczętego równolegle formularza
-      if (appIds.includes(useNewReport.getState().draftId ?? '')) setDraftId(null);
+      // …i wtedy też formularz w zakładce „Nowe” (zostaje zamontowany) montujemy od zera: „Nowe” zaczyna z czystego formularza
+      if (appIds.includes(useNewReport.getState().draftId ?? '')) { setDraftId(null); useNewReport.getState().restart(); }
       setDone(appIds.map((id) => finished.current.get(id)!));
       // „Oba” = dwa szkice z tą samą kategorią – jeden wpis
       for (const cat of new Set(items.map(({ app }) => Number(app.category)))) await recordRecentCategory(cat);
-      // reset stosu: formularz znika, więc „Dodaj kolejne” zaczyna z czystego formularza
-      navigation.reset({ index: 1, routes: [{ name: 'Dashboard' }, { name: 'ReportDone' }] });
+      // stos jak dawniej [Pulpit, Podsumowanie]: ekrany procesu znikają, wstecz z podsumowania wraca na pulpit
+      router.dismissTo(href('Dashboard'));
+      router.push(href('ReportDone'));
     } catch (e: any) {
       toast.error(e?.message ?? String(e));
       setSending(false);
     }
   };
 
+  // „‹ Popraw” – powrót do formularza (zgłoszenie ma status „ready”, nadal edytowalne).
+  const back = { label: 'Popraw', systemImage: 'chevron.left' as const, onPress: () => router.back() };
   if (!items) {
     return (
-      <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-        <UdHeader onBack={() => navigation.goBack()} backIcon="edit" />
-        <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} />
-      </View>
+      <LargeTitleScreen title="Sprawdź zgłoszenie" leading={back}>
+        <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} accessibilityLabel="Wczytuję podsumowanie" />
+      </LargeTitleScreen>
     );
   }
 
@@ -102,31 +113,59 @@ export function ReportConfirmScreen({ navigation, route }: any) {
     : rcpt.automated ? (many && pending > 1 ? `Wyślij ${pending} zgłoszenia do ${rcpt.shortName}!` : `Wyślij do ${rcpt.shortName}!`)
     : many && pending > 1 ? 'Zapisz oba zgłoszenia' : 'Zapisz';
 
-  return (
-    <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader onBack={() => navigation.goBack()} backIcon="edit" />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-        <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 26 }}>{rcpt.automated ? 'Sprawdź przed wysłaniem' : 'Sprawdź zgłoszenie'}</Text>
-        <Text style={{ color: ud.text, marginTop: 6, lineHeight: 21 }}>
-          {rcpt.automated ? (many ? 'Twoje zgłoszenia zostaną za chwilę wysłane do ' : 'Twoje zgłoszenie zostanie za chwilę wysłane do ') : 'Sprawdź dane przed zapisaniem zgłoszenia.'}
-          {rcpt.automated ? <Text style={{ fontFamily: ud.fontBodyBold }}>{rcpt.name}</Text> : null}
-          {rcpt.automated ? '.' : !rcpt.unknown ? <Text>{' Na tym etapie nic nie zostanie wysłane do '}<Text style={{ fontFamily: ud.fontBodyBold }}>{rcpt.name}</Text>.</Text> : null}
-        </Text>
-        {many ? <Text style={{ color: ud.muted, marginTop: 6 }}>Dwa pojazdy to dwa osobne zgłoszenia – każde ma własny numer sprawy i status.</Text> : null}
+  const icon = (xml: string) => <SvgXml xml={xml.replace('COLOR', ud.primary)} width={18} height={18} />;
+  // Skutek przycisku jednym zdaniem pod nim – wysyłki do służb nie da się cofnąć, więc mówimy to wprost.
+  const sendNote = rcpt.automated
+    ? `Zgłoszenie trafi od razu do ${rcpt.shortName} – potem nie da się go już poprawić.`
+    : 'Zgłoszenie zostanie zapisane – na tym etapie nic nie jest wysyłane.';
 
-        <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, marginTop: 16 }}>📍 {firstC.shortAddress}</Text>
-        {first.address?.lat != null && first.address?.lng != null ? <MapPreview lat={first.address.lat} lng={first.address.lng} hideLabel /> : null}
-        {ms ? <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, marginTop: 16 }}>🕒 {fmtPlDateTime(ms)}</Text> : null}
+  return (
+    <LargeTitleScreen
+      // krótko – duży tytuł iOS nie łamie się na dwie linie, dłuższy („Sprawdź przed wysłaniem”) był ucinany
+      title={rcpt.automated ? 'Sprawdź i wyślij' : 'Sprawdź zgłoszenie'}
+      leading={back}
+      footer={
+        <>
+          <UdButton title={sendTitle} onPress={confirm} disabled={!armed || sending} />
+          <Text style={{ color: ud.muted, fontSize: 13, lineHeight: 18, textAlign: 'center', marginTop: 2 }}>{sendNote}</Text>
+        </>
+      }
+    >
+      <View style={{ paddingHorizontal: 16, paddingBottom: 24 }}>
+        {/* Odbiorca – najważniejsza informacja tego ekranu, na samej górze */}
+        <UdCard>
+          <Text style={{ color: ud.muted, fontSize: 13, fontFamily: ud.fontBodyBold, letterSpacing: 0.3 }}>{rcpt.automated ? 'WYŚLEMY DO' : 'ODBIORCA'}</Text>
+          <Text style={{ color: ud.heading, fontFamily: ud.fontDisplay, fontSize: 20, lineHeight: 26, letterSpacing: -0.2, marginTop: 4 }}>{rcpt.unknown ? 'Nie udało się ustalić odbiorcy' : rcpt.name}</Text>
+          {!rcpt.automated && !rcpt.unknown ? <Text style={{ color: ud.muted, fontSize: 14, lineHeight: 20, marginTop: 4 }}>Na tym etapie nic nie zostanie wysłane.</Text> : null}
+          {many ? <Text style={{ color: ud.muted, fontSize: 14, lineHeight: 20, marginTop: 6 }}>Dwa pojazdy to dwa osobne zgłoszenia – każde ma własny numer sprawy i status.</Text> : null}
+        </UdCard>
+
+        <SectionHeader>Miejsce i czas</SectionHeader>
+        <UdCard>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            {icon(PIN_ICON)}
+            <Text style={{ flex: 1, fontFamily: ud.fontBodyBold, color: ud.heading, fontSize: 16 }}>{firstC.shortAddress}</Text>
+          </View>
+          {first.address?.lat != null && first.address?.lng != null ? <MapPreview lat={first.address.lat} lng={first.address.lng} hideLabel /> : null}
+          {ms ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
+              {icon(DATETIME_ICON)}
+              <Text style={{ flex: 1, color: ud.text, fontSize: 16 }}>{fmtPlDateTime(ms)}</Text>
+            </View>
+          ) : null}
+        </UdCard>
 
         {items.map(({ app, c }, n) => {
           const shots = shotsOf(app);
+          const done = finished.current.has(app.id);
           return (
             <View key={app.id}>
-              {many ? <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, fontSize: 18, marginTop: 24 }}>Zgłoszenie {n + 1}/{items.length} · {c.plateId}{finished.current.has(app.id) ? ' ✓' : ''}</Text> : null}
-              <View style={{ marginTop: 12, backgroundColor: ud.surface, borderRadius: ud.radiusSm, padding: 14 }}>
-                <Text style={{ color: ud.text, lineHeight: 21 }}>{c.body}</Text>
-                <Text style={{ color: ud.text, marginTop: 8 }}>{c.witness}</Text>
-              </View>
+              <SectionHeader aside={many ? `${n + 1} z ${items.length}${done ? ' · wysłane' : ''}` : undefined}>{many ? `Zgłoszenie · ${c.plateId}` : 'Treść zgłoszenia'}</SectionHeader>
+              <UdCard>
+                <Text style={{ color: ud.text, fontSize: 16, lineHeight: 23 }}>{c.body}</Text>
+                <Text style={{ color: ud.muted, fontSize: 15, lineHeight: 21, marginTop: 8 }}>{c.witness}</Text>
+              </UdCard>
+              {shots.length ? <SectionHeader aside={plural(shots.length, ['zdjęć', 'zdjęcie', 'zdjęcia'])}>Zdjęcia</SectionHeader> : null}
               {shots.map((x, i) => (
                 <Shot key={x.key} uri={x.thumb!} natural={{ w: x.nat?.width, h: x.nat?.height }} box={x.key === 'car' ? c.vehicleBox : null} plate={x.key === 'car' ? c.plateId : null} onPress={() => setViewer({ item: n, index: i })} />
               ))}
@@ -134,20 +173,24 @@ export function ReportConfirmScreen({ navigation, route }: any) {
           );
         })}
 
-        <View style={{ marginTop: 18 }}>
-          <Text style={{ color: ud.muted }}>Twoje dane:</Text>
-          <Text style={{ color: ud.text, marginTop: 4, lineHeight: 21 }}>
-            <Text style={{ fontFamily: ud.fontBodyBold }}>{s.name}</Text>{'\n'}{s.email}{'\n'}{s.address}
-            {s.msisdn ? `\nTel: ${s.msisdn}` : ''}{s.edelivery ? `\ne-Doręczenia: ${s.edelivery}` : ''}
-          </Text>
-        </View>
-
-        <View style={{ marginTop: 22 }}>
-          <UdButton title={sendTitle} onPress={confirm} disabled={!armed || sending} />
-        </View>
-      </ScrollView>
+        {/* Dane nadawcy – jak w Kontaktach: etykieta nad wartością */}
+        <SectionHeader>Twoje dane w zgłoszeniu</SectionHeader>
+        <UdCard>
+          {[
+            ['Imię i nazwisko', s.name],
+            ['E-mail', s.email],
+            ['Adres', s.address],
+            ...(s.msisdn ? [['Telefon', s.msisdn]] : []),
+            ...(s.edelivery ? [['e-Doręczenia', s.edelivery]] : []),
+          ].map(([label, value], i, all) => (
+            <View key={label} style={{ paddingVertical: 8, borderBottomWidth: i === all.length - 1 ? 0 : 1, borderBottomColor: ud.hairline }}>
+              <Text style={{ color: ud.muted, fontSize: 13 }}>{label}</Text>
+              <Text selectable style={{ color: ud.text, fontSize: 16, marginTop: 2 }}>{value}</Text>
+            </View>
+          ))}
+        </UdCard>
+      </View>
       <ImageViewer urls={viewer ? shotsOf(items[viewer.item].app).map((x) => x.full ?? x.thumb!) : []} index={viewer ? viewer.index : null} onClose={() => setViewer(null)} />
-      <UdTabs current="ReportConfirm" navigate={go} />
-    </View>
+    </LargeTitleScreen>
   );
 }

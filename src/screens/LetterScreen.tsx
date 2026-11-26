@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'expo-router';
+import { href, type RouteName } from '../lib/routes';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { fetchStatuses, type StatusDef } from '../api/apps';
 import { analyzeLetter, applyLetter, type LetterAnalysis, type LetterCandidate, type LetterCaseResult } from '../api/letters';
 import { isPhotoQuotaError } from '../api/udApi';
 import { fetchProfile } from '../api/user';
 import { PhotoQuotaNotice } from '../components/PhotoQuotaNotice';
-import { UdButton, UdCard, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdCard, UdHeader } from '../components/UD';
 import { ensureAiConsent } from '../lib/aiConsent';
 import { pickPhotos, takePhoto } from '../lib/gallery';
 import {
@@ -139,8 +141,9 @@ function CaseCard({ result, letter, statuses }: { result: LetterCaseResult; lett
 }
 
 // Jedno zdjęcie na raz: po zrobieniu zdjęcia (domyślnie aparat) albo wyborze z galerii analiza startuje od razu.
-export function LetterScreen({ navigation }: any) {
-  const go = (r: string) => navigation.navigate(r);
+export function LetterScreen() {
+  const router = useRouter();
+  const go = (r: string, params?: Record<string, string>) => router.navigate(href(r as RouteName, params));
   const [uri, setUri] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<LetterAnalysis | null>(null);
   const [busy, setBusy] = useState(false);
@@ -192,7 +195,7 @@ export function LetterScreen({ navigation }: any) {
 
   return (
     <KeyboardAvoidingView behavior="padding" style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader title="Pismo" onBack={() => navigation.goBack()} />
+      <UdHeader title="Pismo" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
         {!uri ? (
           <>
@@ -201,7 +204,7 @@ export function LetterScreen({ navigation }: any) {
             </Text>
             <Text style={{ color: ud.muted, marginTop: 6, fontSize: 12 }}>Odczyt zużywa 1 kredyt analizy zdjęć. Zdjęcie nie jest nigdzie zapisywane.</Text>
             <View style={{ marginTop: 12 }}>
-              <PhotoQuotaNotice quota={quota} patronem={patron} onMore={() => navigation.navigate('QuotaInfo')} />
+              <PhotoQuotaNotice quota={quota} patronem={patron} onMore={() => router.push(href('QuotaInfo'))} />
             </View>
             <UdButton title="Zrób zdjęcie pisma" onPress={() => add('camera')} />
             <UdButton title="Wybierz z galerii" variant="outline" onPress={() => add('gallery')} />
@@ -221,7 +224,7 @@ export function LetterScreen({ navigation }: any) {
         {error ? (
           <View style={{ marginTop: 12 }}>
             <Text style={{ color: ud.plateVerified, lineHeight: 20 }}>{error.text}</Text>
-            {error.quota ? <View style={{ marginTop: 10 }}><PhotoQuotaNotice quota={quota} patronem={patron} onMore={() => navigation.navigate('QuotaInfo')} /></View> : null}
+            {error.quota ? <View style={{ marginTop: 10 }}><PhotoQuotaNotice quota={quota} patronem={patron} onMore={() => router.push(href('QuotaInfo'))} /></View> : null}
             {!error.quota && uri ? <UdButton title="Spróbuj ponownie" onPress={() => void analyze(uri)} /> : null}
             <UdButton title="Wybierz inne zdjęcie" variant="outline" onPress={reset} />
           </View>
@@ -239,7 +242,6 @@ export function LetterScreen({ navigation }: any) {
           </View>
         ) : null}
       </ScrollView>
-      <UdTabs current="Letter" navigate={go} />
     </KeyboardAvoidingView>
   );
 }

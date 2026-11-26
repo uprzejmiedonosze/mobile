@@ -1,6 +1,9 @@
 ## RELEASE-CANDIDATE
 
 - iPhone: aparat w Poczekalni przy zdjęciach robionych poziomo miał napisy do góry nogami – teraz układ obraca się w dobrą stronę.
+- Nowy wygląd aplikacji: systemowy pasek zakładek i systemowe nagłówki ekranów (na Androidzie pasek aplikacji, na iPhonie duże tytuły) – czytelniej i wygodniej jedną ręką. Formularze zajmują całą szerokość ekranu. Na iPhonie (iOS 26) „Nowe zgłoszenie” jest osobnym przyciskiem obok zakładek.
+- Start: główny przycisk to teraz „Zrób zdjęcia” (aparat), obok Poczekalnia i „Nowe zgłoszenie”. Android: zamiast zakładki „Nowe” jest pływający przycisk „+” na ekranie Start z wyborem: Zrób zdjęcia, Poczekalnia, Nowe zgłoszenie.
+- Zgłoszenia: szczegóły zgłoszenia otwierają się w wysuwanym panelu, a wyszukiwarka jest w nagłówku listy. Formularze podpowiadają, czego brakuje, i mają przycisk chowający klawiaturę.
 
 ## v1.4.0 — 2026-11-20
 

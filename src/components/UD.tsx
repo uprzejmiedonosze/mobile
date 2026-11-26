@@ -78,7 +78,10 @@ export function UdHeader({ title, onBack, onNext, nextLabel = 'Dalej', backIcon 
   );
 }
 
-export function UdCard({ children }: React.PropsWithChildren) {
+// Karta (biała, zaokrąglona, z cieniem) – do bloków informacji (pulpit, potwierdzenie). `flat`: sama grupa bez ramki i wcięcia –
+// w formularzach, gdzie liczy się każdy piksel szerokości (pola na pełną szerokość, grupę wyznacza nagłówek sekcji nad nią).
+export function UdCard({ children, flat }: React.PropsWithChildren<{ flat?: boolean }>) {
+  if (flat) return <View style={{ marginVertical: 4 }}>{children}</View>;
   return (
     <View style={{ backgroundColor: ud.surface, borderRadius: ud.radiusCard, padding: 16, marginVertical: 8, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 20, shadowOffset: { width: 0, height: 4 }, elevation: 2 }}>
       {children}
@@ -100,7 +103,8 @@ export function UdButton({ title, onPress, variant = 'primary', disabled, pill }
       onPress={onPress}
       disabled={disabled}
       android_ripple={variant === 'primary' ? rippleOnDark : ripple}
-      style={{ overflow: 'hidden', backgroundColor: disabled ? ud.primaryOutline : s.bg, borderRadius: pill || variant === 'primary' || variant === 'accent' ? ud.radiusPill : ud.radiusButton, paddingHorizontal: 20, paddingVertical: 13, alignItems: 'center', borderWidth: s.border ? 2 : 0, borderColor: s.border, opacity: disabled ? 0.6 : 1, marginVertical: 6 }}
+      // reakcja już przy dotknięciu (iOS nie ma ripple): lekkie wciśnięcie, jak systemowe przyciski
+      style={({ pressed }) => ({ transform: [{ scale: pressed && !disabled ? 0.97 : 1 }], overflow: 'hidden', backgroundColor: disabled ? ud.primaryOutline : s.bg, borderRadius: pill || variant === 'primary' || variant === 'accent' ? ud.radiusPill : ud.radiusButton, paddingHorizontal: 20, paddingVertical: 13, alignItems: 'center', borderWidth: s.border ? 2 : 0, borderColor: s.border, opacity: disabled ? 0.6 : pressed ? 0.85 : 1, marginVertical: 6 })}
     >
       <Text style={{ color: disabled ? ud.muted : s.fg, fontFamily: ud.fontDisplay, fontSize: 15 }}>{title}</Text>
     </Pressable>

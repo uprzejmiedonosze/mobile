@@ -23,7 +23,7 @@ npm run typecheck
 Port `grupuj_sesje.py` / GROUPING.md w `src/lib/grouping.ts`: inwentaryzacja (EXIF, fallback `PXL_YYYYMMDD_HHMMSS` UTC→Warszawa, drop bez czasu) → sesje (przerwa 5 min, tylko czas) → klastry single-linkage (30 m LUB 30 s, most na skoki GPS) → manifest `R001…` (`needs_review` gdy <2 zdjęć lub brak GPS). Nad-scalanie zamierzone – późniejsza wizja dzieli po tablicy. Miniaturki 1600px robi krok wizji przed wysyłką do backendu.
 
 ## Logowanie (Konto)
-Bramka aktywna: bez sesji apka pokazuje TYLKO ekran Konto (jak web wymaga loginu do zgłoszeń), po zalogowaniu przełącza się na stos główny (`App.tsx`). Ten sam mechanizm co web: Firebase email-link (`EMAIL_LINK_SIGN_IN_METHOD`) + `POST /api/verify-token`, potem Bearer do `/api/rest/*` (geo, kategorie). Refresh token w SecureStore.
+Bramka aktywna: bez sesji apka pokazuje TYLKO ekran Konto (jak web wymaga loginu do zgłoszeń), po zalogowaniu przełącza się na zakładki `/app` (expo-router, `Stack.Protected` w `app/_layout.tsx`). Ten sam mechanizm co web: Firebase email-link (`EMAIL_LINK_SIGN_IN_METHOD`) + `POST /api/verify-token`, potem Bearer do `/api/rest/*` (geo, kategorie). Refresh token w SecureStore.
 
 Domyślnie logowanie idzie wobec **stagingu** (`https://staging.uprzejmiedonosze.net`, osobny projekt Firebase/baza niż prod z `../uprzejmiedonosze`) – patrz `EXPO_PUBLIC_UD_ENV` niżej. Konto z produkcji **nie istnieje** na stagingu (osobna pula użytkowników); świeże konto Firebase bez wiersza w bazie stagingu dostanie 404/403 z `/api/rest/*` dopóki nie przejdzie rejestracji przez web/`PATCH /api/rest/user/`.
 

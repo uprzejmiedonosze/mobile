@@ -5,7 +5,16 @@
 
 UD Pro — an Expo/React Native mobile client for uprzejmiedonosze.net (Polish parking-violation
 reporting service). Screens: Dashboard (`/app`), report creation (`/app/new`), list (`/app/list`) and
-account (`/app/account`), bottom tabs Start / Nowe / Zgłoszenia / Konto (same icons as the web tab bar), plus Poczekalnia where `waitingRoomEnabled`.
+account (`/app/account`), bottom tabs Start / Nowe / Zgłoszenia / Konto, plus Poczekalnia where `waitingRoomEnabled`.
+
+**Nawigacja: expo-router** (trasy w `app/`, adresy jak na webie). `index.ts` → `src/lib/bootstrap.ts` (Sentry, logi) → `expo-router/entry`.
+`app/_layout.tsx`: splash/bramka wersji + `Stack` z `Stack.Protected` (`/login` bez sesji, `/onboarding`, `/app` po rejestracji, `/page` = WebPage zawsze).
+`app/app/(tabs)/_layout.tsx`: `NativeTabs` (systemowy pasek, ikony SF Symbols/Material, na Androidzie chowany przy klawiaturze) z ekranami `/app` (`(home)/`), `/app/new`,
+`/app/waiting`, `/app/list` (własny natywny stos `(tabs)/list/_layout.tsx`: duży tytuł + systemowe wyszukiwanie nad FlatList), `/app/account`; każda zakładka to folder z `_layout.tsx` = `TabStack` (Android: natywny stos, iOS: `Slot`). **Nagłówek: `LargeTitleScreen`** – iOS: SwiftUI NavigationStack w treści; Android: pasek aplikacji z nagłówka stosu ustawiany przez `<Stack.Screen options>` (akcje `leading`/`trailing` jako ikony Material, wstecz tylko jawne) (na iOS 26+ „Nowe” to osobne kółko po prawej stronie paska: zakładka z `role="search"` i ikoną „+”, ostatnia; **na Androidzie zakładki „Nowe” nie ma** (`hidden`, `newReportTab` w `src/lib/routes.ts`) – na każdej zakładce (Start, Zgłoszenia, Poczekalnia, Konto) jest ten sam pływający „+” (`NewReportFab` → `SpeedDial`: Nowe zgłoszenie / Poczekalnia / Zrób zdjęcia), a `href('NewReport')` prowadzi do `/app/edit` bez parametrów = ten sam formularz z zapamiętanym szkicem, kluczowany `formKey`); ekrany procesów (`/app/edit`, `/app/confirm`, `/app/done`, `/app/letter`, `/app/quota`, `/app/camera`) wjeżdżają nad zakładki
+(`app/app/_layout.tsx`). Pliki tras tylko re-eksportują ekrany z `src/screens/` (ekrany zostają tam). Nazwy ekranów → adresy: `src/lib/routes.ts` (`href()`,
+listy id w parametrach jako „a,b”). Zakładka „Nowe” zostaje zamontowana – reset formularza przez `useNewReport.restart()` (klucz). Linki systemowe spoza tras
+(logowanie z maila, e2e) przekierowuje `app/+native-intent.tsx`. Nie importuj `@react-navigation/*` – tylko `expo-router` / `expo-router/react-navigation`.
+`UdTabs` zostało tylko dla starych, nieosiągalnych ekranów pipeline'u.
 Everything goes through the JWT REST API (`/api/rest/*`, Firebase Bearer) — never the cookie-based
 `/api/app/*` the web uses; both share their implementation in the backend's `src/inc/API.php`.
 
@@ -42,6 +51,11 @@ Kontrakt: `../uprzejmiedonosze/API.md` → „Letters endpoints”.
 
 **Aparat w appce i poczekalnia (od 1.3.0 w wydaniach; `waitingRoomEnabled`: Android i iOS).** `WaitingCameraScreen` (`expo-camera`, GPS z `expo-location`, przycisk „Następne auto”) zapisuje zdjęcia w prywatnym katalogu appki, poza rolką (`store/useWaitingRoom`: `<id>.jpg` + `<id>.json`). Praca w poziomie: appka zostaje zablokowana w pionie, obraca się tylko nakładka (`expo-sensors`, `uiRotation`), a orientację pliku ustawia CameraX (Android) / expo-camera (iOS – do potwierdzenia na telefonie); na iOS wysyłka z poczekalni najpierw pyta o zgodę na AI (`ensureAiConsent`). `WaitingRoomScreen` pokazuje paczki po 1–3 zdjęcia liczone bez sieci i bez kredytów (`lib/waitingRoom.ts`: granice „Następne auto” → `groupPhotos` → klaster > 3 dzielony przy największych przerwach w czasie), a adres paczki bierze z `reverseGeocode` dla najdokładniejszego odczytu GPS (`bestFix`). „Zgłoszenie” otwiera `NewReportScreen` z `waitingIds` (`usePhotoBatch.load`): dopiero wtedy jest wysyłka i ALPR. Taki szkic **nie używa** zapamiętanego `draftId` – jego id pamiętają zdjęcia, a szkic otwiera się z poczekalni (szkiców nie ma na liście zgłoszeń); po potwierdzeniu zdjęcia są kasowane (`removeDrafts`). Zdjęcia są oznaczone kontem (`owner`, `visiblePhotos`): poczekalnia pokazuje tylko zdjęcia zalogowanego konta, a te sprzed oznaczania dostaje pierwsze konto. Kopia zapasowa: Android wyłączona (`allowBackup: false`), iOS – katalog w iCloud Backup (świadomie, opisane w `docs/STORE-PRIVACY.md`). Android: opcjonalna kopia zdjęć z aparatu w galerii, album „Uprzejmie Donoszę” (przełącznik w Koncie, domyślnie wyłączony, `lib/galleryCopy.ts`; appka kopii nie kasuje). Retencji nie ma (decyzja: bez limitu). Przed wydaniem: deklaracje w sklepach.
 
+**Widget iOS (`targets/widget/`, `@bacons/apple-targets`).** Target `UDWidget` (SwiftUI, bez App Group i bez danych z appki):
+„Szybkie zgłoszenie” na ekranie głównym (mały = `/app/new`; średni = Nowe zgłoszenie / Aparat `/app/camera` / Poczekalnia `/app/waiting`)
+i „Aparat zgłoszeń” na ekranie blokady (`/app/camera`). Same deep linki `udpro:///…` (wariant dev: `udpro-dev`, rozpoznawany po bundle id
+`…pro.dev.widget`) obsługiwane przez trasy expo-router. Zmiany w Swift nie wymagają prebuild; zmiany `expo-target.config.js` – `npx expo prebuild -p ios --clean`.
+
 ## Non-functional requirements
 
 `docs/NFR.md` — wymagania niefunkcjonalne i status. Najważniejsze: każde żądanie REST niesie `X-UD-Schema` (wersja kontraktu API = `SCHEMA`)
@@ -76,7 +90,7 @@ app still owns; the key, model and token limits live server-side, see `OPENAI_VI
 
 ## Architecture — the pipeline
 
-The app is a linear five-screen stack (`App.tsx`: Picker → Analyze → Pairs → Proposals, plus
+The (legacy, unrouted) pipeline was a linear five-screen stack (Picker → Analyze → Pairs → Proposals, plus
 Account for auth), backed by one zustand store (`src/store/useSession.ts`) that accumulates state
 as it flows through each stage. All types are centralized in `src/types.ts` and are meant to mirror
 the PHP backend's shapes (`alpr.php`, `Geolocation.php`, `API.md`).
@@ -129,9 +143,9 @@ registered or its Auth `mobileLinksConfig.domain` is not `HOSTING_DOMAIN`, Fireb
 matching instructions on the Account screen.
 Without auth, geo/category endpoints return 403 and must be filled in by hand.
 
-The auth gate in `App.tsx` is **active**: with no session, the app shows only the Account screen
-(no back button, no tab bar — see `src/screens/AccountScreen.tsx`); once `useAuth` status is
-`logged`, it switches to the full stack starting at `Picker`. A splash screen covers the initial
+The auth gate in `app/_layout.tsx` is **active** (`Stack.Protected`): with no session, the app shows only `/login` (Account screen,
+no back button, no tab bar — see `src/screens/AccountScreen.tsx`); once `useAuth` status is
+`logged` and registration is checked, it switches to `/app` (or `/onboarding`). A splash screen covers the initial
 `hydrate()` call while the stored refresh token (if any) is checked.
 **Szybki start (`src/lib/startupCache.ts`).** Plik `startup-cache.json` (per środowisko + e-mail; kasowany w `logout`) trzyma stan sesji
 (rejestracja, odznaka PRO) i ostatni pulpit. Gdy jest wpis dla zarejestrowanego konta, `hydrate()` od razu ustawia `logged` (bez splasha

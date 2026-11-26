@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
-import { fetchDashboard, fmtInt, num, stripHtml, type DashBadge, type Dashboard } from '../api/dashboard';
+import { useRouter } from 'expo-router';
+import { href, type RouteName } from '../lib/routes';
+import { ActivityIndicator, Image, Linking, Pressable, Text, View } from 'react-native';
+import { fetchDashboard, fmtInt, num, stripHtml, type Dashboard } from '../api/dashboard';
 import { udConfig } from '../config';
 import { log } from '../lib/log';
 import { cachedDashboard, saveDashboard } from '../lib/startupCache';
@@ -9,90 +11,112 @@ import { patronem } from '../lib/sex';
 import { plural } from '../lib/reports';
 import type { PhotoQuota } from '../api/udApi';
 import { ErrorScreen } from '../components/ErrorScreen';
-import { UdButton, UdHeader, UdTabs } from '../components/UD';
+import { UdButton, UdCard, UdLogo } from '../components/UD';
+import { LargeTitleScreen } from '../components/LargeTitleScreen';
+import { SectionHeader } from '../components/FormBits';
+import { FAB_SPACE, fabShown, NewReportFab } from '../components/NewReportFab';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../store/useAuth';
 import { useWaitingRoom, waitingRoomEnabled } from '../store/useWaitingRoom';
 import { ripple, rippleOnDark, ud } from '../theme';
 
-const Eyebrow = ({ children }: { children: string }) => (
-  <Text style={{ fontFamily: ud.fontBodyBold, color: ud.muted, fontSize: 12, letterSpacing: 1, marginBottom: 10 }}>{children.toUpperCase()}</Text>
+// Pulpit według zasad Apple: duży natywny tytuł z powitaniem (LargeTitleScreen), najpierw główna akcja, potem sekcje w kartach
+// od najważniejszych (statystyki → ranga → limit zdjęć → odznaki → wsparcie). Nagłówek sekcji jak w listach iOS: drobny, nad kartą.
+// Co da się kliknąć, ma strzałkę i reaguje na dotyk – kafelek bez akcji wygląda inaczej niż kafelek-link.
+
+const Chevron = ({ color = ud.muted, external }: { color?: string; external?: boolean }) => (
+  <Text style={{ color, fontSize: external ? 15 : 22, lineHeight: 22, marginLeft: 8 }} accessibilityElementsHidden importantForAccessibility="no">{external ? '↗' : '›'}</Text>
 );
 
 // Zużycie limitu unikalnych przetworzonych zdjęć (okno kroczące); patroni mają wyższe progi, 50 zł = bez limitu.
-function PhotoQuotaSection({ q, patronem, onMore }: { q: PhotoQuota; patronem: string; onMore: () => void }) {
+function PhotoQuotaCard({ q, patronem, onMore }: { q: PhotoQuota; patronem: string; onMore: () => void }) {
   const left = q.remaining;
   // Zachęta do patronatu po przekroczeniu 50% limitu – tylko bez patronatu (patroni od 10 zł już mają wyższy próg).
   const upsell = q.limit !== null && q.used > q.limit / 2 && (q.tier === 'free' || q.tier === 'patron-below-min');
   const resets = q.resetsAt ? new Date(q.resetsAt * 1000).toLocaleDateString('pl-PL') : null;
   return (
-    <Section>
-      <Eyebrow>Przetworzone zdjęcia</Eyebrow>
-      <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 30, marginTop: 2 }}>
+    <UdCard>
+      <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28, letterSpacing: -0.3 }}>
         {q.limit === null ? `${fmtInt(q.used)} · bez limitu` : `${fmtInt(q.used)} / ${fmtInt(q.limit)}`}
       </Text>
       {q.limit !== null ? (
-        <View style={{ height: 10, borderRadius: 5, backgroundColor: ud.primaryOutline, marginTop: 12, overflow: 'hidden' }}>
-          <View style={{ width: `${Math.min(100, (q.used / q.limit) * 100)}%`, height: 10, backgroundColor: left === 0 ? ud.warning : ud.primary }} />
+        <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: q.limit, now: q.used }} style={{ height: 8, borderRadius: 4, backgroundColor: ud.primaryOutline, marginTop: 12, overflow: 'hidden' }}>
+          <View style={{ width: `${Math.min(100, (q.used / q.limit) * 100)}%`, height: 8, backgroundColor: left === 0 ? ud.warning : ud.primary }} />
         </View>
       ) : null}
-      <Text style={{ color: ud.text, marginTop: 12, lineHeight: 21 }}>
+      <Text style={{ color: ud.muted, marginTop: 10, lineHeight: 20, fontSize: 14 }}>
         {q.limit === null
           ? 'Dziękujemy za wsparcie – Twoje zdjęcia nie są limitowane.'
           : `Zdjęcia w ostatnich ${q.windowDays} dniach. Powtórne wysłanie tego samego zdjęcia nie zużywa limitu.${left === 0 && resets ? ` Limit odnowi się ${resets}.` : ''}`}
       </Text>
       {upsell ? (
-        <Pressable onPress={onMore} accessibilityRole="link" style={{ marginTop: 8 }}>
-          <Text style={{ color: ud.text, lineHeight: 21 }}>
-            Potrzebujesz więcej? <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>{`Zostań ${patronem} już od 10 zł`}</Text>
-          </Text>
+        <Pressable onPress={onMore} accessibilityRole="link" style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', minHeight: 44, marginTop: 6, opacity: pressed ? 0.6 : 1 })}>
+          <Text style={{ flex: 1, color: ud.primary, fontFamily: ud.fontBodyBold }}>{`Zostań ${patronem} już od 10 zł`}</Text>
+          <Chevron color={ud.primary} />
         </Pressable>
       ) : null}
-    </Section>
+    </UdCard>
   );
 }
 
-const Section = ({ children }: React.PropsWithChildren) => <View style={{ marginTop: 22 }}>{children}</View>;
-
-// Kafelek statystyki jak na www (.stat-card): biała karta z cienką ramką, duża liczba i opis; wyróżniony
-// (kwota mandatów) = zielona karta na całą szerokość.
+// Kafelek statystyki: duża liczba i opis. Z akcją – strzałka i wciśnięcie przy dotyku; bez akcji – płaski, bez strzałki.
 function Stat({ value, label, onPress, highlight }: { value: string; label: string; onPress?: () => void; highlight?: boolean }) {
+  const fg = highlight ? '#fff' : ud.heading;
   return (
     <Pressable
       onPress={onPress}
       disabled={!onPress}
-      android_ripple={highlight ? rippleOnDark : ripple}
-      style={{
+      accessibilityRole={onPress ? 'button' : 'text'}
+      accessibilityLabel={`${label}: ${value}`}
+      android_ripple={onPress ? (highlight ? rippleOnDark : ripple) : undefined}
+      style={({ pressed }) => ({
         overflow: 'hidden',
         width: highlight ? '100%' : '48.5%',
         backgroundColor: highlight ? ud.primary : ud.surface,
-        borderRadius: 22,
-        borderWidth: highlight ? 0 : 1,
-        borderColor: '#e6e3dc',
-        paddingHorizontal: 18,
-        paddingVertical: 20,
-        marginBottom: 12,
-        minHeight: highlight ? undefined : 98, // kafelki w rzędzie mają równą wysokość
-      }}
+        borderRadius: ud.radiusCard,
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+        marginBottom: 10,
+        minHeight: highlight ? undefined : 92, // kafelki w rzędzie mają równą wysokość
+        transform: [{ scale: pressed ? 0.97 : 1 }],
+        shadowColor: '#000', shadowOpacity: highlight ? 0 : 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 2 }, elevation: highlight ? 0 : 1,
+      })}
     >
-      <Text style={{ fontFamily: ud.fontDisplay, color: highlight ? '#fff' : ud.heading, fontSize: 30 }}>{value}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={{ fontFamily: ud.fontDisplay, color: fg, fontSize: 28, letterSpacing: -0.3 }}>{value}</Text>
+        {onPress ? <Chevron color={highlight ? ud.primaryOutline : ud.muted} /> : null}
+      </View>
       <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.85} style={{ color: highlight ? ud.primaryOutline : ud.muted, fontSize: 13, marginTop: 4 }}>{label}</Text>
     </Pressable>
   );
 }
 
-function SupportCard({ title, text, url, external, onOpen }: { title: string; text: string; url: string; external?: boolean; onOpen: (url: string, title: string) => void }) {
+// Wiersz listy wsparcia (jak komórka listy iOS): tytuł, opis, strzałka; zewnętrzne linki z ↗.
+function SupportRow({ title, text, url, external, onOpen, last }: { title: string; text: string; url: string; external?: boolean; onOpen: (url: string, title: string) => void; last?: boolean }) {
   return (
-    <Pressable onPress={() => (external ? Linking.openURL(externalUrl(url)).catch(() => {}) : onOpen(url, title))} accessibilityRole="link" style={{ paddingVertical: 8, marginBottom: 6 }}>
-      <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 16 }}>{title} {external ? '↗' : '→'}</Text>
-      <Text style={{ color: ud.muted, marginTop: 4 }}>{text}</Text>
+    <Pressable
+      onPress={() => (external ? Linking.openURL(externalUrl(url)).catch(() => {}) : onOpen(url, title))}
+      accessibilityRole="link"
+      accessibilityHint={external ? 'Otwiera się w przeglądarce' : undefined}
+      android_ripple={ripple}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', minHeight: 44, paddingVertical: 12, borderBottomWidth: last ? 0 : 1, borderBottomColor: ud.hairline, opacity: pressed ? 0.6 : 1 })}
+    >
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontFamily: ud.fontBodyBold, color: ud.heading, fontSize: 15 }}>{title}</Text>
+        <Text style={{ color: ud.muted, marginTop: 2, fontSize: 14, lineHeight: 19 }}>{text}</Text>
+      </View>
+      <Chevron external={external} />
     </Pressable>
   );
 }
 
-export function DashboardScreen({ navigation }: any) {
-  const go = (r: string, params?: object) => navigation.navigate(r, params);
+export function DashboardScreen() {
+  const router = useRouter();
+  const go = (r: string, params?: Record<string, string>) => router.navigate(href(r as RouteName, params));
+  const isPatron = useAuth((st) => st.isPatron);
+  const insets = useSafeAreaInsets();
   const [d, setD] = useState<Dashboard | null>(cachedDashboard); // ostatni pulpit z pamięci: pokazujemy od razu, load() odświeża
   const [err, setErr] = useState<unknown>(null); // błąd ładowania pulpitu (ApiError/Error) → ErrorScreen
-  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     setErr(null);
@@ -103,12 +127,8 @@ export function DashboardScreen({ navigation }: any) {
     } catch (e: any) {
       setErr(e);
       log.fail('pulpit', e);
-    } finally {
-      setRefreshing(false);
     }
   }, []);
-
-  const [badge, setBadge] = useState<DashBadge | null>(null);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (waitingRoomEnabled) useWaitingRoom.getState().hydrate(); }, []);
@@ -118,119 +138,140 @@ export function DashboardScreen({ navigation }: any) {
   const myBadges = s.badges ?? [];
   const active = num(s.active), fined = num(s['confirmed-fined']), instructed = num(s['confirmed-instructed']);
   const patron = myBadges.includes('patron');
-  // Karta liczy się jak link tylko gdy jest co otworzyć (jak {% if fined > 0 %} w app.html.twig).
+  // Kafelek jest linkiem tylko gdy jest co otworzyć (jak {% if fined > 0 %} w app.html.twig).
   const list = (filter: string) => (): void => go('Reports', { filter });
+  const open = (u: string, t: string) => openUdPage(router, u, t);
+
+  // Na środku paska logo UD (z „PRO” dla patronów, jak dawny UdHeader); powitanie jako nagłówek na początku treści.
+  const firstName = (d?.name ?? '').trim().split(/\s+/)[0];
+  const brand = (
+    <View accessible accessibilityRole="header" accessibilityLabel={isPatron ? 'Uprzejmie Donoszę PRO' : 'Uprzejmie Donoszę'} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+      <UdLogo height={22} />
+      {isPatron ? (
+        <View style={{ backgroundColor: ud.accent, borderRadius: ud.radiusPill, paddingHorizontal: 7, paddingVertical: 1 }}>
+          <Text style={{ color: ud.onAccent, fontFamily: ud.fontDisplay, fontSize: 11, letterSpacing: 0.5 }}>PRO</Text>
+        </View>
+      ) : null}
+    </View>
+  );
 
   // Pulpit to najważniejszy endpoint – gdy się nie wczyta (np. 500), pokazujemy pełny ekran błędu z linkiem do kontaktu.
   if (err && !d) {
     return (
-      <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-        <UdHeader />
-        <ErrorScreen error={err} onRetry={load} onContact={() => openUdPage(navigation, '/kontakt.html', 'Kontakt')} />
-        <UdTabs current="Dashboard" navigate={(r) => go(r)} />
+      // ErrorScreen ma własny ScrollView (flex: 1) – bez dużego tytułu, bo w przewijanej treści o wysokości dopasowanej do zawartości miałby zerową wysokość.
+      <View style={{ flex: 1, backgroundColor: ud.surfaceLow, paddingTop: insets.top }}>
+        <ErrorScreen error={err} onRetry={load} onContact={() => open('/kontakt.html', 'Kontakt')} />
       </View>
     );
   }
 
+  const earned = d?.badges.filter((b) => b.earned).length ?? 0;
+
+  const fab = fabShown;
+
   return (
-    <View style={{ flex: 1, backgroundColor: ud.surfaceLow }}>
-      <UdHeader />
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 28 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={ud.primary} />}>
-        {!d && !err ? <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} /> : null}
-        {d ? (
+    <>
+    <LargeTitleScreen title="Start" principal={brand} onRefresh={load}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 4, paddingBottom: fab ? FAB_SPACE : 32 }}>{/* miejsce pod pływającym „+”, żeby nie zasłaniał ostatniej karty */}
+        {!d ? <ActivityIndicator style={{ marginTop: 40 }} color={ud.primary} accessibilityLabel="Wczytuję pulpit" /> : (
           <>
-            <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 26 }}>Cześć{d.name ? ` ${d.name}` : ''},</Text>
-            <Text style={{ color: ud.text, marginTop: 6, lineHeight: 21 }}>{stripHtml(d.introMsg)}</Text>
-            <View style={{ marginTop: 14 }}>
-              <UdButton title="Nowe zgłoszenie" onPress={() => go('NewReport')} />
-              {waitingRoomEnabled ? (
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <View style={{ flex: 1 }}><UdButton title="Zrób zdjęcia" variant="outline" pill onPress={() => go('WaitingCamera')} /></View>
-                  <View style={{ flex: 1 }}><UdButton title={`Poczekalnia (${waitingCount})`} variant="outline" pill onPress={() => go('WaitingRoom')} /></View>
-                </View>
-              ) : null}
+            <Text accessibilityRole="header" style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 30, lineHeight: 36, letterSpacing: -0.4, marginTop: 8 }}>{firstName ? `Cześć, ${firstName}` : 'Cześć'}</Text>
+            {d.introMsg ? <Text style={{ color: ud.text, fontSize: 16, lineHeight: 22, marginTop: 4 }}>{stripHtml(d.introMsg)}</Text> : null}
+
+            {/* Główna akcja ekranu: aparat – zgłoszenia zaczynają się na ulicy, w pośpiechu, więc zdjęcia mają być na jedno dotknięcie;
+                Poczekalnia (gotowe paczki zdjęć) zaraz obok, a ręczne „Nowe zgłoszenie” jako akcja drugorzędna. Bez poczekalni – jak dawniej.
+                Android: te akcje są pod pływającym „+” (SpeedDial na dole ekranu), więc w treści ich nie powtarzamy. */}
+            {fab ? null : (
+              <View style={{ marginTop: 14 }}>
+                {waitingRoomEnabled ? (
+                  <>
+                    <UdButton title="Zrób zdjęcia" onPress={() => router.push(href('WaitingCamera'))} />
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <View style={{ flex: 1 }}><UdButton title={waitingCount ? `Poczekalnia (${waitingCount})` : 'Poczekalnia'} variant="outline" pill onPress={() => go('WaitingRoom')} /></View>
+                      <View style={{ flex: 1 }}><UdButton title="Nowe zgłoszenie" variant="outline" pill onPress={() => go('NewReport')} /></View>
+                    </View>
+                  </>
+                ) : (
+                  <UdButton title="Nowe zgłoszenie" onPress={() => go('NewReport')} />
+                )}
+              </View>
+            )}
+
+            <SectionHeader>Twoje statystyki</SectionHeader>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 8 }}>
+              <Stat value={`${fmtInt(num(s.mandates))} zł`} label="Kwota mandatów" highlight />
+              <Stat value={fmtInt(active)} label="Aktywne zgłoszenia" onPress={() => go('Reports')} />
+              <Stat value={fmtInt(fined)} label="Mandaty" onPress={fined > 0 ? list('confirmed-fined') : undefined} />
+              <Stat value={fmtInt(instructed)} label="Pouczenia" onPress={instructed > 0 ? list('confirmed-instructed') : undefined} />
+              <Stat value={fmtInt(num(s.points))} label="Punkty karne" />
             </View>
 
             {d.rank ? (
-              <Section>
-                <Eyebrow>Twoja ranga</Eyebrow>
-                <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 30, marginTop: 2 }}>{d.rank.desc}</Text>
-                {/* pasek z segmentem na każdą rangę – bez etykiet, więc nic się nie łamie na wąskim ekranie */}
-                <View style={{ flexDirection: 'row', gap: 6, marginTop: 12 }}>
-                  {Array.from({ length: d.rank.total }, (_, k) => (
-                    <View key={k} style={{ flex: 1, height: 10, borderRadius: 5, backgroundColor: k < d.rank.index ? ud.primary : ud.primaryOutline, opacity: k === d.rank.index - 1 ? 1 : k < d.rank.index ? 0.55 : 1 }} />
-                  ))}
-                </View>
-                <Text style={{ color: ud.text, marginTop: 12, lineHeight: 21 }}>
-                  {d.rank.next
-                    ? `Do rangi „${d.rank.next.desc}” brakuje ${plural(d.rank.next.missing, ['punktów karnych', 'punktu karnego', 'punktów karnych'])}.`
-                    : 'To najwyższa ranga – gratulacje!'}
-                </Text>
-              </Section>
+              <>
+                <SectionHeader>Twoja ranga</SectionHeader>
+                <UdCard>
+                  <Text style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 28, letterSpacing: -0.3 }}>{d.rank.desc}</Text>
+                  {/* pasek z segmentem na każdą rangę – bez etykiet, więc nic się nie łamie na wąskim ekranie */}
+                  <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: d.rank.total, now: d.rank.index }} style={{ flexDirection: 'row', gap: 4, marginTop: 12 }}>
+                    {Array.from({ length: d.rank.total }, (_, k) => (
+                      <View key={k} style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: k < d.rank.index ? ud.primary : ud.primaryOutline, opacity: k === d.rank.index - 1 ? 1 : k < d.rank.index ? 0.55 : 1 }} />
+                    ))}
+                  </View>
+                  <Text style={{ color: ud.muted, marginTop: 10, lineHeight: 20, fontSize: 14 }}>
+                    {d.rank.next
+                      ? `Do rangi „${d.rank.next.desc}” brakuje ${plural(d.rank.next.missing, ['punktów karnych', 'punktu karnego', 'punktów karnych'])}.`
+                      : 'To najwyższa ranga – gratulacje!'}
+                  </Text>
+                </UdCard>
+              </>
             ) : null}
 
-            <Section>
-              <Eyebrow>Twoje statystyki</Eyebrow>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                <Stat value={fmtInt(active)} label="Aktywne zgłoszenia" onPress={() => go('Reports')} />
-                <Stat value={fmtInt(fined)} label="Mandaty" onPress={fined > 0 ? list('confirmed-fined') : undefined} />
-                <Stat value={fmtInt(instructed)} label="Pouczenia" onPress={instructed > 0 ? list('confirmed-instructed') : undefined} />
-                <Stat value={fmtInt(num(s.points))} label="Punkty karne" />
-                <Stat value={`${fmtInt(num(s.mandates))} zł`} label="Kwota mandatów" highlight />
-              </View>
-            </Section>
+            {d.photoQuota ? (
+              <>
+                <SectionHeader>Przetworzone zdjęcia</SectionHeader>
+                <PhotoQuotaCard q={d.photoQuota} patronem={patronem(d.sexStrings)} onMore={() => router.push(href('QuotaInfo'))} />
+              </>
+            ) : null}
 
             {d.badges.length ? (
-              <Section>
-                <Eyebrow>Twoje odznaki</Eyebrow>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14 }}>
-                  {d.badges.map((b) => {
-                    const on = b.earned;
-                    return (
-                      <Pressable key={b.id} onPress={() => setBadge(b)} accessibilityRole="button" accessibilityLabel={`${b.name}: opis odznaki`} style={{ width: 90, alignItems: 'center' }}>
-                        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: ud.surface, alignItems: 'center', justifyContent: 'center', opacity: on ? 1 : 0.3 }}>
-                          {b.img ? <Image source={{ uri: `${udConfig.base}/${b.img}` }} style={{ width: 48, height: 48 }} resizeMode="contain" /> : null}
+              <>
+                <SectionHeader aside={`${earned} z ${d.badges.length}`}>Odznaki</SectionHeader>
+                <UdCard>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 14 }}>
+                    {d.badges.map((b) => (
+                      <Pressable key={b.id} onPress={() => router.push(href('Badge', { name: b.name, desc: stripHtml(b.desc), img: b.img || undefined, earned: b.earned ? '1' : '0' }))} accessibilityRole="button" accessibilityLabel={`${b.name}${b.earned ? '' : ', jeszcze niezdobyta'}`} accessibilityHint="Pokazuje opis odznaki"
+                        style={({ pressed }) => ({ width: '31%', alignItems: 'center', transform: [{ scale: pressed ? 0.94 : 1 }] })}>
+                        <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: ud.surfaceLow, alignItems: 'center', justifyContent: 'center', opacity: b.earned ? 1 : 0.35 }}>
+                          {b.img ? <Image source={{ uri: `${udConfig.base}/${b.img}` }} style={{ width: 44, height: 44 }} resizeMode="contain" /> : null}
                         </View>
-                        <Text style={{ fontSize: 11, textAlign: 'center', marginTop: 4, color: on ? ud.text : ud.muted }}>{b.name}</Text>
+                        <Text numberOfLines={2} style={{ fontSize: 12, lineHeight: 15, textAlign: 'center', marginTop: 6, color: b.earned ? ud.text : ud.muted }}>{b.name}</Text>
                       </Pressable>
-                    );
-                  })}
-                </View>
-              </Section>
+                    ))}
+                  </View>
+                </UdCard>
+              </>
             ) : null}
 
-            {d.photoQuota ? <PhotoQuotaSection q={d.photoQuota} patronem={patronem(d.sexStrings)} onMore={() => navigation.navigate('QuotaInfo')} /> : null}
-
-            <Section>
-              <Text accessibilityRole="header" style={{ fontFamily: ud.fontDisplay, color: ud.heading, fontSize: 22, marginBottom: 6 }}>Nie chcesz „donosić”?</Text>
-              <Text style={{ color: ud.muted, marginBottom: 10 }}>Dowiedz się, co jeszcze możesz zrobić.</Text>
-              <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Napisz pismo do polityka" text="W trzy minuty przełóż swoją frustrację w realne działanie." url="/napisz-pismo-do-polityka.html" />
-              <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Miejska Agenda Parkingowa" text="Poznaj zmiany w przepisach, po których Uprzejmie Donoszę nie będzie potrzebne." url="https://agendaparkingowa.pl/" />
+            <SectionHeader>Nie chcesz „donosić”?</SectionHeader>
+            <UdCard>
+              <Text style={{ color: ud.muted, fontSize: 14, marginBottom: 2 }}>Dowiedz się, co jeszcze możesz zrobić.</Text>
+              <SupportRow onOpen={open} external title="Napisz pismo do polityka" text="W trzy minuty przełóż swoją frustrację w realne działanie." url="/napisz-pismo-do-polityka.html" />
+              <SupportRow onOpen={open} external title="Miejska Agenda Parkingowa" text="Poznaj zmiany w przepisach, po których Uprzejmie Donoszę nie będzie potrzebne." url="https://agendaparkingowa.pl/" />
               {patron ? (
-                <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Wniosek do RPO" text="Poprzyj mój wniosek do Rzecznika Praw Obywatelskich o równe prawa dla pieszych i kierowców." url="https://www.change.org/Rowne-Prawa-Dla-Pieszych-i-Kierowcow/" />
+                <SupportRow onOpen={open} external last title="Wniosek do RPO" text="Poprzyj mój wniosek do Rzecznika Praw Obywatelskich o równe prawa dla pieszych i kierowców." url="https://www.change.org/Rowne-Prawa-Dla-Pieszych-i-Kierowcow/" />
               ) : (
                 <>
-                  <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} title="Patronite" text={`Utrzymanie serwerów kosztuje. Zostań ${patronem(d.sexStrings)} i pomóż nam działać stabilnie.`} url="/patronite.html" />
-                  <SupportCard onOpen={(u, t) => openUdPage(navigation, u, t)} external title="Suppi" text="Nie chcesz subskrypcji? Postaw nam kawę jednorazową, niewielką wpłatą." url="https://suppi.pl/uprzejmiedonosze" />
+                  <SupportRow onOpen={open} title="Patronite" text={`Utrzymanie serwerów kosztuje. Zostań ${patronem(d.sexStrings)} i pomóż nam działać stabilnie.`} url="/patronite.html" />
+                  <SupportRow onOpen={open} external last title="Suppi" text="Nie chcesz subskrypcji? Postaw nam kawę jednorazową, niewielką wpłatą." url="https://suppi.pl/uprzejmiedonosze" />
                 </>
               )}
-            </Section>
+            </UdCard>
           </>
-        ) : null}
-      </ScrollView>
-      <UdTabs current="Dashboard" navigate={(r) => go(r)} />
-      <Modal visible={!!badge} transparent animationType="fade" onRequestClose={() => setBadge(null)}>
-        <Pressable onPress={() => setBadge(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          {badge ? (
-            <Pressable style={{ backgroundColor: ud.surface, borderRadius: ud.radiusCard, padding: 22, alignItems: 'center', width: '100%', maxWidth: 360 }}>
-              {badge.img ? <Image source={{ uri: `${udConfig.base}/${badge.img}` }} style={{ width: 96, height: 96 }} resizeMode="contain" /> : null}
-              <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 16, color: ud.text, marginTop: 10, textAlign: 'center' }}>{badge.name}</Text>
-              <Text style={{ color: ud.muted, marginTop: 8, textAlign: 'center', lineHeight: 20 }}>{stripHtml(badge.desc)}</Text>
-              <Text style={{ fontFamily: ud.fontBodyBold, fontSize: 12, color: badge.earned ? ud.text : ud.muted, marginTop: 10 }}>{badge.earned ? 'ZDOBYTA' : 'JESZCZE NIEZDOBYTA'}</Text>
-            </Pressable>
-          ) : null}
-        </Pressable>
-      </Modal>
-    </View>
+        )}
+      </View>
+
+    </LargeTitleScreen>
+    {d ? <NewReportFab /> : null}
+    </>
   );
 }

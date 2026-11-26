@@ -1,5 +1,6 @@
 import { Linking } from 'react-native';
 import { udConfig } from '../config';
+import { href } from './routes';
 
 // Strona z backendu (/patronite.html itd.) → ekran WebPage z trybem ?embed; wszystko inne → przeglądarka.
 export const isUdPage = (url: string) => {
@@ -7,9 +8,10 @@ export const isUdPage = (url: string) => {
   return rel.startsWith('/') && /^\/[^?#]*\.html(?:[?#]|$)/.test(rel) ? rel : null;
 };
 
-export const openUdPage = (navigation: { navigate: (r: string, p?: object) => void }, url: string, title?: string) => {
+// `router` z useRouter() (expo-router) – wstrzykiwany, żeby lib nie zależał od nawigacji (testy w Node).
+export const openUdPage = (router: { push: (href: any) => void }, url: string, title?: string) => {
   const page = isUdPage(url);
-  if (page) navigation.navigate('WebPage', { path: page, title });
+  if (page) router.push(href('WebPage', { path: page, title }));
   else Linking.openURL(/^https?:/.test(url) ? url : `${udConfig.base}${url}`).catch(() => {});
 };
 
