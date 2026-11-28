@@ -63,10 +63,11 @@ export function ProfileFields({ value: p, onChange, email, disabled, navigation,
         </>
       ) : null}
 
-      <Text style={label}>Adres zamieszkania wraz z numerem lokalu i miastem</Text>
+      <Text style={label}>Adres do doręczeń (korespondencyjny) wraz z numerem lokalu i miastem</Text>
       <TextInput ref={addressRef} {...inputColors} style={input} value={p.address} onChangeText={(address) => onChange({ address })} maxLength={70} editable={!disabled} autoComplete="street-address" textContentType="fullStreetAddress" placeholder="(Ulica 10a/7, Miasto)"
         {...track('address')} returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => msisdnRef.current?.focus()} />
       {fieldErr(shown('address'))}
+      <Text style={label}>Nie musi to być adres zameldowania ani zamieszkania, możesz podać np. skrytkę pocztową. Odbieraj stamtąd pisma: nieodebrane mogą zostać uznane za doręczone.</Text>
 
       <Text style={label}>Numer kontaktowy (opcjonalny, ale ułatwi SM kontakt z Tobą)</Text>
       <TextInput ref={msisdnRef} {...inputColors} style={input} value={p.msisdn} onChangeText={(msisdn) => onChange({ msisdn })} maxLength={12} keyboardType="phone-pad" autoComplete="tel" textContentType="telephoneNumber" editable={!disabled} placeholder="666 666 666"
