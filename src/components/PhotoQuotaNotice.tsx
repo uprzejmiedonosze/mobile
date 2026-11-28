@@ -1,6 +1,7 @@
 import { Linking, Pressable, Text, View } from 'react-native';
 import { udConfig } from '../config';
 import type { PhotoQuota } from '../api/udApi';
+import { storeBilling } from '../lib/purchases';
 import { isPatronTier, quotaNotice } from '../lib/quotaNotice';
 import { ud } from '../theme';
 
@@ -31,7 +32,8 @@ export function PhotoQuotaNotice({ quota, patronem, onMore }: { quota: PhotoQuot
       </Text>
       <Pressable onPress={onMore} accessibilityRole="button" style={{ marginTop: 10 }}>
         <Text style={{ color: ud.primary, fontFamily: ud.fontBodyBold }}>
-          {isPatronTier(quota) ? 'Podnieś swój próg wsparcia na Patronite' : `Zostań ${patronem} już od 10 zł miesięcznie`}
+          {storeBilling ? 'Zwiększ limit w subskrypcji'
+            : isPatronTier(quota) ? 'Podnieś swój próg wsparcia na Patronite' : `Zostań ${patronem} już od 10 zł miesięcznie`}
         </Text>
       </Pressable>
     </View>

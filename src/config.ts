@@ -104,3 +104,9 @@ export const sentryConfig = {
   // EXPO_PUBLIC_SENTRY_ENV rozróżnia np. shadow (udEnv=prod, ale osobny host) od proda.
   environment: envOr(process.env.EXPO_PUBLIC_SENTRY_ENV, udEnv),
 } as const;
+
+// RevenueCat (subskrypcje App Store): publiczny klucz SDK aplikacji iOS („appl_…”), z natury jawny – to nie sekret.
+// Domyślny klucz jest tutaj, więc działa we wszystkich buildach (EAS nie czyta .env). Klucz secret zna tylko backend.
+export const purchasesConfig = {
+  iosKey: process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY || 'appl_BpaRZFMEVnDUMisKRCEAzWVMazx',
+} as const;

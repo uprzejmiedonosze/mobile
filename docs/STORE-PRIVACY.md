@@ -17,6 +17,7 @@ Robocze (stan na v1.0.0). Źródła: kod appki (`src/`), backend (`../uprzejmied
 | Klucz dostępu (passkey, klucz publiczny WebAuthn) | `api/passkey.ts` | backend UD | logowanie |
 | Raporty błędów/crashy (bez PII: `sendDefaultPii:false`, URL bez query) | `index.ts` Sentry | **Sentry** | stabilność |
 | Wersja appki/platforma (`X-UD-Client`) | każde żądanie | backend UD | zgodność kontraktu |
+| Zakupy (subskrypcje, **tylko iOS**): losowy identyfikator użytkownika (bez e-maila), historia transakcji App Store, kraj sklepu, dane urządzenia potrzebne SDK | `lib/purchases.ts` (SDK RevenueCat, uruchamiany dopiero na ekranie limitów) | **RevenueCat** (USA), backend UD (stan subskrypcji) | subskrypcje i limit zdjęć |
 | E-mail ze zgłoszeniem | backend | Mailgun → adresat (SM/policja) | wysyłka zgłoszenia |
 
 **Poczekalnia (aparat w appce):** zdjęcia z GPS leżą w prywatnym katalogu appki do wysłania/usunięcia (bez limitu czasu), przypisane do konta. Android: kopia zapasowa wyłączona (`allowBackup: false`); użytkownik może włączyć w Koncie kopię zdjęć w galerii (album „Uprzejmie Donoszę”, wtedy może je kopiować Zdjęcia Google – decyzja użytkownika, domyślnie wyłączone). **iOS: katalog trafia do iCloud Backup użytkownika** (świadoma decyzja 2026-11-20) – uwzględnij to w App Privacy/polityce.
@@ -32,6 +33,7 @@ Typy danych „collected”; wszystkie **powiązane z tożsamością** (linked t
 - User Content → **Photos or Videos**, **Other User Content** (komentarze, skany pism)
 - Location → **Precise Location**
 - Identifiers → **User ID**
+- Purchases → **Purchase History** (RevenueCat)
 - Diagnostics → **Crash Data** (Sentry; cel App Functionality; nie ustawiamy `Sentry.setUser`, więc „not linked”)
 - Other Data → **numery rejestracyjne pojazdów** (dane osób trzecich)
 
@@ -67,6 +69,8 @@ Polityka dziś mówi o serwisie www, Matomo, Firebase, Sentry, cookies. **Nie ws
 7. prostej, linkowalnej procedurze usunięcia konta (dla Play) – ✅ kotwica `#usuwanie-konta` → Data deletion URL = `https://uprzejmiedonosze.net/polityka-prywatnosci.html#usuwanie-konta`.
 
 Punkty 1–7 zostały dopisane w `../uprzejmiedonosze/src/templates/polityka-prywatnosci.html.twig` (sekcje VI–VIII) – do przeglądu prawnego i wdrożenia.
+
+**Do dopisania (subskrypcje iOS):** w polityce prywatności RevenueCat jako podmiot przetwarzający (poza EOG), zakres jak w tabeli wyżej.
 
 ## 5. Uprawnienia Androida (Play)
 Zadeklarowane: `ACCESS_MEDIA_LOCATION`, `READ_MEDIA_IMAGES`, `READ_MEDIA_VISUAL_USER_SELECTED` (Android 13+) oraz `READ_EXTERNAL_STORAGE` + `WRITE_EXTERNAL_STORAGE` (Android ≤12 – `expo-media-library` wymaga obu do odczytu galerii, bez nich galeria tam nie działa; `expo-media-library` sam prosi o właściwe uprawnienie wg wersji systemu, biblioteki deklarują je z `maxSdkVersion=32`). Appka używa **własnego pickera** na `MediaLibrary`

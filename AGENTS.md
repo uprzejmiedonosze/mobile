@@ -53,6 +53,13 @@ Kontrakt: `../uprzejmiedonosze/API.md` → „Letters endpoints”.
 o 15% wysokości zamiast połowy (próg Material nie ma settera, więc robi to `SheetDelegate`). Zmiana jest natywna – wymaga nowego builda Androida.
 Przy podbijaniu `react-native-screens` łatkę trzeba odtworzyć (`npx patch-package react-native-screens`) albo usunąć.
 
+**Płatności: iOS = App Store, Android = Patronite.** Na iOS (`storeBilling` w `src/lib/purchases.ts`) aplikacja **nie może** linkować
+ani zachęcać do płatności poza App Store (Patronite, Suppi – wytyczne 3.1.1/3.1.3); nowe teksty i odnośniki o wsparciu zawsze
+rozgałęziaj po `storeBilling`. Subskrypcje (`src/lib/subscription.ts`, `components/SubscriptionPlans.tsx` na `QuotaInfoScreen`) idą przez
+RevenueCat; SDK konfigurujemy leniwie, z `appUserId` z backendu (`GET /api/rest/subscription`, `POST …/sync`). Progi i identyfikatory
+produktów muszą być zgodne z backendem (`config.php: IAP_PRODUCTS`) i App Store Connect. `WebPageScreen` blokuje na iOS odnośniki
+płatnicze. Moduł nie jest linkowany na Androidzie (`react-native.config.js`).
+
 ## Non-functional requirements
 
 `docs/NFR.md` — wymagania niefunkcjonalne i status. Najważniejsze: każde żądanie REST niesie `X-UD-Schema` (wersja kontraktu API = `SCHEMA`)
