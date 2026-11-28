@@ -1,0 +1,5 @@
+• Szczegóły zgłoszenia w panelu od dołu, zamykanym pociągnięciem w dół; wyszukiwarka w nagłówku
+• Żółte oznaczenie recydywy pojazdów na liście
+• Podaj adres do doręczeń (może być skrytka); nieodebrane pisma mogą być uznane za doręczone
+• Nowe nagłówki i ekran logowania; „wstecz” z zakładki wraca na Start
+• Konto: potwierdzenie usunięcia passkeya, podpowiedzi w formularzach

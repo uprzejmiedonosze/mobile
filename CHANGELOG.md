@@ -1,5 +1,7 @@
 ## RELEASE-CANDIDATE
 
+## v1.5.0 — 2026-11-28
+
 - iPhone: limit zdjęć można zwiększyć miesięczną subskrypcją w App Store (ekran „Limity i subskrypcja” na Starcie), z przywracaniem zakupów i zarządzaniem subskrypcją. Wsparcie udzielone poza aplikacją nadal podnosi limit.
 - iPhone: aparat w Poczekalni przy zdjęciach robionych poziomo miał napisy do góry nogami – teraz układ obraca się w dobrą stronę.
 - Nowe, jaśniejsze nagłówki ekranów, a przełączanie zakładek w dolnym menu nie tworzy już historii do cofania – „wstecz” z zakładki wraca na Start.
