@@ -168,6 +168,12 @@ export const useAuth = create<Auth>((set, get) => ({
         return;
       }
       const m = e?.message ?? String(e);
+      if (e?.code === 'NETWORK_ERROR' || /NETWORK_ERROR/.test(m)) {
+        // brak łączności z Google – problem sieci użytkownika, nie usterka appki (bez alertu w Sentry)
+        set({ status: 'error', error: 'Brak połączenia z Google. Sprawdź internet i spróbuj ponownie.' });
+        log.warn('auth', `Google: ${m}`);
+        return;
+      }
       set({ status: 'error', error: m });
       log.fail('auth', new Error(`Google: ${m}`));
     }
