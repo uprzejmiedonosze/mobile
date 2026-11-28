@@ -48,4 +48,4 @@ yarn-error.*
 tests/
 
 secrets
-store
+/store/
