@@ -10,7 +10,7 @@ account (`/app/account`), bottom tabs Start / Nowe / Zgłoszenia / Konto (same i
 **Nawigacja (React Navigation, `App.tsx`).** Nagłówki to nagłówki native-stack (`src/components/header.tsx`); ekrany zakładek mają własny `PageHeader`
 (H1 pod paskiem statusu, w Zgłoszeniach z wyszukiwarką), ten sam na iOS i Androidzie, systemowym krojem. `UdHeader` został tylko
 w nieosiągalnych ekranach pipeline'u. Dolne menu (`UdTabs`) i zakładki siedzą w jednym stosie: na zakładki przechodź przez `goTab`
-(`src/lib/goTab.ts`, stos = [Start, zakładka], bez „wstecz”), na ekrany procesów zwykłym `navigate`/`push`. `NewReport` z `editId`/`waitingIds`
+(`src/lib/goTab.ts`, stos = [Start, zakładka], bez „wstecz”), na ekrany procesów zwykłym `navigate`/`push`. `NewReport` z `editId`/`waitingIds`/`fromWaiting`
 to ekran procesu. Szczegóły zgłoszenia z listy to arkusz `Report` (`ReportSheet` + `useReportSheet`). Deep linki `udpro:///app`, `/app/new`,
 `/app/list`, `/app/waiting`, `/app/account`, `/app/camera` (dev: `udpro-dev`): lista w `src/lib/deepLink.ts`; bez sesji są ignorowane.
 Everything goes through the JWT REST API (`/api/rest/*`, Firebase Bearer) — never the cookie-based

@@ -174,8 +174,8 @@ export function NewReportScreen({ navigation, route }: any) {
   // Ekran procesu: tytuł w nagłówku mówi, co robisz – edycja konkretnego numeru albo paczka z poczekalni.
   useLayoutEffect(() => {
     if (editId) navigation.setOptions({ title: `Edycja${app?.number ? ` ${app.number}` : ''}` });
-    else if (waitingIds) navigation.setOptions({ title: 'Z poczekalni' });
-  }, [navigation, editId, waitingIds, app?.number]);
+    else if (fromWaiting) navigation.setOptions({ title: 'Z poczekalni' });
+  }, [navigation, editId, fromWaiting, app?.number]);
 
   useEffect(() => { hydrate(); }, [hydrate]);
   // Punkt startowy mapy jak na www: ostatnie zgłoszenie → adres zamieszkania → (brak) środek Polski. Odświeżane przy
