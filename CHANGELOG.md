@@ -9,6 +9,7 @@
 - Formularze mówią, czego jeszcze brakuje, a błędy w danych konta pokazują się po wyjściu z pola.
 - Wygodniejsze pisanie: „Gotowe” nad klawiaturą iPhone’a przy dłuższych opisach, przechodzenie między polami konta i podpowiadanie danych.
 - Android: panel ze szczegółami zgłoszenia zamyka się krótkim pociągnięciem w dół.
+- Zgłoszenia: pojazdy zgłaszane więcej niż raz mają żółte oznaczenie recydywy już na liście, jak na stronie (liczba wykroczeń i zgłaszających).
 - Dane konta: zamiast „adresu zamieszkania” prosimy o adres do doręczeń – może to być np. skrytka pocztowa. Pisma, których nie odbierzesz, mogą zostać uznane za doręczone.
 
 ## v1.4.0 — 2026-11-20

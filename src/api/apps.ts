@@ -39,6 +39,7 @@ export type UdApp = {
   };
   carInfo?: { plateId?: string; brand?: string; model?: string; plateImage?: string; vehicleBox?: { x: number; y: number; width: number; height: number } }; // plateImage = wycinek tablicy, vehicleBox = ramka pojazdu z ALPR (piksele carImage)
   recipient?: Recipient | null;
+  recydywa?: { appsCnt: number; usersCnt: number }; // tylko w liście GET /api/rest/user/apps
   contextImage?: AppImage;
   carImage?: AppImage;
   thirdImage?: AppImage;

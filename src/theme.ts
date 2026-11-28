@@ -16,6 +16,8 @@ export const ud = {
   muted: '#6b7871',
   hairline: '#eeece6',
   plateYellow: '#E2C439',
+  recydywa: '#FFD60E', // $recydywaBg z webu
+  recydywaOnlyMe: '#FFD60E66',
   warning: '#a60',
   plateVerified: '#d32f2f',
   plateUnverified: '#e07b00',

@@ -8,7 +8,7 @@ import { validIdToken } from '../api/udApi';
 import { LETTER_LINK_LABEL, letterEntry } from '../lib/letters';
 import { fetchPhotoQuota } from '../api/photos';
 import { log } from '../lib/log';
-import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plateHistory, plural, reportBody, shortAddress, statusColor, witnessText } from '../lib/reports';
+import { fmtLongDate, fmtSent, filterChips, fmtShortDate, plateHistory, plural, recydywaBadge, reportBody, shortAddress, statusColor, witnessText } from '../lib/reports';
 import { PageHeader } from '../components/PageHeader';
 import { MultilineInput } from '../components/MultilineInput';
 import { ImageViewer } from '../components/ImageViewer';
@@ -22,7 +22,7 @@ import { useReportSheet } from '../store/useReportSheet';
 import { toast } from '../store/useToast';
 import { ud, inputColors, ripple, rippleBorderless } from '../theme';
 import { SvgXml } from 'react-native-svg';
-import { CHEVRON_ICON, DATETIME_ICON, DESCRIPTION_ICON, ENCRYPTED_ICON, INFO_ICON, PIN_ICON } from '../assets/detailIcons';
+import { CHEVRON_ICON, DATETIME_ICON, DESCRIPTION_ICON, ENCRYPTED_ICON, INFO_ICON, PIN_ICON, RECYDYWA_APPS_ICON, RECYDYWA_USERS_ICON } from '../assets/detailIcons';
 
 function StatusDot({ status, label, police }: { status: string; label: string; police?: boolean }) {
   const t = statusColor(status);
@@ -39,6 +39,25 @@ function PlateBadge({ plate }: { plate?: string }) {
   return (
     <View style={{ borderWidth: 1, borderColor: ud.text, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1, backgroundColor: ud.surface }}>
       <Text style={{ fontFamily: ud.fontBodyBold, color: ud.text, fontSize: 13, letterSpacing: 0.5 }}>{plate.replace(/\s+/g, '')}</Text>
+    </View>
+  );
+}
+
+// Żółte oznaczenie recydywy obok tablicy (.recydywa-list na webie): liczba zgłaszających i wykroczeń pojazdu.
+function RecydywaBadge({ counts }: { counts: UdApp['recydywa'] }) {
+  const b = recydywaBadge(counts);
+  if (!b) return null;
+  const count = (icon: string, n: number) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+      <SvgXml xml={icon} width={10} height={10} />
+      <Text style={{ fontFamily: ud.fontBodyBold, color: ud.onAccent, fontSize: 12 }}>{n}</Text>
+    </View>
+  );
+  return (
+    <View accessible accessibilityLabel={`Recydywa: wykroczeń ${b.apps}${b.users ? `, zgłaszających ${b.users}` : ''}`}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: ud.radiusPill, paddingHorizontal: 7, backgroundColor: b.users ? ud.recydywa : ud.recydywaOnlyMe }}>
+      {b.users ? count(RECYDYWA_USERS_ICON, b.users) : null}
+      {count(RECYDYWA_APPS_ICON, b.apps)}
     </View>
   );
 }
@@ -298,6 +317,7 @@ export function ReportCard({ app, statuses, categories, onOpen, details }: CardP
           <StatusDot status={app.status} label={statusName} police={police} />
           <Text style={{ color: ud.muted, fontSize: 13 }}>{fmtShortDate(app.date)}</Text>
           <View style={{ flexDirection: 'row', gap: 4 }}>
+            <RecydywaBadge counts={app.recydywa} />
             <PlateBadge plate={plate} />
           </View>
         </View>

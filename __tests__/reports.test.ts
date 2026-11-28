@@ -1,4 +1,4 @@
-import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor, hasRequiredPhotos, clearFieldError, formLocks, ownSameDayReport, plateHistory, imageVersion, withFallbackGps } from '../src/lib/reports';
+import { filterChips, fmtLongDate, fmtSent, fmtShortDate, plural, shortAddress, statusColor, hasRequiredPhotos, clearFieldError, formLocks, ownSameDayReport, plateHistory, imageVersion, withFallbackGps, recydywaBadge } from '../src/lib/reports';
 
 describe('reports helpers', () => {
   it('formats dates like the web list', () => {
@@ -131,5 +131,16 @@ describe('withFallbackGps', () => {
     const car = ph(null, null);
     expect(withFallbackGps(car, ph(null, null))).toBe(car);
     expect(withFallbackGps(car, null)).toBe(car);
+  });
+});
+
+describe('recydywaBadge', () => {
+  it('nie pokazuje się bez danych i przy jednym wykroczeniu', () => {
+    expect(recydywaBadge(undefined)).toBeNull();
+    expect(recydywaBadge({ appsCnt: 1, usersCnt: 1 })).toBeNull();
+  });
+  it('przy jednej osobie pomija liczbę zgłaszających', () => {
+    expect(recydywaBadge({ appsCnt: 3, usersCnt: 1 })).toEqual({ apps: 3, users: null });
+    expect(recydywaBadge({ appsCnt: 5, usersCnt: 2 })).toEqual({ apps: 5, users: 2 });
   });
 });

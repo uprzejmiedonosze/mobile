@@ -170,3 +170,10 @@ export function nextStepHint(f: { photosOk: boolean; uploading: boolean; geoBusy
   if (f.category === 0 && !f.comment.trim()) return 'Przy „Pozostałych przypadkach” opisz sytuację w komentarzu.';
   return 'Na następnym ekranie sprawdzisz zgłoszenie przed wysłaniem.';
 }
+
+// Oznaczenie recydywy na karcie listy, jak na webie (_application-short.html.twig): od dwóch wykroczeń pojazdu;
+// gdy zgłaszała jedna osoba („tylko ja”), bez liczby osób i na bledszym tle.
+export function recydywaBadge(r?: { appsCnt: number; usersCnt: number }): { apps: number; users: number | null } | null {
+  if (!r || !(r.appsCnt > 1)) return null;
+  return { apps: r.appsCnt, users: r.usersCnt > 1 ? r.usersCnt : null };
+}
